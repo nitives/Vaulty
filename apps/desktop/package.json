@@ -1,0 +1,27 @@
+{
+  "name": "desktop",
+  "version": "1.0.0",
+  "description": "Vaulty desktop app - Electron wrapper for Next.js",
+  "main": "dist/main.js",
+  "scripts": {
+    "dev": "tsc && electron .",
+    "build": "tsc",
+    "build:web": "npm run build --workspace apps/web",
+    "prep:web": "node scripts/prep-web.mjs",
+    "start": "electron .",
+    "package": "npm run build:web && npm run prep:web && npm run build && electron-builder"
+  },
+  "keywords": [
+    "electron",
+    "nextjs",
+    "scrapbook"
+  ],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "electron": "^33.0.0",
+    "electron-builder": "^25.0.0",
+    "typescript": "^5.0.0"
+  }
+}
