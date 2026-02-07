@@ -14,5 +14,11 @@
   },
   "devDependencies": {
     "concurrently": "^9.0.0"
+  },
+  "dependencies": {
+    "@bradleyhodges/sfsymbols": "^7.0.4",
+    "@bradleyhodges/sfsymbols-react": "^7.0.4",
+    "@bradleyhodges/sfsymbols-types": "^7.0.4",
+    "clsx": "^2.1.1"
   }
 }

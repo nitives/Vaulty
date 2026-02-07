@@ -1,26 +1,71 @@
 @import "tailwindcss";
+/* --- */
+@import "../styles/toggle.css";
+@import "../styles/scrollbar.css";
+@import "../styles/scrollbar.css";
+/* ------------------------------ */
+
+@custom-variant dark (&:is(.dark *));
+@custom-variant transparent (&:is(.transparent-mode *));
 
 :root {
-  --background: #ffffff;
+  --background: #fafafa;
   --foreground: #171717;
+  /* --- */
+  --shadow-1:
+    0px 1.8px 7.3px rgba(0, 0, 0, 0.071), 0px 6.3px 24.7px rgba(0, 0, 0, 0.112),
+    0px 30px 90px rgba(0, 0, 0, 0.2);
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+.dark {
+  --background: #09090b;
+  --foreground: #fafafa;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family:
+    var(--font-sf-pro),
+    system-ui,
+    -apple-system,
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Transparent / acrylic mode */
+body.transparent-mode {
+  background: transparent !important;
+  /* --- */
+  --edge-border-color-light: rgba(0, 0, 0, 0.1);
+  --edge-border-color-dark: rgba(255, 255, 255, 0.1);
+}
+
+/* Focus ring styling */
+:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+/* Disable user select for UI elements */
+button,
+[role="button"] {
+  user-select: none;
+}
+
+select::picker-icon {
+  color: red;
+  transition: 0.4s rotate;
 }

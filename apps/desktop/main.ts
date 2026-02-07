@@ -1,5 +1,6 @@
-import { app, BrowserWindow, ipcMain, shell } from "electron";
+import { app, BrowserWindow, ipcMain, nativeTheme, shell } from "electron";
 import path from "path";
+import fs from "fs";
 import { spawn, ChildProcess } from "child_process";
 
 // Use Electron's built-in property instead of electron-is-dev
@@ -11,16 +12,68 @@ let nextServer: ChildProcess | null = null;
 const DEV_SERVER_URL = "http://localhost:3000";
 const PROD_SERVER_PORT = 3000;
 
+// Simple settings persistence
+type BackgroundMaterial = "mica" | "acrylic";
+
+interface AppSettings {
+  transparency?: boolean;
+  backgroundMaterial?: BackgroundMaterial;
+  theme?: "system" | "light" | "dark";
+  compactMode?: boolean;
+  startCollapsed?: boolean;
+  confirmBeforeDelete?: boolean;
+}
+
+function getSettingsPath(): string {
+  return path.join(app.getPath("userData"), "settings.json");
+}
+
+function loadSettings(): AppSettings {
+  try {
+    return JSON.parse(fs.readFileSync(getSettingsPath(), "utf-8"));
+  } catch {
+    return {};
+  }
+}
+
+function saveSettings(settings: AppSettings): void {
+  fs.writeFileSync(getSettingsPath(), JSON.stringify(settings, null, 2));
+}
+
+function applyTransparency(
+  win: BrowserWindow,
+  enabled: boolean,
+  material?: BackgroundMaterial,
+): void {
+  const mat = material ?? "mica";
+  if (enabled) {
+    win.setBackgroundColor("#00000000");
+    // setBackgroundMaterial is available on Windows 11+
+    if (process.platform === "win32") {
+      (win as any).setBackgroundMaterial(mat);
+      console.log(`Applied ${mat} background on Windows`);
+    }
+  } else {
+    win.setBackgroundColor("#1a1a1a");
+    if (process.platform === "win32") {
+      (win as any).setBackgroundMaterial("none");
+      console.log("Removed transparent background on Windows");
+    }
+  }
+}
+
 function createWindow(): void {
   mainWindow = new BrowserWindow({
+    show: false,
     width: 1400,
     height: 900,
     minWidth: 800,
     minHeight: 600,
     title: "Vaulty",
-    titleBarStyle: "default",
+    roundedCorners: true,
+    titleBarStyle: "hidden",
     backgroundColor: "#1a1a1a",
-    show: false,
+    backgroundMaterial: "mica",
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -28,6 +81,17 @@ function createWindow(): void {
       spellcheck: true,
     },
   });
+
+  // Apply saved transparency setting on creation
+  const settings = loadSettings();
+  if (settings.transparency) {
+    applyTransparency(mainWindow, true, settings.backgroundMaterial);
+  }
+
+  // Apply saved theme so acrylic/mica tint is correct at launch
+  if (settings.theme) {
+    nativeTheme.themeSource = settings.theme;
+  }
 
   // Graceful window show to avoid white flash
   mainWindow.once("ready-to-show", () => {
@@ -157,3 +221,54 @@ app.on("before-quit", () => {
 // IPC handlers for renderer communication
 ipcMain.handle("app:version", () => app.getVersion());
 ipcMain.handle("app:name", () => app.getName());
+
+// Window control IPC handlers
+ipcMain.handle("window:minimize", () => {
+  mainWindow?.minimize();
+});
+
+ipcMain.handle("window:maximize", () => {
+  if (mainWindow?.isMaximized()) {
+    mainWindow.unmaximize();
+  } else {
+    mainWindow?.maximize();
+  }
+});
+
+ipcMain.handle("window:close", () => {
+  mainWindow?.close();
+});
+
+ipcMain.handle("window:isMaximized", () => {
+  return mainWindow?.isMaximized() ?? false;
+});
+
+// Transparency / settings IPC handlers
+ipcMain.handle("settings:get", () => {
+  return loadSettings();
+});
+
+ipcMain.handle("settings:set", (_event, patch: Partial<AppSettings>) => {
+  const settings = loadSettings();
+  const updated = { ...settings, ...patch };
+  saveSettings(updated);
+
+  // Apply side-effects for settings that need native calls
+  if (
+    mainWindow &&
+    ("transparency" in patch || "backgroundMaterial" in patch)
+  ) {
+    applyTransparency(
+      mainWindow,
+      updated.transparency ?? false,
+      updated.backgroundMaterial,
+    );
+  }
+
+  return updated;
+});
+
+// Theme IPC handler -- syncs nativeTheme so acrylic/mica tints match
+ipcMain.handle("theme:set", (_event, theme: "system" | "light" | "dark") => {
+  nativeTheme.themeSource = theme;
+});

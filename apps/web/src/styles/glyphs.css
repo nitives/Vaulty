@@ -1,0 +1,26 @@
+/* Fonts & Glyphs */
+
+@font-face {
+  font-family: "SF-Pro-Icons";
+  src: url("/fonts/SF-Pro-Icons.ttf") format("truetype");
+  font-weight: normal;
+  font-style: normal;
+  font-display: block; /* prevents FOUT for icons */
+}
+
+.glyphs {
+  all: unset;
+  font-family: "SF-Pro-Icons";
+  font-style: normal;
+  font-weight: normal;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-feature-settings: "kern";
+  text-align: center;
+  leading-trim: both;
+  text-edge: cap alphabetic;
+  text-box-edge: cap alphabetic;
+}

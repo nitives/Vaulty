@@ -27,4 +27,4 @@ if (fs.existsSync(path.join(web, "public"))) {
   cp(path.join(web, "public"), path.join(out, "public"));
 }
 
-console.log("✅ Copied Next standalone build to:", out);
+console.log("✅ | Copied Next standalone build to:", out);

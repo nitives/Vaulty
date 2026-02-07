@@ -1,0 +1,102 @@
+/* Toggle switch */
+
+:root {
+  --toggle-thumb-height: 18px;
+  --toggle-thumb-width: 18px;
+  --toggle-thumb-radius: calc(var(--toggle-thumb-height) / 2);
+  --toggle-border-width: 2px;
+  --toggle-width: 40px;
+  --toggle-radius: 9999px;
+  --toggle-bg: #d4d4d4;
+  --toggle-bg-on: #3b82f6;
+  --toggle-thumb-color: #ffffff;
+  --background-modifier-border-focus: #888888;
+}
+
+.dark {
+  --toggle-bg: #3f3f3f;
+  --toggle-bg-on: #3b82f6;
+  --toggle-thumb-color: #ffffff;
+  --background-modifier-border-focus: #555555;
+}
+
+.toggle-track {
+  background-color: var(--toggle-bg);
+  border-radius: var(--toggle-radius);
+  height: calc(var(--toggle-thumb-height) + var(--toggle-border-width) * 2);
+  width: var(--toggle-width);
+  box-shadow:
+    inset 0 4px 10px rgba(0, 0, 0, 0.07),
+    inset 0 0 1px rgba(0, 0, 0, 0.21);
+  outline: 0 solid var(--background-modifier-border-focus);
+  transition:
+    box-shadow 0.15s ease-in-out,
+    outline 0.15s ease-in-out,
+    opacity 0.15s ease-in-out;
+}
+
+.toggle-track-on {
+  background-color: var(--toggle-bg-on);
+}
+
+@media (hover: hover) {
+  .toggle-track:hover {
+    box-shadow:
+      inset 0 6px 20px rgba(0, 0, 0, 0.14),
+      inset 0 0 1px rgba(0, 0, 0, 0.28);
+  }
+}
+
+.toggle-track:focus-visible {
+  outline: var(--toggle-border-width) solid
+    var(--background-modifier-border-focus);
+}
+
+/* Thumb via ::after */
+.toggle-track::after {
+  pointer-events: none;
+  content: "";
+  display: block;
+  position: absolute;
+  background-color: var(--toggle-thumb-color);
+  width: var(--toggle-thumb-width);
+  height: var(--toggle-thumb-height);
+  margin: var(--toggle-border-width) 0 0 0;
+  border-radius: var(--toggle-thumb-radius);
+  left: 0;
+  top: 0;
+  transform: translate3d(var(--toggle-border-width), 0, 0);
+  transition:
+    transform 0.15s ease-in-out,
+    width 0.1s ease-in-out,
+    left 0.1s ease-in-out;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+}
+
+.toggle-track-on::after {
+  transform: translate3d(
+    calc(
+      var(--toggle-width) - var(--toggle-thumb-width) -
+        var(--toggle-border-width)
+    ),
+    0,
+    0
+  );
+}
+
+/* Stretch thumb slightly when pressing */
+.toggle-track:active::after {
+  width: calc(var(--toggle-thumb-width) + var(--toggle-border-width));
+}
+
+.toggle-track-on:active::after {
+  width: calc(var(--toggle-thumb-width) + var(--toggle-border-width));
+  transform: translate3d(
+    calc(
+      var(--toggle-width) - var(--toggle-thumb-width) -
+        var(--toggle-border-width) * 2
+    ),
+    0,
+    0
+  );
+}
