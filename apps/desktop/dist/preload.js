@@ -16,4 +16,21 @@ electron_1.contextBridge.exposeInMainWorld("electronAPI", {
     setSettings: (patch) => electron_1.ipcRenderer.invoke("settings:set", patch),
     // Theme sync (sets nativeTheme.themeSource in main process)
     setNativeTheme: (theme) => electron_1.ipcRenderer.invoke("theme:set", theme),
+    // Items storage
+    loadItems: () => electron_1.ipcRenderer.invoke("items:load"),
+    saveItems: (items) => electron_1.ipcRenderer.invoke("items:save", items),
+    addItem: (item) => electron_1.ipcRenderer.invoke("items:add", item),
+    deleteItem: (id) => electron_1.ipcRenderer.invoke("items:delete", id),
+    updateItem: (item) => electron_1.ipcRenderer.invoke("items:update", item),
+    // Image storage
+    saveImage: (imageData, filename) => electron_1.ipcRenderer.invoke("images:save", imageData, filename),
+    getImagesPath: () => electron_1.ipcRenderer.invoke("images:getPath"),
+    // Storage path
+    getStoragePath: () => electron_1.ipcRenderer.invoke("storage:getPath"),
+    // Trash
+    loadTrash: () => electron_1.ipcRenderer.invoke("trash:load"),
+    restoreFromTrash: (id) => electron_1.ipcRenderer.invoke("trash:restore", id),
+    deleteFromTrash: (id) => electron_1.ipcRenderer.invoke("trash:delete", id),
+    emptyTrash: () => electron_1.ipcRenderer.invoke("trash:empty"),
+    cleanupTrash: () => electron_1.ipcRenderer.invoke("trash:cleanup"),
 });

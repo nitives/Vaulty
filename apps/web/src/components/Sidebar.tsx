@@ -1,6 +1,7 @@
 "use client";
 
 import { useSettings } from "@/lib/settings";
+import clsx from "clsx";
 
 interface SidebarProps {
   activeFilter: string;
@@ -21,15 +22,16 @@ export function Sidebar({
   onFilterChange,
   isCollapsed,
 }: SidebarProps) {
-  const { settings } = useSettings();
-  const transparency = settings.transparency;
   return (
     <aside
-      className={`flex flex-col border-r transition-all duration-200 ${
-        transparency
-          ? "bg-neutral-50/50 dark:bg-neutral-900/50 backdrop-blur-sm border-[var(--edge-border-color-light)] dark:border-[var(--edge-border-color-dark)]"
-          : "bg-neutral-50 dark:bg-neutral-900 border-neutral-200 dark:border-neutral-800"
-      } ${isCollapsed ? "w-16" : "w-56"}`}
+      suppressHydrationWarning
+      className={clsx(
+        "flex flex-col transition-all duration-200",
+        "border-r",
+        "border-[var(--edge-border-color-light)] dark:border-[var(--edge-border-color-dark)]",
+        "bg-white dark:bg-neutral-900",
+        isCollapsed ? "w-16" : "w-56",
+      )}
     >
       {/* Filters */}
       <nav className="flex-1 space-y-1 p-2">
@@ -39,11 +41,11 @@ export function Sidebar({
             onClick={() => onFilterChange(filter.id)}
             className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
               activeFilter === filter.id
-                ? "bg-neutral-200 text-neutral-900 dark:bg-neutral-800 dark:text-neutral-100"
-                : "text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900 dark:text-neutral-400 dark:hover:bg-neutral-800 dark:hover:text-neutral-100"
+                ? "bg-black/10 text-neutral-900 dark:bg-white/5 dark:text-neutral-100"
+                : "text-neutral-600 hover:bg-black/5 hover:text-neutral-900 dark:text-neutral-400 dark:hover:bg-white/5 dark:hover:text-white"
             }`}
           >
-            <span className="text-base">{filter.icon}</span>
+            {/* <span className="text-base">{filter.icon}</span> */}
             {!isCollapsed && <span>{filter.label}</span>}
           </button>
         ))}

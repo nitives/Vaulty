@@ -20,6 +20,7 @@ function usePrefersReducedMotion() {
     mq.addEventListener("change", handler);
     return () => mq.removeEventListener("change", handler);
   }, []);
+
   return reduced;
 }
 

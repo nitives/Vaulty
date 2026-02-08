@@ -1,5 +1,21 @@
 import { contextBridge, ipcRenderer } from "electron";
 
+// Stored item type (dates as ISO strings for serialization)
+interface StoredItem {
+  id: string;
+  type: "note" | "image" | "link" | "reminder";
+  content: string;
+  tags: string[];
+  createdAt: string;
+  reminder?: string;
+  imageUrl?: string;
+}
+
+interface TrashedItem {
+  item: StoredItem;
+  deletedAt: string;
+}
+
 // Expose protected methods that allow the renderer process to use
 // ipcRenderer without exposing the entire object
 contextBridge.exposeInMainWorld("electronAPI", {
@@ -16,6 +32,24 @@ contextBridge.exposeInMainWorld("electronAPI", {
     ipcRenderer.invoke("settings:set", patch),
   // Theme sync (sets nativeTheme.themeSource in main process)
   setNativeTheme: (theme: string) => ipcRenderer.invoke("theme:set", theme),
+  // Items storage
+  loadItems: () => ipcRenderer.invoke("items:load"),
+  saveItems: (items: StoredItem[]) => ipcRenderer.invoke("items:save", items),
+  addItem: (item: StoredItem) => ipcRenderer.invoke("items:add", item),
+  deleteItem: (id: string) => ipcRenderer.invoke("items:delete", id),
+  updateItem: (item: StoredItem) => ipcRenderer.invoke("items:update", item),
+  // Image storage
+  saveImage: (imageData: string, filename: string) =>
+    ipcRenderer.invoke("images:save", imageData, filename),
+  getImagesPath: () => ipcRenderer.invoke("images:getPath"),
+  // Storage path
+  getStoragePath: () => ipcRenderer.invoke("storage:getPath"),
+  // Trash
+  loadTrash: () => ipcRenderer.invoke("trash:load"),
+  restoreFromTrash: (id: string) => ipcRenderer.invoke("trash:restore", id),
+  deleteFromTrash: (id: string) => ipcRenderer.invoke("trash:delete", id),
+  emptyTrash: () => ipcRenderer.invoke("trash:empty"),
+  cleanupTrash: () => ipcRenderer.invoke("trash:cleanup"),
 });
 
 // Type declarations for TypeScript
@@ -33,6 +67,34 @@ declare global {
         patch: Record<string, unknown>,
       ) => Promise<Record<string, unknown>>;
       setNativeTheme: (theme: string) => Promise<void>;
+      // Items storage
+      loadItems: () => Promise<StoredItem[]>;
+      saveItems: (items: StoredItem[]) => Promise<{ success: boolean }>;
+      addItem: (
+        item: StoredItem,
+      ) => Promise<{ success: boolean; items: StoredItem[] }>;
+      deleteItem: (
+        id: string,
+      ) => Promise<{ success: boolean; items: StoredItem[] }>;
+      updateItem: (
+        item: StoredItem,
+      ) => Promise<{ success: boolean; items: StoredItem[] }>;
+      // Image storage
+      saveImage: (
+        imageData: string,
+        filename: string,
+      ) => Promise<{ success: boolean; path?: string; error?: string }>;
+      getImagesPath: () => Promise<string>;
+      // Storage path
+      getStoragePath: () => Promise<string>;
+      // Trash
+      loadTrash: () => Promise<TrashedItem[]>;
+      restoreFromTrash: (
+        id: string,
+      ) => Promise<{ success: boolean; item?: StoredItem }>;
+      deleteFromTrash: (id: string) => Promise<{ success: boolean }>;
+      emptyTrash: () => Promise<{ success: boolean }>;
+      cleanupTrash: () => Promise<{ success: boolean; deletedCount: number }>;
     };
   }
 }

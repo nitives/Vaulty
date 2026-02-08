@@ -1,12 +1,14 @@
 "use client";
 
 import { useState, useEffect, useCallback, useSyncExternalStore } from "react";
+import clsx from "clsx";
 import SFIcon from "@bradleyhodges/sfsymbols-react";
 import {
   sfEllipsis,
-  sfInsetFilledLeadingthirdRectanglePortrait,
-  sfRectangle,
-  sfSidebarLeft,
+  sfMinus,
+  sfSquare,
+  sfSquareOnSquare,
+  sfXmark,
 } from "@bradleyhodges/sfsymbols";
 import { useSettings } from "@/lib/settings";
 import { SidebarIcon } from "./SidebarIcon";
@@ -34,7 +36,7 @@ function getIsElectronServerSnapshot() {
 
 // Shared styles for window control buttons
 const windowControlBase =
-  "flex h-full w-12 items-center justify-center text-neutral-500 transition-colors dark:text-neutral-400";
+  "flex h-full w-12 items-center justify-center transition-colors text-neutral-900/75 dark:text-neutral-100";
 const windowControlHover = "hover:bg-black/10 dark:hover:bg-white/10";
 const windowControlCloseHover = "hover:bg-red-600 hover:text-white";
 
@@ -50,13 +52,22 @@ export function Titlebar({
   onOpenSettings,
 }: TitlebarProps) {
   const { settings } = useSettings();
-  const transparency = settings.transparency;
   const isElectron = useSyncExternalStore(
     subscribe,
     getIsElectronSnapshot,
     getIsElectronServerSnapshot,
   );
   const [isMaximized, setIsMaximized] = useState(false);
+
+  // Keep the HTML class in sync with settings changes
+  // The blocking script sets the initial class, this keeps it updated
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    document.documentElement.classList.toggle(
+      "titlebar-transparent",
+      !!settings.titlebarTransparent,
+    );
+  }, [settings.titlebarTransparent]);
 
   const updateMaximizedState = useCallback(async () => {
     const api = getElectronAPI();
@@ -102,13 +113,23 @@ export function Titlebar({
   //   return null;
   // }
 
+  const sidebarButtonClassnames = clsx(
+    "cursor-pointer",
+    "flex h-6 w-9 rounded-[5px] items-center justify-center",
+    "transition-colors dark:mix-blend-plus-lighter",
+    "text-neutral-900/75 dark:text-neutral-100",
+    "hover:bg-black/10 dark:hover:bg-white/5",
+  );
+
   return (
     <header
-      className={`flex h-9 select-none items-center justify-between border-b  ${
-        transparency
-          ? "bg-neutral-50/50 dark:bg-neutral-900/50 backdrop-blur-sm border-[var(--edge-border-color-light)] dark:border-[var(--edge-border-color-dark)]"
-          : "bg-neutral-50 dark:bg-neutral-900 border-neutral-200 dark:border-neutral-800"
-      }`}
+      className={clsx(
+        "titlebar",
+        "flex h-9 select-none items-center justify-between",
+        "border-b",
+        "border-[var(--edge-border-color-light)] dark:border-[var(--edge-border-color-dark)]",
+        "bg-white dark:bg-neutral-900",
+      )}
       style={{ WebkitAppRegion: "drag" } as React.CSSProperties}
     >
       {/* App Title */}
@@ -120,7 +141,7 @@ export function Titlebar({
           className="flex items-center gap-2 pr-3"
           style={{ WebkitAppRegion: "drag" } as React.CSSProperties}
         >
-          <svg
+          {/* <svg
             className="h-4 w-4 text-blue-600 dark:text-blue-400"
             fill="none"
             stroke="currentColor"
@@ -132,7 +153,7 @@ export function Titlebar({
               strokeWidth={2}
               d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"
             />
-          </svg>
+          </svg> */}
           <span className="text-sm font-medium text-neutral-700 dark:text-neutral-300">
             Vaulty
           </span>
@@ -141,7 +162,7 @@ export function Titlebar({
         <button
           onClick={onOpenSettings}
           tabIndex={-1}
-          className="flex h-6 w-9 rounded-[5px] items-center justify-center cursor-pointer text-neutral-900 transition-colors hover:bg-black/10 dark:text-neutral-100 mix-blend-plus-lighter dark:hover:bg-white/5"
+          className={sidebarButtonClassnames}
           aria-label="Open settings"
         >
           <SFIcon icon={sfEllipsis} size={16} />
@@ -150,7 +171,7 @@ export function Titlebar({
         <button
           onClick={onToggleSidebar}
           tabIndex={-1}
-          className="flex h-6 w-9 rounded-[5px] items-center justify-center cursor-pointer text-neutral-900 transition-colors hover:bg-black/10 dark:text-neutral-100 mix-blend-plus-lighter dark:hover:bg-white/5"
+          className={sidebarButtonClassnames}
           aria-label={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
         >
           <SidebarIcon size={18} collapsed={sidebarCollapsed} />
@@ -169,19 +190,7 @@ export function Titlebar({
           className={`${windowControlBase} ${windowControlHover}`}
           aria-label="Minimize"
         >
-          <svg
-            className="h-4 w-4"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M20 12H4"
-            />
-          </svg>
+          <SFIcon icon={sfMinus} size={12} weight={0.5} />
         </button>
 
         {/* Maximize/Restore */}
@@ -193,29 +202,10 @@ export function Titlebar({
         >
           {isMaximized ? (
             // Restore icon (two overlapping squares)
-            <svg
-              className="h-3.5 w-3.5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M8 4h12v12M4 8h12v12H4z"
-              />
-            </svg>
+            <SFIcon icon={sfSquareOnSquare} size={12} weight={0.5} />
           ) : (
             // Maximize icon (single square)
-            <svg
-              className="h-3.5 w-3.5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <rect x="4" y="4" width="16" height="16" rx="1" strokeWidth={2} />
-            </svg>
+            <SFIcon icon={sfSquare} size={12} weight={0.5} />
           )}
         </button>
 
@@ -226,19 +216,7 @@ export function Titlebar({
           className={`${windowControlBase} ${windowControlCloseHover}`}
           aria-label="Close"
         >
-          <svg
-            className="h-4 w-4"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M6 18L18 6M6 6l12 12"
-            />
-          </svg>
+          <SFIcon icon={sfXmark} size={12} weight={0.25} />
         </button>
       </div>
     </header>

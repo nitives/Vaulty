@@ -5,6 +5,8 @@ import { useSettings } from "@/lib/settings";
 import { Icon, type IconName } from "./Icon";
 import { Toggle } from "./Toggle";
 import { Select } from "./Select";
+import SFIcon from "@bradleyhodges/sfsymbols-react";
+import { sfXmark } from "@bradleyhodges/sfsymbols";
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -44,7 +46,7 @@ function SettingsRow({ label, description, children }: SettingsRowProps) {
           {label}
         </p>
         {description && (
-          <p className="text-xs text-neutral-500 dark:text-neutral-400">
+          <p className="text-xs text-neutral-500 w-[90%] dark:text-neutral-400">
             {description}
           </p>
         )}
@@ -75,6 +77,19 @@ function AppearanceSection() {
           ]}
         />
       </SettingsRow>
+      <SettingsRow
+        label="Input bar position"
+        description="Place the input bar at the top or bottom of the content area (also reverses the content order)"
+      >
+        <Select
+          value={settings.inputBarPosition ?? "bottom"}
+          onChange={(v) => update({ inputBarPosition: v as "top" | "bottom" })}
+          options={[
+            { value: "top", label: "Top" },
+            { value: "bottom", label: "Bottom" },
+          ]}
+        />
+      </SettingsRow>
       <SettingsRow label="Compact mode" description="Reduce spacing in the UI">
         <Toggle
           checked={settings.compactMode ?? false}
@@ -82,8 +97,17 @@ function AppearanceSection() {
         />
       </SettingsRow>
       <SettingsRow
+        label="Transparent titlebar"
+        description="Make the titlebar background transparent (Requires window transparency to be visible)"
+      >
+        <Toggle
+          checked={settings.titlebarTransparent ?? false}
+          onChange={(v) => update({ titlebarTransparent: v })}
+        />
+      </SettingsRow>
+      <SettingsRow
         label="Window transparency"
-        description="Enable transparent blur background (Windows 11)"
+        description="Enable transparent blur background"
       >
         <Toggle
           checked={settings.transparency ?? false}
@@ -235,9 +259,11 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
         ref={modalRef}
         className={clsx(
           "relative flex h-[70vh] w-full max-w-3xl overflow-hidden rounded-xl border",
-          "bg-white/10 transparent:bg-neutral-100/95 dark:bg-neutral-900/50 transparent:dark:bg-neutral-900/95",
-          "border-neutral-200 dark:border-neutral-700 transparent:border-white/25",
-          "backdrop-blur-[8px] dark:backdrop-blur-[24px] transparent:backdrop-blur-[0px]",
+          "bg-white/75 dark:bg-neutral-900/85",
+          "transparent:bg-neutral-100/95 transparent:dark:bg-neutral-900/95",
+          "border-neutral-200 dark:border-neutral-700",
+          "transparent:border-white/25 transparent:dark:border-white/10",
+          "backdrop-blur-[24px]",
         )}
         role="dialog"
         aria-modal="true"
@@ -255,7 +281,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
           <div className="px-5 pt-5 pb-3">
             <h2
               id="settings-title"
-              className="text-lg font-semibold text-neutral-900 dark:text-neutral-100"
+              className="text-2xl select-none font-bold text-neutral-900 dark:text-neutral-100"
             >
               Settings
             </h2>
@@ -268,7 +294,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                 <button
                   key={section.id}
                   onClick={() => setActiveSection(section.id)}
-                  className={`flex items-center gap-2.5 rounded-lg px-3 py-1.5 text-left text-sm font-medium transition-colors cursor-pointer ${
+                  className={`flex select-none items-center gap-2.5 rounded-lg px-3 py-1.5 text-left text-sm font-medium transition-colors cursor-pointer ${
                     isActive
                       ? "bg-blue-600 text-white"
                       : "text-neutral-700 hover:bg-neutral-200/70 transparent:hover:bg-white/50 dark:text-neutral-300 dark:hover:bg-white/5 transparent:dark:hover:bg-black/10"
@@ -289,32 +315,25 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
         <div className="flex flex-1 flex-col overflow-hidden bg-white dark:bg-neutral-800">
           {/* Section header */}
           <div className="flex items-center justify-between border-b border-neutral-200 px-6 py-4 dark:border-neutral-700">
-            <h3 className="text-base font-semibold text-neutral-900 dark:text-neutral-100">
+            <h3 className="text-base select-none font-semibold text-neutral-900 dark:text-neutral-100">
               {activeLabel}
             </h3>
             <button
               onClick={onClose}
-              className="rounded-lg p-2 text-neutral-500 transition-colors hover:bg-neutral-100 hover:text-neutral-700 dark:text-neutral-400 dark:hover:bg-neutral-800 dark:hover:text-neutral-200"
+              className={clsx(
+                "rounded-full flex items-center justify-center size-7 -mr-2",
+                "transition-colors cursor-pointer",
+                "text-neutral-400 hover:text-neutral-500 dark:text-neutral-400 dark:hover:text-neutral-200",
+                "bg-black/10 hover:bg-black/15 dark:bg-white/10 dark:hover:bg-white/15",
+              )}
               aria-label="Close settings"
             >
-              <svg
-                className="h-4 w-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M6 18L18 6M6 6l12 12"
-                />
-              </svg>
+              <SFIcon icon={sfXmark} size={12} weight={1} />
             </button>
           </div>
 
           {/* Scrollable content */}
-          <div className="flex-1 overflow-y-auto px-6 py-5">
+          <div className="flex-1 overflow-y-auto p-2">
             <ActiveContent />
           </div>
         </div>

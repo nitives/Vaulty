@@ -3,9 +3,9 @@
 @import "../styles/toggle.css";
 @import "../styles/scrollbar.css";
 @import "../styles/scrollbar.css";
+@import "../styles/accent-color.css";
 /* ------------------------------ */
 
-@custom-variant dark (&:is(.dark *));
 @custom-variant transparent (&:is(.transparent-mode *));
 
 :root {
@@ -15,15 +15,17 @@
   --shadow-1:
     0px 1.8px 7.3px rgba(0, 0, 0, 0.071), 0px 6.3px 24.7px rgba(0, 0, 0, 0.112),
     0px 30px 90px rgba(0, 0, 0, 0.2);
-}
-
-.dark {
-  --background: #09090b;
-  --foreground: #fafafa;
+  /* --- */
+  --edge-border-color-light: rgba(0, 0, 0, 0.1);
+  --edge-border-color-dark: rgba(255, 255, 255, 0.1);
 }
 
 * {
   box-sizing: border-box;
+}
+
+*::selection {
+  background-color: rgba(59, 130, 246, 0.3) !important;
 }
 
 html,
@@ -53,6 +55,33 @@ body.transparent-mode {
   --edge-border-color-dark: rgba(255, 255, 255, 0.1);
 }
 
+/* Titlebar transparency - applied via class set by blocking script */
+.titlebar-transparent .titlebar {
+  background: transparent !important;
+}
+
+/* Input bar position - controlled via class set by blocking script */
+.input-bar-top .input-bar-top-container {
+  display: block;
+}
+.input-bar-top .input-bar-bottom-container {
+  display: none;
+}
+.input-bar-top .content-area {
+  padding-bottom: 1.5rem;
+  flex-direction: column;
+}
+html:not(.input-bar-top) .input-bar-top-container {
+  display: none;
+}
+html:not(.input-bar-top) .input-bar-bottom-container {
+  display: block;
+}
+html:not(.input-bar-top) .content-area {
+  padding-bottom: 8rem;
+  flex-direction: column-reverse;
+}
+
 /* Focus ring styling */
 :focus-visible {
   outline: 2px solid #3b82f6;
@@ -63,9 +92,4 @@ body.transparent-mode {
 button,
 [role="button"] {
   user-select: none;
-}
-
-select::picker-icon {
-  color: red;
-  transition: 0.4s rotate;
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback, useMemo, useEffect } from "react";
+import clsx from "clsx";
 import {
   Sidebar,
   InputBar,
@@ -12,41 +13,12 @@ import {
 } from "@/components";
 import { generateId, parseTimeQuery } from "@/lib/utils";
 import { SettingsProvider, useSettings } from "@/lib/settings";
-
-// Demo items for initial state
-const demoItems: Item[] = [
-  {
-    id: "demo-1",
-    type: "note",
-    content:
-      "Minecraft cave coords: X: -234, Y: 45, Z: 892 - Found diamonds here!",
-    tags: ["minecraft", "coords", "cave"],
-    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 2), // 2 hours ago
-  },
-  {
-    id: "demo-2",
-    type: "note",
-    content:
-      "Neuvillette build: 4pc Marechaussee Hunter, Hydro DMG goblet, prioritize Crit Rate",
-    tags: ["genshin", "build", "neuvillette"],
-    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24), // 1 day ago
-  },
-  {
-    id: "demo-3",
-    type: "link",
-    content: "https://github.com/features/copilot",
-    tags: ["dev", "ai", "tools"],
-    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 3), // 3 days ago
-  },
-  {
-    id: "demo-4",
-    type: "reminder",
-    content: "Sample the beat from Bound 2 (1:23-1:35)",
-    tags: ["sample", "music", "fl-studio"],
-    createdAt: new Date(Date.now() - 1000 * 60 * 30), // 30 min ago
-    reminder: new Date(Date.now() + 1000 * 60 * 60 * 24), // tomorrow
-  },
-];
+import {
+  loadItems as loadStoredItems,
+  addItem as addStoredItem,
+  deleteItem as deleteStoredItem,
+  saveImage,
+} from "@/lib/storage";
 
 export default function Home() {
   return (
@@ -58,12 +30,28 @@ export default function Home() {
 
 function HomeContent() {
   const { settings } = useSettings();
-  const [items, setItems] = useState<Item[]>(demoItems);
+  const [items, setItems] = useState<Item[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTagFilter, setActiveTagFilter] = useState<string | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+
+  // Load items from storage on mount
+  useEffect(() => {
+    async function load() {
+      try {
+        const storedItems = await loadStoredItems();
+        setItems(storedItems);
+      } catch (err) {
+        console.error("Failed to load items:", err);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    load();
+  }, []);
 
   // Toggle body class for transparent background
   useEffect(() => {
@@ -77,22 +65,67 @@ function HomeContent() {
     };
   }, [settings.transparency]);
 
+  // Sync input bar position class with settings
+  useEffect(() => {
+    if (settings.inputBarPosition === "top") {
+      document.documentElement.classList.add("input-bar-top");
+    } else {
+      document.documentElement.classList.remove("input-bar-top");
+    }
+  }, [settings.inputBarPosition]);
+
   const handleAddItem = useCallback(
-    (content: string, tags: string[], type: "note" | "image" | "link") => {
+    async (
+      content: string,
+      tags: string[],
+      type: "note" | "image" | "link",
+      imageData?: string,
+      imageName?: string,
+    ) => {
+      let imagePath: string | undefined;
+
+      // Save image to disk if present
+      if (imageData && type === "image") {
+        // Generate unique filename: timestamp_originalname
+        const timestamp = Date.now();
+        const safeName = (imageName || "image.png").replace(
+          /[^a-zA-Z0-9._-]/g,
+          "_",
+        );
+        const uniqueFilename = `${timestamp}_${safeName}`;
+
+        const savedPath = await saveImage(imageData, uniqueFilename);
+        if (savedPath) {
+          imagePath = savedPath;
+        }
+      }
+
       const newItem: Item = {
         id: generateId(),
         type,
-        content,
+        // For images, use the image name as content if no caption provided
+        content:
+          type === "image" && !content && imageName ? imageName : content,
         tags,
         createdAt: new Date(),
+        imageUrl: imagePath,
       };
+
+      // Update local state immediately for responsiveness
       setItems((prev) => [newItem, ...prev]);
+
+      // Persist to storage
+      await addStoredItem(newItem);
     },
     [],
   );
 
-  const handleDeleteItem = useCallback((id: string) => {
+  const handleDeleteItem = useCallback(async (id: string) => {
+    // Update local state immediately
     setItems((prev) => prev.filter((item) => item.id !== id));
+
+    // Persist to storage
+    await deleteStoredItem(id);
   }, []);
 
   const handleTagClick = useCallback((tag: string) => {
@@ -160,7 +193,12 @@ function HomeContent() {
 
   return (
     <div
-      className={`flex h-screen flex-col overflow-hidden ${settings.transparency ? "bg-transparent" : "bg-neutral-50 dark:bg-neutral-950"}`}
+      suppressHydrationWarning
+      className={clsx(
+        "flex h-screen w-screen flex-col",
+        "transparent:bg-white/0 transparent:dark:bg-black/10",
+        "bg-white dark:bg-neutral-900",
+      )}
     >
       {/* Custom Titlebar */}
       <Titlebar
@@ -175,7 +213,13 @@ function HomeContent() {
         onClose={() => setSettingsOpen(false)}
       />
 
-      <div className="flex flex-1 overflow-hidden">
+      <div
+        className={clsx(
+          "flex flex-1 overflow-hidden",
+          "bg-white dark:bg-neutral-900",
+          "transparent:bg-white/0 transparent:dark:bg-black/0",
+        )}
+      >
         {/* Sidebar */}
         <Sidebar
           activeFilter={activeFilter}
@@ -184,14 +228,17 @@ function HomeContent() {
         />
 
         {/* Main Content */}
-        <main className="flex flex-1 flex-col overflow-hidden">
+        <main className="relative flex flex-1 flex-col overflow-hidden">
           {/* Header with Search */}
           <header
-            className={`border-b border-neutral-200 px-6 py-4 dark:border-neutral-800 ${
-              settings.transparency
-                ? "bg-white/50 dark:bg-neutral-900/50 backdrop-blur-sm"
-                : "bg-white dark:bg-neutral-900"
-            }`}
+            suppressHydrationWarning
+            className={clsx(
+              "px-6 py-4",
+              "border-b",
+              "border-[var(--edge-border-color-light)] dark:border-[var(--edge-border-color-dark)]",
+              "transparent:bg-white/50 transparent:dark:bg-neutral-900/50 transparent:backdrop-blur-sm",
+              "bg-white dark:bg-neutral-900",
+            )}
           >
             <div className="mx-auto max-w-4xl">
               <SearchBar
@@ -202,15 +249,20 @@ function HomeContent() {
             </div>
           </header>
 
-          {/* Content Area */}
-          <div className="flex-1 overflow-y-auto px-6 py-6">
-            <div className="mx-auto max-w-4xl space-y-6">
-              {/* Input Bar */}
+          {/* Input Bar - Top position */}
+          <div className="input-bar-top-container shrink-0 border-b border-[var(--edge-border-color-light)] dark:border-[var(--edge-border-color-dark)] px-6 py-4 bg-white dark:bg-neutral-900 transparent:bg-white/50 transparent:dark:bg-neutral-900/50 transparent:backdrop-blur-sm">
+            <div className="mx-auto max-w-4xl">
               <InputBar onSubmit={handleAddItem} />
+            </div>
+          </div>
 
+          {/* Content Area */}
+          <div className="content-area flex-1 overflow-y-auto px-6 py-6 flex">
+            <div>
               {/* Active Tag Filter Badge */}
+
               {activeTagFilter && (
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 mb-4">
                   <span className="text-sm text-neutral-500 dark:text-neutral-400">
                     Filtering by tag:
                   </span>
@@ -241,12 +293,20 @@ function HomeContent() {
                 items={filteredItems}
                 onTagClick={handleTagClick}
                 onDeleteItem={handleDeleteItem}
+                isLoading={isLoading}
                 emptyMessage={
                   searchQuery
                     ? "No items match your search."
-                    : "No items yet. Add something above!"
+                    : "No items yet. Add something!"
                 }
               />
+            </div>
+          </div>
+
+          {/* Input Bar - Bottom position (floating overlay) */}
+          <div className="input-bar-bottom-container pointer-events-none absolute bottom-0 left-0 right-0 px-6 py-4 pt-8">
+            <div className="pointer-events-auto mx-auto">
+              <InputBar onSubmit={handleAddItem} />
             </div>
           </div>
         </main>

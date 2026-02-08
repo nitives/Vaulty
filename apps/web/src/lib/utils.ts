@@ -33,6 +33,47 @@ export function formatDistanceToNow(date: Date): string {
 }
 
 /**
+ * Format a date as a short time string (e.g., "2:29 PM" for today, "Feb 7, 2:29 PM" for older)
+ */
+export function formatTimeShort(date: Date): string {
+  const now = new Date();
+  const isToday =
+    date.getDate() === now.getDate() &&
+    date.getMonth() === now.getMonth() &&
+    date.getFullYear() === now.getFullYear();
+
+  const timeStr = date.toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
+
+  if (isToday) {
+    return timeStr;
+  }
+
+  // Check if it's yesterday
+  const yesterday = new Date(now);
+  yesterday.setDate(yesterday.getDate() - 1);
+  const isYesterday =
+    date.getDate() === yesterday.getDate() &&
+    date.getMonth() === yesterday.getMonth() &&
+    date.getFullYear() === yesterday.getFullYear();
+
+  if (isYesterday) {
+    return `Yesterday at ${timeStr}`;
+  }
+
+  // For older dates, show the date
+  const dateStr = date.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+  });
+
+  return `${dateStr}, ${timeStr}`;
+}
+
+/**
  * Generate a simple unique ID
  */
 export function generateId(): string {
