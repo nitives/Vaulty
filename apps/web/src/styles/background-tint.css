@@ -1,0 +1,27 @@
+:root {
+  --main-content-background-tint-light: rgba(
+    255,
+    255,
+    255,
+    var(--main-content-background-tint-opacity-light, 0.1)
+  );
+  --main-content-background-tint-opacity-light: 0.1;
+  --main-content-background-tint-dark: rgba(
+    0,
+    0,
+    0,
+    var(--main-content-background-tint-opacity-dark, 0.15)
+  );
+  --main-content-background-tint-opacity-dark: 0.15;
+  --main-content-background-tint: var(--main-content-background-tint-light);
+  --main-content-background-tint-opacity: var(
+    --main-content-background-tint-opacity-light
+  );
+}
+
+.dark {
+  --main-content-background-tint: var(--main-content-background-tint-dark);
+  --main-content-background-tint-opacity: var(
+    --main-content-background-tint-opacity-dark
+  );
+}

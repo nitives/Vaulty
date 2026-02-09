@@ -8,14 +8,14 @@
   --toggle-width: 40px;
   --toggle-radius: 9999px;
   --toggle-bg: #d4d4d4;
-  --toggle-bg-on: #3b82f6;
+  --toggle-bg-on: var(--accent-500, #3b82f6);
   --toggle-thumb-color: #ffffff;
   --background-modifier-border-focus: #888888;
 }
 
 .dark {
   --toggle-bg: #3f3f3f;
-  --toggle-bg-on: #3b82f6;
+  --toggle-bg-on: var(--accent-500, #3b82f6);
   --toggle-thumb-color: #ffffff;
   --background-modifier-border-focus: #555555;
 }

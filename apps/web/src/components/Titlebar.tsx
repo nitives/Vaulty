@@ -9,6 +9,7 @@ import {
   sfSquare,
   sfSquareOnSquare,
   sfXmark,
+  sfMagnifyingglass,
 } from "@bradleyhodges/sfsymbols";
 import { useSettings } from "@/lib/settings";
 import { SidebarIcon } from "./SidebarIcon";
@@ -44,12 +45,14 @@ interface TitlebarProps {
   sidebarCollapsed?: boolean;
   onToggleSidebar?: () => void;
   onOpenSettings?: () => void;
+  onToggleSearch?: () => void;
 }
 
 export function Titlebar({
   sidebarCollapsed,
   onToggleSidebar,
   onOpenSettings,
+  onToggleSearch,
 }: TitlebarProps) {
   const { settings } = useSettings();
   const isElectron = useSyncExternalStore(
@@ -134,7 +137,7 @@ export function Titlebar({
     >
       {/* App Title */}
       <div
-        className="flex h-full items-center pl-3"
+        className="flex h-full items-center -ml-1.5"
         style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
       >
         <div
@@ -142,7 +145,7 @@ export function Titlebar({
           style={{ WebkitAppRegion: "drag" } as React.CSSProperties}
         >
           {/* <svg
-            className="h-4 w-4 text-blue-600 dark:text-blue-400"
+            className="h-4 w-4 text-[var(--accent-600)] dark:text-[var(--accent-400)]"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -154,9 +157,9 @@ export function Titlebar({
               d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"
             />
           </svg> */}
-          <span className="text-sm font-medium text-neutral-700 dark:text-neutral-300">
+          {/* <span className="pl-3 text-sm font-medium text-neutral-700 dark:text-neutral-300">
             Vaulty
-          </span>
+          </span> */}
         </div>
         {/* Settings Button */}
         <button
@@ -175,6 +178,15 @@ export function Titlebar({
           aria-label={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
         >
           <SidebarIcon size={18} collapsed={sidebarCollapsed} />
+        </button>
+        {/* Search Toggle Button */}
+        <button
+          onClick={onToggleSearch}
+          tabIndex={-1}
+          className={sidebarButtonClassnames}
+          aria-label="Toggle search"
+        >
+          <SFIcon icon={sfMagnifyingglass} size={16} />
         </button>
       </div>
 

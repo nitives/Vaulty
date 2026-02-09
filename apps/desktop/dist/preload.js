@@ -16,6 +16,8 @@ electron_1.contextBridge.exposeInMainWorld("electronAPI", {
     setSettings: (patch) => electron_1.ipcRenderer.invoke("settings:set", patch),
     // Theme sync (sets nativeTheme.themeSource in main process)
     setNativeTheme: (theme) => electron_1.ipcRenderer.invoke("theme:set", theme),
+    // Accent color (Windows only)
+    getWindowsAccentColor: () => electron_1.ipcRenderer.invoke("accent:getWindowsColor"),
     // Items storage
     loadItems: () => electron_1.ipcRenderer.invoke("items:load"),
     saveItems: (items) => electron_1.ipcRenderer.invoke("items:save", items),

@@ -13,15 +13,29 @@ import {
 // Add new settings fields here. Every field must be optional so the
 // persisted JSON stays forward-compatible.
 
+export type AccentColor =
+  | "multicolor"
+  | "blue"
+  | "purple"
+  | "pink"
+  | "red"
+  | "orange"
+  | "yellow"
+  | "green"
+  | "graphite";
+
 export interface AppSettings {
   transparency?: boolean;
   titlebarTransparent?: boolean;
   backgroundMaterial?: "mica" | "acrylic";
   theme?: "system" | "light" | "dark";
+  accentColor?: AccentColor;
   compactMode?: boolean;
   startCollapsed?: boolean;
   confirmBeforeDelete?: boolean;
   inputBarPosition?: "top" | "bottom";
+  backgroundTintOpacityLight?: number;
+  backgroundTintOpacityDark?: number;
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -29,10 +43,13 @@ export const DEFAULT_SETTINGS: AppSettings = {
   titlebarTransparent: false,
   backgroundMaterial: "mica",
   theme: "system",
+  accentColor: "blue",
   compactMode: false,
   startCollapsed: false,
   confirmBeforeDelete: true,
   inputBarPosition: "bottom",
+  backgroundTintOpacityLight: 1,
+  backgroundTintOpacityDark: 1.5,
 };
 
 // -- localStorage helpers (for fast sync access on page load) --
@@ -173,6 +190,22 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     mq.addEventListener("change", handler);
     return () => mq.removeEventListener("change", handler);
   }, [settings.theme]);
+
+  // Sync tint opacity CSS variables when settings change
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    const root = document.documentElement;
+    const lightAlpha = settings.backgroundTintOpacityLight ?? 0.1;
+    const darkAlpha = settings.backgroundTintOpacityDark ?? 0.15;
+    root.style.setProperty(
+      "--main-content-background-tint-light",
+      `rgba(255,255,255,${lightAlpha})`,
+    );
+    root.style.setProperty(
+      "--main-content-background-tint-dark",
+      `rgba(23,23,23,${darkAlpha})`,
+    );
+  }, [settings.backgroundTintOpacityLight, settings.backgroundTintOpacityDark]);
 
   const update = useCallback((patch: Partial<AppSettings>) => {
     setSettings((prev) => {

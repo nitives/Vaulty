@@ -10,3 +10,4 @@ export { SettingsModal } from "./SettingsModal";
 export { Toggle } from "./Toggle";
 export { Select } from "./Select";
 export { DropdownMenu, type DropdownMenuItem } from "./DropdownMenu";
+export { AccentColorPicker } from "./AccentColorPicker";

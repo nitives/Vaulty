@@ -36,14 +36,19 @@ const themeScript = `
       if (settings.inputBarPosition === 'top') {
         document.documentElement.classList.add('input-bar-top');
       }
+      // Apply accent color
+      var accentColor = settings.accentColor || 'blue';
+      document.documentElement.setAttribute('data-accent', accentColor);
     } else {
       window.__VAULTY_SETTINGS__ = null;
       if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
         document.documentElement.classList.add('dark');
       }
+      document.documentElement.setAttribute('data-accent', 'blue');
     }
   } catch (e) {
     window.__VAULTY_SETTINGS__ = null;
+    document.documentElement.setAttribute('data-accent', 'blue');
   }
 })();
 `;

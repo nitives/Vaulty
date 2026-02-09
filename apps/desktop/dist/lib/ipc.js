@@ -46,6 +46,21 @@ function registerIpcHandlers(getMainWindow) {
     electron_1.ipcMain.handle("theme:set", (_event, theme) => {
         electron_1.nativeTheme.themeSource = theme;
     });
+    // Windows accent color
+    electron_1.ipcMain.handle("accent:getWindowsColor", () => {
+        if (process.platform === "win32") {
+            try {
+                // Get the Windows accent color (returns RRGGBBAA format)
+                const accentColor = electron_1.systemPreferences.getAccentColor();
+                // getAccentColor returns RRGGBBAA, we only need RRGGBB
+                return `#${accentColor.slice(0, 6)}`;
+            }
+            catch {
+                return null;
+            }
+        }
+        return null;
+    });
     // Items storage
     electron_1.ipcMain.handle("items:load", () => {
         return (0, storage_1.loadItems)();

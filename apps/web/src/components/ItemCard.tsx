@@ -38,7 +38,7 @@ function renderContentWithLinks(content: string) {
           href={part}
           target="_blank"
           rel="noopener noreferrer"
-          className="text-blue-600 hover:underline dark:text-blue-400"
+          className="text-[var(--accent-600)] hover:underline dark:text-[var(--accent-400)]"
           onClick={(e) => e.stopPropagation()}
         >
           {part}
@@ -95,7 +95,7 @@ export function ItemCard({ item, onTagClick, onDelete }: ItemCardProps) {
             {item.type}
           </span> */}
           <SFIcon
-            className="text-neutral-900 transition-colors dark:text-white/10 group-hover:dark:text-white"
+            className="text-neutral-900/10 group-hover:text-neutral-900/50 transition-colors dark:text-white/10 group-hover:dark:text-white"
             icon={sfCircleFill}
             size={6}
           />
@@ -112,7 +112,7 @@ export function ItemCard({ item, onTagClick, onDelete }: ItemCardProps) {
                 href={item.content}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-blue-500 hover:underline dark:text-blue-400"
+                className="text-[var(--accent-500)] hover:underline dark:text-[var(--accent-400)]"
               >
                 {item.content}
               </a>

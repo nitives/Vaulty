@@ -24,6 +24,7 @@ declare global {
         patch: Record<string, unknown>,
       ) => Promise<Record<string, unknown>>;
       setNativeTheme: (theme: string) => Promise<void>;
+      getWindowsAccentColor: () => Promise<string | null>;
       // Storage API
       loadItems: () => Promise<StoredItem[]>;
       saveItems: (items: StoredItem[]) => Promise<void>;

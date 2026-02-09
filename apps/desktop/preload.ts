@@ -32,6 +32,8 @@ contextBridge.exposeInMainWorld("electronAPI", {
     ipcRenderer.invoke("settings:set", patch),
   // Theme sync (sets nativeTheme.themeSource in main process)
   setNativeTheme: (theme: string) => ipcRenderer.invoke("theme:set", theme),
+  // Accent color (Windows only)
+  getWindowsAccentColor: () => ipcRenderer.invoke("accent:getWindowsColor"),
   // Items storage
   loadItems: () => ipcRenderer.invoke("items:load"),
   saveItems: (items: StoredItem[]) => ipcRenderer.invoke("items:save", items),
@@ -67,6 +69,7 @@ declare global {
         patch: Record<string, unknown>,
       ) => Promise<Record<string, unknown>>;
       setNativeTheme: (theme: string) => Promise<void>;
+      getWindowsAccentColor: () => Promise<string | null>;
       // Items storage
       loadItems: () => Promise<StoredItem[]>;
       saveItems: (items: StoredItem[]) => Promise<{ success: boolean }>;

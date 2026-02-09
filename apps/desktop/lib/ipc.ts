@@ -1,4 +1,10 @@
-import { app, ipcMain, nativeTheme, BrowserWindow } from "electron";
+import {
+  app,
+  ipcMain,
+  nativeTheme,
+  BrowserWindow,
+  systemPreferences,
+} from "electron";
 import {
   loadItems,
   saveItems,
@@ -73,6 +79,21 @@ export function registerIpcHandlers(
   // Theme
   ipcMain.handle("theme:set", (_event, theme: "system" | "light" | "dark") => {
     nativeTheme.themeSource = theme;
+  });
+
+  // Windows accent color
+  ipcMain.handle("accent:getWindowsColor", () => {
+    if (process.platform === "win32") {
+      try {
+        // Get the Windows accent color (returns RRGGBBAA format)
+        const accentColor = systemPreferences.getAccentColor();
+        // getAccentColor returns RRGGBBAA, we only need RRGGBB
+        return `#${accentColor.slice(0, 6)}`;
+      } catch {
+        return null;
+      }
+    }
+    return null;
   });
 
   // Items storage

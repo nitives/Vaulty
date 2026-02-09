@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useCallback, useMemo, useEffect } from "react";
+import { useState, useCallback, useMemo, useEffect, useRef } from "react";
+import { motion, AnimatePresence } from "motion/react";
 import clsx from "clsx";
 import {
   Sidebar,
   InputBar,
   ItemList,
-  SearchBar,
   Item,
   Titlebar,
   SettingsModal,
@@ -19,6 +19,8 @@ import {
   deleteItem as deleteStoredItem,
   saveImage,
 } from "@/lib/storage";
+import SFIcon from "@bradleyhodges/sfsymbols-react";
+import { sfMagnifyingglass, sfXmark } from "@bradleyhodges/sfsymbols";
 
 export default function Home() {
   return (
@@ -37,6 +39,10 @@ function HomeContent() {
   const [activeTagFilter, setActiveTagFilter] = useState<string | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [searchVisible, setSearchVisible] = useState(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const stickToBottomRef = useRef(true);
 
   // Load items from storage on mount
   useEffect(() => {
@@ -73,6 +79,59 @@ function HomeContent() {
       document.documentElement.classList.remove("input-bar-top");
     }
   }, [settings.inputBarPosition]);
+
+  // Sync accent color attribute with settings
+  useEffect(() => {
+    document.documentElement.setAttribute(
+      "data-accent",
+      settings.accentColor ?? "blue",
+    );
+
+    // If multicolor is selected, fetch and apply Windows accent color
+    if (
+      settings.accentColor === "multicolor" &&
+      window.electronAPI?.getWindowsAccentColor
+    ) {
+      window.electronAPI.getWindowsAccentColor().then((color) => {
+        if (color) {
+          // Set the base color - CSS uses oklch to derive all shades
+          document.documentElement.style.setProperty(
+            "--windows-accent-base",
+            color,
+          );
+          console.log("Applied Windows accent color:", color);
+        }
+      });
+    }
+  }, [settings.accentColor]);
+
+  // Ctrl+F keyboard shortcut for search
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === "f") {
+        e.preventDefault();
+        setSearchVisible(true);
+        setTimeout(() => searchInputRef.current?.focus(), 50);
+      }
+      if (e.key === "Escape" && searchVisible) {
+        setSearchVisible(false);
+        setSearchQuery("");
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [searchVisible]);
+
+  const toggleSearch = useCallback(() => {
+    setSearchVisible((prev) => {
+      if (!prev) {
+        setTimeout(() => searchInputRef.current?.focus(), 50);
+      } else {
+        setSearchQuery("");
+      }
+      return !prev;
+    });
+  }, []);
 
   const handleAddItem = useCallback(
     async (
@@ -191,6 +250,57 @@ function HomeContent() {
     return result;
   }, [items, activeFilter, searchQuery, activeTagFilter]);
 
+  const displayItems = useMemo(() => {
+    const pos = settings.inputBarPosition ?? "bottom";
+    if (pos === "bottom") {
+      // oldest -> newest so newest is nearest the bottom input
+      return [...filteredItems].reverse();
+    }
+    // top: newest -> oldest
+    return filteredItems;
+  }, [filteredItems, settings.inputBarPosition]);
+
+  // NEW: Track whether user is near bottom (only in bottom mode)
+  const handleScroll = useCallback(() => {
+    if (settings.inputBarPosition !== "bottom") return;
+    const el = scrollRef.current;
+    if (!el) return;
+
+    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    stickToBottomRef.current = distanceFromBottom < 48;
+  }, [settings.inputBarPosition]);
+
+  // NEW: On first load or switching to bottom, jump to bottom
+  useEffect(() => {
+    if (!isLoading && settings.inputBarPosition === "bottom") {
+      const el = scrollRef.current;
+      if (!el) return;
+
+      requestAnimationFrame(() => {
+        el.scrollTop = el.scrollHeight;
+      });
+    }
+  }, [isLoading, settings.inputBarPosition]);
+
+  // NEW: When list/filters change in bottom mode, keep pinned only if user was near bottom
+  useEffect(() => {
+    if (settings.inputBarPosition !== "bottom") return;
+    const el = scrollRef.current;
+    if (!el) return;
+    if (!stickToBottomRef.current) return;
+
+    requestAnimationFrame(() => {
+      el.scrollTop = el.scrollHeight;
+    });
+  }, [
+    settings.inputBarPosition,
+    items.length,
+    activeFilter,
+    activeTagFilter,
+    searchQuery,
+    isLoading,
+  ]);
+
   return (
     <div
       suppressHydrationWarning
@@ -205,6 +315,7 @@ function HomeContent() {
         sidebarCollapsed={sidebarCollapsed}
         onToggleSidebar={() => setSidebarCollapsed(!sidebarCollapsed)}
         onOpenSettings={() => setSettingsOpen(true)}
+        onToggleSearch={toggleSearch}
       />
 
       {/* Settings Modal */}
@@ -225,29 +336,72 @@ function HomeContent() {
           activeFilter={activeFilter}
           onFilterChange={setActiveFilter}
           isCollapsed={sidebarCollapsed}
+          // onTagClick={handleTagClick}
+          // recentTags={Array.from(
+          //   new Set(items.flatMap((item) => item.tags).filter(Boolean)),
+          // ).slice(0, 8)}
         />
 
         {/* Main Content */}
-        <main className="relative flex flex-1 flex-col overflow-hidden">
-          {/* Header with Search */}
-          <header
-            suppressHydrationWarning
-            className={clsx(
-              "px-6 py-4",
-              "border-b",
-              "border-[var(--edge-border-color-light)] dark:border-[var(--edge-border-color-dark)]",
-              "transparent:bg-white/50 transparent:dark:bg-neutral-900/50 transparent:backdrop-blur-sm",
-              "bg-white dark:bg-neutral-900",
+        <main
+          className={clsx(
+            "relative flex flex-1 flex-col overflow-hidden transition-colors",
+            "bg-[var(--main-content-background-tint-light)]",
+            "dark:bg-[var(--main-content-background-tint-dark)]",
+          )}
+        >
+          {/* Floating Search Bar - Top Right with animation */}
+          <AnimatePresence>
+            {searchVisible && (
+              <motion.div
+                key="search-bar"
+                initial={{ y: -10, opacity: 0, filter: "blur(12px)" }}
+                animate={{ y: 0, opacity: 1, filter: "blur(0px)" }}
+                exit={{ y: -10, opacity: 0, filter: "blur(12px)" }}
+                transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+                className="absolute top-4 right-6 z-50"
+              >
+                <div className="relative flex items-center">
+                  <SFIcon
+                    icon={sfMagnifyingglass}
+                    size={16}
+                    className="absolute left-3 text-neutral-900 dark:text-white/50 z-10"
+                  />
+                  <input
+                    ref={searchInputRef}
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") handleSearch(searchQuery);
+                      if (e.key === "Escape") {
+                        setSearchVisible(false);
+                        setSearchQuery("");
+                      }
+                    }}
+                    placeholder="Search…"
+                    className={clsx(
+                      "h-9 w-72 rounded-lg pl-10 pr-8 text-sm shadow-lg backdrop-blur",
+                      "bg-white/80 dark:bg-neutral-800/80",
+                      "text-neutral-900 dark:text-neutral-100",
+                      "placeholder:text-neutral-400 dark:placeholder:text-neutral-500",
+                      "border border-neutral-200 dark:border-neutral-700",
+                      "!outline-none transition-all focus:ring-2 focus:ring-[var(--accent-500)] focus:border-transparent",
+                    )}
+                  />
+                  <button
+                    onClick={() => {
+                      setSearchVisible(false);
+                      setSearchQuery("");
+                    }}
+                    className="absolute cursor-pointer right-0 size-8 flex items-center justify-center z-10 transition-colors text-neutral-900 hover:text-neutral-600 dark:text-white/50 dark:hover:text-white/50"
+                  >
+                    <SFIcon icon={sfXmark} size={12} weight={0.5} />
+                  </button>
+                </div>
+              </motion.div>
             )}
-          >
-            <div className="mx-auto max-w-4xl">
-              <SearchBar
-                value={searchQuery}
-                onChange={setSearchQuery}
-                onSearch={handleSearch}
-              />
-            </div>
-          </header>
+          </AnimatePresence>
 
           {/* Input Bar - Top position */}
           <div className="input-bar-top-container shrink-0 border-b border-[var(--edge-border-color-light)] dark:border-[var(--edge-border-color-dark)] px-6 py-4 bg-white dark:bg-neutral-900 transparent:bg-white/50 transparent:dark:bg-neutral-900/50 transparent:backdrop-blur-sm">
@@ -257,7 +411,11 @@ function HomeContent() {
           </div>
 
           {/* Content Area */}
-          <div className="content-area flex-1 overflow-y-auto px-6 py-6 flex">
+          <div
+            ref={scrollRef}
+            onScroll={handleScroll}
+            className="content-area flex-1 overflow-y-auto px-6 py-6 flex"
+          >
             <div>
               {/* Active Tag Filter Badge */}
 
@@ -268,7 +426,7 @@ function HomeContent() {
                   </span>
                   <button
                     onClick={() => setActiveTagFilter(null)}
-                    className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-3 py-1 text-sm font-medium text-blue-800 dark:bg-blue-900 dark:text-blue-200"
+                    className="inline-flex items-center gap-1 rounded-full bg-[var(--accent-100)] px-3 py-1 text-sm font-medium text-[var(--accent-800)] dark:bg-[var(--accent-900)] dark:text-[var(--accent-200)]"
                   >
                     #{activeTagFilter}
                     <svg
@@ -290,7 +448,7 @@ function HomeContent() {
 
               {/* Item List */}
               <ItemList
-                items={filteredItems}
+                items={displayItems}
                 onTagClick={handleTagClick}
                 onDeleteItem={handleDeleteItem}
                 isLoading={isLoading}

@@ -193,7 +193,7 @@ export function InputBar({ onSubmit }: InputBarProps) {
         "bg-white dark:bg-neutral-900/95 transparent:dark:bg-neutral-900/95 backdrop-blur-[24px] backdrop-saturate-150",
         `${
           isDragging
-            ? " bg-blue-50 dark:bg-blue-950"
+            ? " bg-[var(--accent-50)] dark:bg-[var(--accent-950)]"
             : "border-black/10 dark:border-white/10"
         }`,
       )}
@@ -245,7 +245,7 @@ export function InputBar({ onSubmit }: InputBarProps) {
         onChange={(e) => setContent(e.target.value)}
         onKeyDown={handleKeyDown}
         onPaste={handlePaste}
-        placeholder="Drop an image, paste a link, or type a quick note..."
+        placeholder="Drop an image, paste a link, or type a quick note…"
         className={clsx(
           "w-full resize-none overflow-hidden",
           "bg-transparent !outline-none text-base",
@@ -263,12 +263,12 @@ export function InputBar({ onSubmit }: InputBarProps) {
             {tags.map((tag) => (
               <span
                 key={tag}
-                className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2.5 py-0.5 text-sm font-medium text-blue-800 dark:bg-blue-900 dark:text-blue-200"
+                className="inline-flex items-center gap-1 rounded-full bg-[var(--accent-100)] px-2.5 py-0.5 text-sm font-medium text-[var(--accent-800)] dark:bg-[var(--accent-900)] dark:text-[var(--accent-200)]"
               >
                 #{tag}
                 <button
                   onClick={() => removeTag(tag)}
-                  className="ml-0.5 rounded-full p-0.5 hover:bg-blue-200 dark:hover:bg-blue-800"
+                  className="ml-0.5 rounded-full p-0.5 hover:bg-[var(--accent-200)] dark:hover:bg-[var(--accent-800)]"
                 >
                   <svg
                     className="h-3 w-3"
@@ -294,7 +294,7 @@ export function InputBar({ onSubmit }: InputBarProps) {
               value={tagInput}
               onChange={(e) => setTagInput(e.target.value)}
               onKeyDown={handleTagKeyDown}
-              placeholder="Add tag..."
+              placeholder="Add tag…"
               className="flex-1 bg-transparent text-sm text-neutral-900 placeholder-neutral-400 outline-none dark:text-neutral-100 dark:placeholder-neutral-500"
             />
           </div>
@@ -304,7 +304,7 @@ export function InputBar({ onSubmit }: InputBarProps) {
       <div className="flex items-center justify-between text-xs text-neutral-400 dark:text-neutral-500">
         <span className="h-8 flex items-center">
           {isDragging
-            ? "Drop to add..."
+            ? "Drop to add…"
             : showTagInput
               ? "Enter to add tag, Enter again to save"
               : "Enter for tags, Ctrl+Enter to save quickly"}
@@ -312,7 +312,7 @@ export function InputBar({ onSubmit }: InputBarProps) {
         <button
           onClick={handleSubmit}
           disabled={!content.trim() && !imagePreview}
-          className="rounded-full bg-blue-600 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:opacity-50 disabled:hover:bg-blue-600"
+          className="rounded-full bg-[var(--accent-600)] px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-[var(--accent-700)] disabled:opacity-50 disabled:hover:bg-[var(--accent-600)]"
         >
           Save
         </button>

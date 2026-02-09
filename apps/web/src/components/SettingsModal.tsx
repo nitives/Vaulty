@@ -1,10 +1,12 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import clsx from "clsx";
-import { useSettings } from "@/lib/settings";
+import { useSettings, type AccentColor } from "@/lib/settings";
 import { Icon, type IconName } from "./Icon";
 import { Toggle } from "./Toggle";
 import { Select } from "./Select";
+import { AccentColorPicker } from "./AccentColorPicker";
+import { Slider } from "./Slider";
 import SFIcon from "@bradleyhodges/sfsymbols-react";
 import { sfXmark } from "@bradleyhodges/sfsymbols";
 
@@ -78,6 +80,15 @@ function AppearanceSection() {
         />
       </SettingsRow>
       <SettingsRow
+        label="Accent color"
+        description="Multicolor uses your Windows accent color"
+      >
+        <AccentColorPicker
+          value={settings.accentColor ?? "blue"}
+          onChange={(v) => update({ accentColor: v as AccentColor })}
+        />
+      </SettingsRow>
+      <SettingsRow
         label="Input bar position"
         description="Place the input bar at the top or bottom of the content area (also reverses the content order)"
       >
@@ -130,6 +141,41 @@ function AppearanceSection() {
             ]}
           />
         </SettingsRow>
+      )}
+      {/* Custom sliders for tint opacity, only when transparency is on and blur style is acrylic */}
+      {settings.transparency && settings.backgroundMaterial === "acrylic" && (
+        <>
+          <SettingsRow
+            label="Light mode tint opacity"
+            description="Adjust the transparency for light mode background tint"
+          >
+            <Slider
+              value={Math.round(
+                (settings.backgroundTintOpacityLight ?? 1) * 10,
+              )}
+              min={0}
+              max={10}
+              stops={10}
+              onChange={(v) => update({ backgroundTintOpacityLight: v / 10 })}
+              ariaLabel="Light mode tint opacity"
+            />
+          </SettingsRow>
+          <SettingsRow
+            label="Dark mode tint opacity"
+            description="Adjust the transparency for dark mode background tint"
+          >
+            <Slider
+              value={Math.round(
+                (settings.backgroundTintOpacityDark ?? 1.5) * 10,
+              )}
+              min={0}
+              max={10}
+              stops={10}
+              onChange={(v) => update({ backgroundTintOpacityDark: v / 10 })}
+              ariaLabel="Dark mode tint opacity"
+            />
+          </SettingsRow>
+        </>
       )}
     </div>
   );
@@ -296,7 +342,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                   onClick={() => setActiveSection(section.id)}
                   className={`flex select-none items-center gap-2.5 rounded-lg px-3 py-1.5 text-left text-sm font-medium transition-colors cursor-pointer ${
                     isActive
-                      ? "bg-blue-600 text-white"
+                      ? "bg-[var(--accent-600)] text-white"
                       : "text-neutral-700 hover:bg-neutral-200/70 transparent:hover:bg-white/50 dark:text-neutral-300 dark:hover:bg-white/5 transparent:dark:hover:bg-black/10"
                   }`}
                 >

@@ -2,7 +2,6 @@
 /* --- */
 @import "../styles/toggle.css";
 @import "../styles/scrollbar.css";
-@import "../styles/scrollbar.css";
 @import "../styles/accent-color.css";
 /* ------------------------------ */
 
@@ -22,10 +21,6 @@
 
 * {
   box-sizing: border-box;
-}
-
-*::selection {
-  background-color: rgba(59, 130, 246, 0.3) !important;
 }
 
 html,
@@ -79,12 +74,12 @@ html:not(.input-bar-top) .input-bar-bottom-container {
 }
 html:not(.input-bar-top) .content-area {
   padding-bottom: 8rem;
-  flex-direction: column-reverse;
+  flex-direction: column;
 }
 
 /* Focus ring styling */
 :focus-visible {
-  outline: 2px solid #3b82f6;
+  outline: 2px solid var(--accent-500);
   outline-offset: 2px;
 }
 
