@@ -9,6 +9,7 @@ import { AccentColorPicker } from "./AccentColorPicker";
 import { Slider } from "./Slider";
 import SFIcon from "@bradleyhodges/sfsymbols-react";
 import { sfXmark } from "@bradleyhodges/sfsymbols";
+import { motion, AnimatePresence } from "motion/react";
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -204,6 +205,15 @@ function BehaviorSection() {
           onChange={(v) => update({ confirmBeforeDelete: v })}
         />
       </SettingsRow>
+      <SettingsRow
+        label="Reduce motion"
+        description="Disables most animations and transitions"
+      >
+        <Toggle
+          checked={settings.reduceMotion ?? false}
+          onChange={(v) => update({ reduceMotion: v })}
+        />
+      </SettingsRow>
     </div>
   );
 }
@@ -259,6 +269,8 @@ const sectionContent: Record<SectionId, React.FC> = {
 export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const [activeSection, setActiveSection] = useState<SectionId>("appearance");
   const modalRef = useRef<HTMLDivElement>(null);
+  const { settings } = useSettings();
+  const reduceMotion = settings.reduceMotion ?? false;
 
   // Close on Escape key
   useEffect(() => {
@@ -291,99 +303,116 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
     };
   }, [isOpen]);
 
-  if (!isOpen) return null;
-
   const ActiveContent = sectionContent[activeSection];
   const activeLabel = sections.find((s) => s.id === activeSection)?.label ?? "";
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/5"
-      onClick={handleBackdropClick}
-    >
-      <div
-        ref={modalRef}
-        className={clsx(
-          "relative flex h-[70vh] w-full max-w-3xl overflow-hidden rounded-xl border",
-          "bg-white/75 dark:bg-neutral-900/85",
-          "transparent:bg-neutral-100/95 transparent:dark:bg-neutral-900/95",
-          "border-neutral-200 dark:border-neutral-700",
-          "transparent:border-white/25 transparent:dark:border-white/10",
-          "backdrop-blur-[24px]",
-        )}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="settings-title"
-        style={{ boxShadow: "var(--shadow-1)" }}
-      >
-        {/* Sidebar */}
-        <nav
-          className={clsx(
-            "flex w-52 flex-shrink-0 flex-col border-r",
-            "bg-white/0 dark:bg-black/0",
-            "border-neutral-200 dark:border-neutral-700",
-          )}
+    <AnimatePresence>
+      {isOpen && (
+        <motion.div
+          key="settings-backdrop"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/5"
+          onClick={handleBackdropClick}
+          initial={reduceMotion ? false : { opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={reduceMotion ? { opacity: 1 } : { opacity: 0 }}
+          transition={
+            reduceMotion
+              ? { duration: 0 }
+              : { duration: 0.18, ease: [0.16, 1, 0.3, 1] }
+          }
         >
-          <div className="px-5 pt-5 pb-3">
-            <h2
-              id="settings-title"
-              className="text-2xl select-none font-bold text-neutral-900 dark:text-neutral-100"
-            >
-              Settings
-            </h2>
-          </div>
-
-          <div className="flex flex-1 flex-col gap-0.5 overflow-y-auto px-3 pb-3">
-            {sections.map((section) => {
-              const isActive = section.id === activeSection;
-              return (
-                <button
-                  key={section.id}
-                  onClick={() => setActiveSection(section.id)}
-                  className={`flex select-none items-center gap-2.5 rounded-lg px-3 py-1.5 text-left text-sm font-medium transition-colors cursor-pointer ${
-                    isActive
-                      ? "bg-[var(--accent-600)] text-white"
-                      : "text-neutral-700 hover:bg-neutral-200/70 transparent:hover:bg-white/50 dark:text-neutral-300 dark:hover:bg-white/5 transparent:dark:hover:bg-black/10"
-                  }`}
-                >
-                  <Icon
-                    name={section.icon}
-                    className={`text-[16px] ${isActive ? "text-white" : "text-neutral-500 dark:text-neutral-400"}`}
-                  />
-                  {section.label}
-                </button>
-              );
-            })}
-          </div>
-        </nav>
-
-        {/* Main content */}
-        <div className="flex flex-1 flex-col overflow-hidden bg-white dark:bg-neutral-800">
-          {/* Section header */}
-          <div className="flex items-center justify-between border-b border-neutral-200 px-6 py-4 dark:border-neutral-700">
-            <h3 className="text-base select-none font-semibold text-neutral-900 dark:text-neutral-100">
-              {activeLabel}
-            </h3>
-            <button
-              onClick={onClose}
+          <motion.div
+            key="settings-panel"
+            ref={modalRef}
+            className={clsx(
+              "relative flex h-[70vh] w-full max-w-3xl overflow-hidden rounded-xl border",
+              "bg-white/75 dark:bg-neutral-900/85",
+              "transparent:bg-neutral-100/95 transparent:dark:bg-neutral-900/95",
+              "border-neutral-200 dark:border-neutral-700",
+              "transparent:border-white/25 transparent:dark:border-white/10",
+              "backdrop-blur-[24px]",
+            )}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="settings-title"
+            style={{ boxShadow: "var(--shadow-1)" }}
+            onClick={(e) => e.stopPropagation()}
+            initial={{ opacity: 0, scale: 0.985 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.985 }}
+            transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+          >
+            {/* Sidebar */}
+            <nav
               className={clsx(
-                "rounded-full flex items-center justify-center size-7 -mr-2",
-                "transition-colors cursor-pointer",
-                "text-neutral-400 hover:text-neutral-500 dark:text-neutral-400 dark:hover:text-neutral-200",
-                "bg-black/10 hover:bg-black/15 dark:bg-white/10 dark:hover:bg-white/15",
+                "flex w-52 flex-shrink-0 flex-col border-r",
+                "bg-white/0 dark:bg-black/0",
+                "border-neutral-200 dark:border-neutral-700",
               )}
-              aria-label="Close settings"
             >
-              <SFIcon icon={sfXmark} size={12} weight={1} />
-            </button>
-          </div>
+              <div className="px-5 pt-5 pb-3">
+                <h2
+                  id="settings-title"
+                  className="text-2xl select-none font-bold text-neutral-900 dark:text-neutral-100"
+                >
+                  Settings
+                </h2>
+              </div>
 
-          {/* Scrollable content */}
-          <div className="flex-1 overflow-y-auto p-2">
-            <ActiveContent />
-          </div>
-        </div>
-      </div>
-    </div>
+              <div className="flex flex-1 flex-col gap-0.5 overflow-y-auto px-3 pb-3">
+                {sections.map((section) => {
+                  const isActive = section.id === activeSection;
+                  return (
+                    <button
+                      key={section.id}
+                      onClick={() => setActiveSection(section.id)}
+                      className={`flex select-none items-center gap-2.5 rounded-lg px-3 py-1.5 text-left text-sm font-medium transition-colors cursor-pointer ${
+                        isActive
+                          ? "bg-[var(--accent-600)] text-white"
+                          : "text-neutral-700 hover:bg-neutral-200/70 transparent:hover:bg-white/50 dark:text-neutral-300 dark:hover:bg-white/5 transparent:dark:hover:bg-black/10"
+                      }`}
+                    >
+                      <Icon
+                        name={section.icon}
+                        className={`text-[16px] ${isActive ? "text-white" : "text-neutral-500 dark:text-neutral-400"}`}
+                      />
+                      {section.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </nav>
+
+            {/* Main content */}
+            <div className="flex flex-1 flex-col overflow-hidden bg-white dark:bg-neutral-800">
+              {/* Section header */}
+              <div className="flex items-center justify-between border-b border-neutral-200 px-6 py-4 dark:border-neutral-700">
+                <h3 className="text-base select-none font-semibold text-neutral-900 dark:text-neutral-100">
+                  {activeLabel}
+                </h3>
+                <button
+                  onClick={onClose}
+                  className={clsx(
+                    "rounded-full flex items-center justify-center size-7 -mr-2",
+                    "transition-colors cursor-pointer",
+                    "text-neutral-400 hover:text-neutral-500 dark:text-neutral-400 dark:hover:text-neutral-200",
+                    "bg-black/10 hover:bg-black/15 dark:bg-white/10 dark:hover:bg-white/15",
+                  )}
+                  aria-label="Close settings"
+                >
+                  <SFIcon icon={sfXmark} size={12} weight={1} />
+                </button>
+              </div>
+
+              {/* Scrollable content */}
+              <div className="flex-1 overflow-y-auto p-2">
+                <ActiveContent />
+              </div>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
+import { MotionConfig } from "motion/react";
 
 const SFPro = localFont({
   src: "../../public/fonts/SF-Pro.ttf",
@@ -76,13 +77,15 @@ export default function RootLayout({
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
-      <body
-        suppressHydrationWarning
-        className={`${SFPro.variable} antialiased`}
-      >
-        <script dangerouslySetInnerHTML={{ __html: transparencyScript }} />
-        {children}
-      </body>
+      <MotionConfig reducedMotion="user">
+        <body
+          suppressHydrationWarning
+          className={`${SFPro.variable} antialiased`}
+        >
+          <script dangerouslySetInnerHTML={{ __html: transparencyScript }} />
+          {children}
+        </body>
+      </MotionConfig>
     </html>
   );
 }

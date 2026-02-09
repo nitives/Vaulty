@@ -2,6 +2,11 @@
 
 import { motion, AnimatePresence } from "motion/react";
 import clsx from "clsx";
+import SFIcon from "@bradleyhodges/sfsymbols-react";
+import { sfTag } from "@bradleyhodges/sfsymbols";
+import { useEffect, useState, useMemo } from "react";
+import { loadItems } from "@/lib/storage";
+import { Item } from "./ItemCard";
 
 interface SidebarProps {
   activeFilter: string;
@@ -14,7 +19,7 @@ const filters = [
   { id: "notes", label: "Notes", icon: "📝" },
   { id: "images", label: "Images", icon: "🖼️" },
   { id: "links", label: "Links", icon: "🔗" },
-  { id: "reminders", label: "Reminders", icon: "⏰" },
+  // { id: "reminders", label: "Reminders", icon: "⏰" },
 ];
 
 const EXPANDED_WIDTH = 224; // 56 * 4 (Tailwind w-56)
@@ -25,6 +30,23 @@ export function Sidebar({
   onFilterChange,
   isCollapsed,
 }: SidebarProps) {
+  const [isLoading, setIsLoading] = useState(true);
+  const [items, setItems] = useState<Item[]>([]);
+  const numberOfItems = useMemo(() => items.length || undefined, [items]);
+  useEffect(() => {
+    async function load() {
+      try {
+        const storedItems = await loadItems();
+        setItems(storedItems);
+      } catch (err) {
+        console.error("Failed to load items:", err);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    load();
+  }, []);
+
   return (
     <motion.aside
       suppressHydrationWarning
@@ -69,32 +91,35 @@ export function Sidebar({
       </nav>
 
       {/* Tags Section */}
-      {/* <AnimatePresence initial={false}>
-        {!isCollapsed && (
-          <motion.div
-            key="tags"
-            className="border-t border-neutral-200 p-4 dark:border-neutral-800"
-            initial={{ opacity: 0, y: 6 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 6 }}
-            transition={{ duration: 0.33, ease: [0.308, 0.003, 0.142, 1] }}
-          >
-            <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
-              Recent Tags
-            </h3>
-            <div className="flex flex-wrap gap-1.5">
-              {["minecraft", "genshin", "sample", "todo"].map((tag) => (
-                <button
-                  key={tag}
-                  className="rounded-full bg-neutral-200 px-2.5 py-0.5 text-xs font-medium text-neutral-700 hover:bg-neutral-300 dark:bg-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-700"
-                >
-                  {tag}
-                </button>
-              ))}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence> */}
+      <div className="border-t border-neutral-200 p-2 dark:border-neutral-800 *:select-none">
+        <p className="flex items-center gap-2">
+          <SFIcon
+            icon={sfTag}
+            size={16}
+            className="text-black/50 dark:text-white/30"
+          />
+
+          <span className="text-sm font-medium text-neutral-900 dark:text-neutral-300">
+            {numberOfItems !== undefined
+              ? `${numberOfItems} ${numberOfItems > 1 ? "items" : "item"}`
+              : `-- items`}
+          </span>
+        </p>
+        <p></p>
+        {/* <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
+          Recent Tags
+        </h3>
+        <div className="flex flex-wrap gap-1.5">
+          {["minecraft", "genshin", "sample", "todo"].map((tag) => (
+            <button
+              key={tag}
+              className="rounded-full bg-neutral-200 px-2.5 py-0.5 text-xs font-medium text-neutral-700 hover:bg-neutral-300 dark:bg-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-700"
+            >
+              {tag}
+            </button>
+          ))}
+        </div> */}
+      </div>
     </motion.aside>
   );
 }

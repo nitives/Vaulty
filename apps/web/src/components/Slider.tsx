@@ -56,7 +56,7 @@ export const Slider: React.FC<SliderProps> = ({
       <style jsx>{`
         input[type="range"]::-webkit-slider-runnable-track {
           background: transparent;
-          opacity: 1;
+          opacity: 0;
         }
       `}</style>
     </div>

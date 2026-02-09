@@ -36,6 +36,7 @@ export interface AppSettings {
   inputBarPosition?: "top" | "bottom";
   backgroundTintOpacityLight?: number;
   backgroundTintOpacityDark?: number;
+  reduceMotion?: boolean;
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -50,6 +51,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   inputBarPosition: "bottom",
   backgroundTintOpacityLight: 1,
   backgroundTintOpacityDark: 1.5,
+  reduceMotion: false,
 };
 
 // -- localStorage helpers (for fast sync access on page load) --
@@ -206,6 +208,15 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
       `rgba(23,23,23,${darkAlpha})`,
     );
   }, [settings.backgroundTintOpacityLight, settings.backgroundTintOpacityDark]);
+
+  // Reduce motion
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    document.documentElement.classList.toggle(
+      "reduce-motion",
+      !!settings.reduceMotion,
+    );
+  }, [settings.reduceMotion]);
 
   const update = useCallback((patch: Partial<AppSettings>) => {
     setSettings((prev) => {

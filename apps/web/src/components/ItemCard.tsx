@@ -38,7 +38,7 @@ function renderContentWithLinks(content: string) {
           href={part}
           target="_blank"
           rel="noopener noreferrer"
-          className="text-[var(--accent-600)] hover:underline dark:text-[var(--accent-400)]"
+          className="text-[var(--accent-600)] hover:underline dark:text-[var(--accent-400)] rounded"
           onClick={(e) => e.stopPropagation()}
         >
           {part}
