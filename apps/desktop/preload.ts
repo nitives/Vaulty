@@ -16,6 +16,41 @@ interface TrashedItem {
   deletedAt: string;
 }
 
+type UpdateState =
+  | "idle"
+  | "checking"
+  | "update-available"
+  | "no-update"
+  | "downloading"
+  | "downloaded"
+  | "error"
+  | "disabled-in-dev";
+
+interface UpdateStatusPayload {
+  state: UpdateState;
+  currentVersion?: string;
+  availableVersion?: string;
+  percent?: number;
+  bytesPerSecond?: number;
+  transferred?: number;
+  total?: number;
+  message?: string;
+}
+
+type UpdateStatusListener = (status: UpdateStatusPayload) => void;
+
+function onUpdateStatus(callback: UpdateStatusListener): () => void {
+  const listener = (
+    _event: Electron.IpcRendererEvent,
+    payload: UpdateStatusPayload,
+  ) => {
+    callback(payload);
+  };
+
+  ipcRenderer.on("updates:status", listener);
+  return () => ipcRenderer.removeListener("updates:status", listener);
+}
+
 // Expose protected methods that allow the renderer process to use
 // ipcRenderer without exposing the entire object
 contextBridge.exposeInMainWorld("electronAPI", {
@@ -52,6 +87,16 @@ contextBridge.exposeInMainWorld("electronAPI", {
   deleteFromTrash: (id: string) => ipcRenderer.invoke("trash:delete", id),
   emptyTrash: () => ipcRenderer.invoke("trash:empty"),
   cleanupTrash: () => ipcRenderer.invoke("trash:cleanup"),
+  // Auto updates
+  checkForUpdates: () => ipcRenderer.invoke("updates:check"),
+  downloadUpdate: () => ipcRenderer.invoke("updates:download"),
+  installUpdate: () => ipcRenderer.invoke("updates:install"),
+  getUpdateStatus: () => ipcRenderer.invoke("updates:status"),
+  onUpdateStatus,
+  // Aliases for compatibility
+  updaterCheck: () => ipcRenderer.invoke("updates:check"),
+  updaterInstall: () => ipcRenderer.invoke("updates:install"),
+  onUpdaterEvent: onUpdateStatus,
 });
 
 // Type declarations for TypeScript
@@ -98,6 +143,20 @@ declare global {
       deleteFromTrash: (id: string) => Promise<{ success: boolean }>;
       emptyTrash: () => Promise<{ success: boolean }>;
       cleanupTrash: () => Promise<{ success: boolean; deletedCount: number }>;
+      // Auto updates
+      checkForUpdates: () => Promise<
+        { ok: true; status: string; version?: string } | { ok: false; reason: string }
+      >;
+      downloadUpdate: () => Promise<{ ok: boolean; reason?: string; message?: string }>;
+      installUpdate: () => Promise<{ ok: boolean; reason?: string }>;
+      getUpdateStatus: () => Promise<UpdateStatusPayload>;
+      onUpdateStatus: (callback: UpdateStatusListener) => () => void;
+      // Aliases for compatibility
+      updaterCheck: () => Promise<
+        { ok: true; status: string; version?: string } | { ok: false; reason: string }
+      >;
+      updaterInstall: () => Promise<{ ok: boolean; reason?: string }>;
+      onUpdaterEvent: (callback: UpdateStatusListener) => () => void;
     };
   }
 }

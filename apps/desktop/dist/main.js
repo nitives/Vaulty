@@ -6,17 +6,20 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const electron_1 = require("electron");
 const path_1 = __importDefault(require("path"));
 const child_process_1 = require("child_process");
+const fs_1 = __importDefault(require("fs"));
 const paths_1 = require("./lib/paths");
 const settings_1 = require("./lib/settings");
 const storage_1 = require("./lib/storage");
 const icon_1 = require("./lib/icon");
 const protocol_1 = require("./lib/protocol");
 const ipc_1 = require("./lib/ipc");
+const updates_1 = require("./lib/updates");
 const isDev = !electron_1.app.isPackaged;
 let mainWindow = null;
 let nextServer = null;
 const DEV_SERVER_URL = "http://localhost:3000";
 const PROD_SERVER_PORT = 3000;
+let startupUpdateCheckRan = false;
 function createWindow() {
     const settings = (0, settings_1.loadSettings)();
     mainWindow = new electron_1.BrowserWindow({
@@ -74,7 +77,11 @@ async function startNextServer() {
         return;
     return new Promise((resolve, reject) => {
         const webAppPath = (0, paths_1.getWebAppPath)(isDev);
-        const serverPath = path_1.default.join(webAppPath, ".next", "standalone", "server.js");
+        let serverPath = path_1.default.join(webAppPath, ".next", "standalone", "server.js");
+        const nestedServerPath = path_1.default.join(webAppPath, ".next", "standalone", "apps", "web", "server.js");
+        if (!fs_1.default.existsSync(serverPath) && fs_1.default.existsSync(nestedServerPath)) {
+            serverPath = nestedServerPath;
+        }
         nextServer = (0, child_process_1.spawn)("node", [serverPath], {
             cwd: webAppPath,
             env: {
@@ -120,6 +127,49 @@ async function loadApp() {
     }
     console.error("Failed to connect to Next.js server");
 }
+function registerUpdateIpcHandlers() {
+    electron_1.ipcMain.handle("updates:check", async () => {
+        const result = await (0, updates_1.checkForUpdates)();
+        if (result.status === "disabled-in-dev") {
+            return { ok: false, reason: "disabled-in-dev" };
+        }
+        if (result.status === "busy") {
+            return { ok: false, reason: "busy" };
+        }
+        if (result.status === "error") {
+            return { ok: false, reason: "error" };
+        }
+        return {
+            ok: true,
+            status: result.status,
+            version: result.version,
+        };
+    });
+    electron_1.ipcMain.handle("updates:download", async () => {
+        if (!(0, updates_1.canCheckForUpdates)()) {
+            return { ok: false, reason: "disabled-in-dev" };
+        }
+        try {
+            await (0, updates_1.downloadUpdate)();
+            return { ok: true };
+        }
+        catch (error) {
+            return {
+                ok: false,
+                reason: "error",
+                message: error instanceof Error ? error.message : String(error),
+            };
+        }
+    });
+    electron_1.ipcMain.handle("updates:install", () => {
+        if (!(0, updates_1.canCheckForUpdates)()) {
+            return { ok: false, reason: "disabled-in-dev" };
+        }
+        (0, updates_1.quitAndInstall)();
+        return { ok: true };
+    });
+    electron_1.ipcMain.handle("updates:status", () => (0, updates_1.getUpdateStatus)());
+}
 // Register protocol scheme before app is ready
 (0, protocol_1.registerProtocolScheme)();
 // App lifecycle
@@ -128,9 +178,15 @@ electron_1.app.whenReady().then(async () => {
     (0, storage_1.cleanupOldTrash)();
     (0, protocol_1.registerProtocolHandler)();
     (0, ipc_1.registerIpcHandlers)(() => mainWindow);
+    registerUpdateIpcHandlers();
     createWindow();
+    (0, updates_1.setupAutoUpdates)(() => mainWindow);
     await startNextServer();
     await loadApp();
+    if (!startupUpdateCheckRan) {
+        startupUpdateCheckRan = true;
+        void (0, updates_1.checkForUpdates)();
+    }
 });
 electron_1.app.on("window-all-closed", () => {
     if (process.platform !== "darwin") {
@@ -140,6 +196,7 @@ electron_1.app.on("window-all-closed", () => {
 electron_1.app.on("activate", async () => {
     if (electron_1.BrowserWindow.getAllWindows().length === 0) {
         createWindow();
+        (0, updates_1.setupAutoUpdates)(() => mainWindow);
         await loadApp();
     }
 });

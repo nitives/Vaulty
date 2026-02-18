@@ -94,7 +94,7 @@ export function registerIpcHandlers(
       try {
         // Get the Windows accent color (returns RRGGBBAA format)
         const accentColor = systemPreferences.getAccentColor();
-        // getAccentColor returns RRGGBBAA, we only need RRGGBB
+        // getAccentColor returns RRGGBBAA, covert to RRGGBB
         return `#${accentColor.slice(0, 6)}`;
       } catch {
         return null;

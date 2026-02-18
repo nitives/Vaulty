@@ -1,6 +1,7 @@
-import { app, BrowserWindow, nativeTheme, shell } from "electron";
+import { app, BrowserWindow, ipcMain, nativeTheme, shell } from "electron";
 import path from "path";
 import { spawn, ChildProcess } from "child_process";
+import fs from "fs";
 
 import { getWebAppPath } from "./lib/paths";
 import { loadSettings, applyTransparency } from "./lib/settings";
@@ -11,6 +12,14 @@ import {
   registerProtocolHandler,
 } from "./lib/protocol";
 import { registerIpcHandlers } from "./lib/ipc";
+import {
+  canCheckForUpdates,
+  checkForUpdates,
+  downloadUpdate,
+  getUpdateStatus,
+  quitAndInstall,
+  setupAutoUpdates,
+} from "./lib/updates";
 
 const isDev = !app.isPackaged;
 
@@ -19,6 +28,7 @@ let nextServer: ChildProcess | null = null;
 
 const DEV_SERVER_URL = "http://localhost:3000";
 const PROD_SERVER_PORT = 3000;
+let startupUpdateCheckRan = false;
 
 function createWindow(): void {
   const settings = loadSettings();
@@ -84,12 +94,24 @@ async function startNextServer(): Promise<void> {
 
   return new Promise((resolve, reject) => {
     const webAppPath = getWebAppPath(isDev);
-    const serverPath = path.join(
+    let serverPath = path.join(
       webAppPath,
       ".next",
       "standalone",
       "server.js",
     );
+    const nestedServerPath = path.join(
+      webAppPath,
+      ".next",
+      "standalone",
+      "apps",
+      "web",
+      "server.js",
+    );
+
+    if (!fs.existsSync(serverPath) && fs.existsSync(nestedServerPath)) {
+      serverPath = nestedServerPath;
+    }
 
     nextServer = spawn("node", [serverPath], {
       cwd: webAppPath,
@@ -144,6 +166,56 @@ async function loadApp(): Promise<void> {
   console.error("Failed to connect to Next.js server");
 }
 
+function registerUpdateIpcHandlers(): void {
+  ipcMain.handle("updates:check", async () => {
+    const result = await checkForUpdates();
+
+    if (result.status === "disabled-in-dev") {
+      return { ok: false, reason: "disabled-in-dev" };
+    }
+    if (result.status === "busy") {
+      return { ok: false, reason: "busy" };
+    }
+    if (result.status === "error") {
+      return { ok: false, reason: "error" };
+    }
+
+    return {
+      ok: true,
+      status: result.status,
+      version: result.version,
+    };
+  });
+
+  ipcMain.handle("updates:download", async () => {
+    if (!canCheckForUpdates()) {
+      return { ok: false, reason: "disabled-in-dev" };
+    }
+
+    try {
+      await downloadUpdate();
+      return { ok: true };
+    } catch (error) {
+      return {
+        ok: false,
+        reason: "error",
+        message: error instanceof Error ? error.message : String(error),
+      };
+    }
+  });
+
+  ipcMain.handle("updates:install", () => {
+    if (!canCheckForUpdates()) {
+      return { ok: false, reason: "disabled-in-dev" };
+    }
+
+    quitAndInstall();
+    return { ok: true };
+  });
+
+  ipcMain.handle("updates:status", () => getUpdateStatus());
+}
+
 // Register protocol scheme before app is ready
 registerProtocolScheme();
 
@@ -154,10 +226,17 @@ app.whenReady().then(async () => {
 
   registerProtocolHandler();
   registerIpcHandlers(() => mainWindow);
+  registerUpdateIpcHandlers();
 
   createWindow();
+  setupAutoUpdates(() => mainWindow);
   await startNextServer();
   await loadApp();
+
+  if (!startupUpdateCheckRan) {
+    startupUpdateCheckRan = true;
+    void checkForUpdates();
+  }
 });
 
 app.on("window-all-closed", () => {
@@ -169,6 +248,7 @@ app.on("window-all-closed", () => {
 app.on("activate", async () => {
   if (BrowserWindow.getAllWindows().length === 0) {
     createWindow();
+    setupAutoUpdates(() => mainWindow);
     await loadApp();
   }
 });

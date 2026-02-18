@@ -256,16 +256,236 @@ function StorageSection() {
   );
 }
 
+type UpdateState =
+  | "idle"
+  | "checking"
+  | "update-available"
+  | "no-update"
+  | "downloading"
+  | "downloaded"
+  | "error"
+  | "disabled-in-dev";
+
+interface UpdateStatusPayload {
+  state: UpdateState;
+  currentVersion?: string;
+  availableVersion?: string;
+  percent?: number;
+  bytesPerSecond?: number;
+  transferred?: number;
+  total?: number;
+  message?: string;
+}
+
+const defaultUpdateStatus: UpdateStatusPayload = { state: "idle" };
+
+function getUpdateStatusText(status: UpdateStatusPayload): string {
+  switch (status.state) {
+    case "idle":
+      return "Update status: idle.";
+    case "checking":
+      return status.message ?? "Checking for updates...";
+    case "update-available":
+      if (status.message) return status.message;
+      return status.availableVersion
+        ? `Update v${status.availableVersion} is available.`
+        : "An update is available.";
+    case "no-update":
+      return status.message ?? "Vaulty is up to date.";
+    case "downloading":
+      return status.percent !== undefined
+        ? `Downloading update... ${status.percent.toFixed(1)}%`
+        : (status.message ?? "Downloading update...");
+    case "downloaded":
+      return status.message ?? "Update downloaded. Restart to install.";
+    case "disabled-in-dev":
+      return (
+        status.message ??
+        "Updates are disabled in dev mode. Package the app to test updates."
+      );
+    case "error":
+      return status.message ?? "Failed to update.";
+    default:
+      return "Unknown update state.";
+  }
+}
+
 function AboutSection() {
+  const [appVersion, setAppVersion] = useState("unknown");
+  const [updateStatus, setUpdateStatus] =
+    useState<UpdateStatusPayload>(defaultUpdateStatus);
+
+  useEffect(() => {
+    const api = window.electronAPI;
+    if (!api) return;
+
+    let unsubscribe: (() => void) | undefined;
+
+    api
+      .getVersion()
+      .then((version) => setAppVersion(version))
+      .catch(() => setAppVersion("unknown"));
+
+    api
+      .getUpdateStatus()
+      .then((status) => setUpdateStatus(status))
+      .catch(() => setUpdateStatus(defaultUpdateStatus));
+
+    // eslint-disable-next-line prefer-const
+    unsubscribe = api.onUpdateStatus((status) => {
+      setUpdateStatus(status);
+    });
+
+    return () => unsubscribe?.();
+  }, []);
+
+  const isChecking = updateStatus.state === "checking";
+  const isDownloading = updateStatus.state === "downloading";
+  const isBusy = isChecking || isDownloading;
+  const canDownload = updateStatus.state === "update-available";
+  const isDevDisabled = updateStatus.state === "disabled-in-dev";
+  const canRestart = updateStatus.state === "downloaded";
+  const progress = Math.min(100, Math.max(0, updateStatus.percent ?? 0));
+
+  const handleCheckForUpdates = async () => {
+    try {
+      const result = await window.electronAPI?.checkForUpdates();
+      if (
+        result &&
+        !result.ok &&
+        "reason" in result &&
+        result.reason === "disabled-in-dev"
+      ) {
+        setUpdateStatus({
+          state: "disabled-in-dev",
+          message:
+            "Updates are disabled in dev mode. Package the app to test updates.",
+        });
+      }
+    } catch (error) {
+      setUpdateStatus({
+        state: "error",
+        message: error instanceof Error ? error.message : String(error),
+      });
+    }
+  };
+
+  const handleDownloadUpdate = async () => {
+    try {
+      const result = await window.electronAPI?.downloadUpdate();
+      if (
+        result &&
+        !result.ok &&
+        "reason" in result &&
+        result.reason === "disabled-in-dev"
+      ) {
+        setUpdateStatus({
+          state: "disabled-in-dev",
+          message:
+            "Updates are disabled in dev mode. Package the app to test updates.",
+        });
+      }
+    } catch (error) {
+      setUpdateStatus({
+        state: "error",
+        message: error instanceof Error ? error.message : String(error),
+      });
+    }
+  };
+
+  const handleInstallUpdate = async () => {
+    try {
+      const result = await window.electronAPI?.installUpdate();
+      if (
+        result &&
+        !result.ok &&
+        "reason" in result &&
+        result.reason === "disabled-in-dev"
+      ) {
+        setUpdateStatus({
+          state: "disabled-in-dev",
+          message:
+            "Updates are disabled in dev mode. Package the app to test updates.",
+        });
+      }
+    } catch (error) {
+      setUpdateStatus({
+        state: "error",
+        message: error instanceof Error ? error.message : String(error),
+      });
+    }
+  };
+
   return (
     <div className="rounded-lg bg-neutral-100 px-4 py-3 dark:bg-neutral-800">
-      <p className="text-sm font-medium text-neutral-900 dark:text-neutral-100">
-        Vaulty
-      </p>
-      <p className="text-xs text-neutral-500 dark:text-neutral-400">
-        Version 0.1.0
-      </p>
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <p className="text-sm font-medium text-neutral-900 dark:text-neutral-100">
+            Vaulty
+          </p>
+          <p className="text-xs text-neutral-500 dark:text-neutral-400">
+            Version {appVersion}
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleCheckForUpdates}
+            disabled={isBusy || isDevDisabled}
+            className={clsx(
+              "rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors",
+              "border-neutral-300 bg-white text-neutral-700",
+              "hover:bg-neutral-50 dark:border-neutral-600 dark:bg-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-600",
+              "disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-white disabled:dark:hover:bg-neutral-700",
+            )}
+          >
+            Check for updates
+          </button>
+          {canDownload && (
+            <button
+              onClick={handleDownloadUpdate}
+              disabled={isBusy || isDevDisabled}
+              className={clsx(
+                "rounded-lg bg-[var(--accent-600)] px-3 py-1.5 text-sm font-medium text-white transition-opacity",
+                "hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:opacity-100",
+              )}
+            >
+              Download update
+            </button>
+          )}
+          {canRestart && (
+            <button
+              onClick={handleInstallUpdate}
+              disabled={isDevDisabled}
+              className={clsx(
+                "rounded-lg bg-[var(--accent-600)] px-3 py-1.5 text-sm font-medium text-white transition-opacity",
+                "hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:opacity-100",
+              )}
+            >
+              Restart to update
+            </button>
+          )}
+        </div>
+      </div>
+
       <p className="mt-2 text-xs text-neutral-500 dark:text-neutral-400">
+        {getUpdateStatusText(updateStatus)}
+      </p>
+
+      {isDownloading && (
+        <div className="mt-3">
+          <div className="h-2 w-full overflow-hidden rounded bg-neutral-300 dark:bg-neutral-700">
+            <div
+              className="h-full bg-[var(--accent-600)] transition-[width]"
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+          <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
+            {progress.toFixed(1)}%
+          </p>
+        </div>
+      )}
+
+      <p className="mt-3 text-xs text-neutral-500 dark:text-neutral-400">
         A local-first scrapbook for screenshots, notes, links, and reminders.
       </p>
     </div>

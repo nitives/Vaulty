@@ -10,14 +10,13 @@ const SFPro = localFont({
 
 export const metadata: Metadata = {
   title: "Vaulty",
-  description:
-    "Your local-first scrapbook for screenshots, notes, links, and reminders",
+  description: "Your local-first scrapbook for screenshots, notes, and links.",
 };
 
 // Blocking script to prevent theme flash on load
 // Runs before React hydrates to apply saved theme immediately
 // Also sets a global for React to read synchronously
-// NOTE: This runs in <head> so we can only modify <html>, not <body>
+// NOTE: This runs in <head> so it can only modify <html>, not <body>
 const themeScript = `
 (function() {
   try {

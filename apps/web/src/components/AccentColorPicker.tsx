@@ -21,7 +21,6 @@ const colorOptions: ColorOption[] = [
   {
     id: "multicolor",
     label: "Multicolor",
-    // Rainbow gradient colors matching macOS
     colors: ["#ff5f57", "#febc2e", "#28c840", "#007aff", "#bf5af2", "#ff2d55"],
   },
   { id: "blue", label: "Blue", colors: "#007aff" },

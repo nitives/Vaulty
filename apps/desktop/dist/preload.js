@@ -1,6 +1,13 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const electron_1 = require("electron");
+function onUpdateStatus(callback) {
+    const listener = (_event, payload) => {
+        callback(payload);
+    };
+    electron_1.ipcRenderer.on("updates:status", listener);
+    return () => electron_1.ipcRenderer.removeListener("updates:status", listener);
+}
 // Expose protected methods that allow the renderer process to use
 // ipcRenderer without exposing the entire object
 electron_1.contextBridge.exposeInMainWorld("electronAPI", {
@@ -35,4 +42,14 @@ electron_1.contextBridge.exposeInMainWorld("electronAPI", {
     deleteFromTrash: (id) => electron_1.ipcRenderer.invoke("trash:delete", id),
     emptyTrash: () => electron_1.ipcRenderer.invoke("trash:empty"),
     cleanupTrash: () => electron_1.ipcRenderer.invoke("trash:cleanup"),
+    // Auto updates
+    checkForUpdates: () => electron_1.ipcRenderer.invoke("updates:check"),
+    downloadUpdate: () => electron_1.ipcRenderer.invoke("updates:download"),
+    installUpdate: () => electron_1.ipcRenderer.invoke("updates:install"),
+    getUpdateStatus: () => electron_1.ipcRenderer.invoke("updates:status"),
+    onUpdateStatus,
+    // Aliases for compatibility
+    updaterCheck: () => electron_1.ipcRenderer.invoke("updates:check"),
+    updaterInstall: () => electron_1.ipcRenderer.invoke("updates:install"),
+    onUpdaterEvent: onUpdateStatus,
 });

@@ -1,15 +1,16 @@
 {
   "name": "desktop",
   "version": "1.0.0",
-  "description": "Vaulty desktop app - Electron wrapper for Next.js",
+  "description": "Your local-first scrapbook for screenshots, notes, and links.",
   "main": "dist/main.js",
   "scripts": {
     "dev": "tsc && electron .",
     "build": "tsc",
-    "build:web": "npm run build --workspace apps/web",
+    "build:web": "npm run build --prefix ../web",
     "prep:web": "node scripts/prep-web.mjs",
     "start": "electron .",
-    "package": "npm run build:web && npm run prep:web && npm run build && electron-builder"
+    "package": "npm run build:web && npm run prep:web && npm run build && electron-builder --win nsis",
+    "publish": "npm run build:web && npm run prep:web && npm run build && electron-builder --win nsis --publish always"
   },
   "keywords": [
     "electron",
@@ -19,13 +20,55 @@
   "author": "",
   "license": "ISC",
   "build": {
+    "appId": "com.example.vaulty",
+    "productName": "Vaulty",
+    "files": [
+      "dist/**",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "resources/web/.next/standalone",
+        "to": "web/.next/standalone"
+      },
+      {
+        "from": "resources/web/.next/static",
+        "to": "web/.next/static"
+      },
+      {
+        "from": "resources/web/public",
+        "to": "web/public"
+      }
+    ],
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "nitives",
+        "repo": "Vaulty"
+      }
+    ],
     "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
       "icon": "icons/ico/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
     }
+  },
+  "dependencies": {
+    "electron-updater": "^6.8.3"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
-    "electron": "^33.0.0",
+    "electron": "33.4.11",
     "electron-builder": "^25.0.0",
     "typescript": "^5.0.0"
   }
