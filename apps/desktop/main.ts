@@ -5,6 +5,7 @@ import { spawn, ChildProcess } from "child_process";
 import { getWebAppPath } from "./lib/paths";
 import { loadSettings, applyTransparency } from "./lib/settings";
 import { cleanupOldTrash } from "./lib/storage";
+import { getWindowIcon } from "./lib/icon";
 import {
   registerProtocolScheme,
   registerProtocolHandler,
@@ -20,6 +21,8 @@ const DEV_SERVER_URL = "http://localhost:3000";
 const PROD_SERVER_PORT = 3000;
 
 function createWindow(): void {
+  const settings = loadSettings();
+
   mainWindow = new BrowserWindow({
     show: false,
     width: 1250,
@@ -27,6 +30,7 @@ function createWindow(): void {
     minWidth: 300,
     minHeight: 200,
     title: "Vaulty",
+    icon: getWindowIcon(settings.iconTheme),
     roundedCorners: true,
     titleBarStyle: "hidden",
     backgroundColor: "#1a1a1a",

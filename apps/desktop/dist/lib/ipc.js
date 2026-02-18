@@ -5,6 +5,7 @@ const electron_1 = require("electron");
 const storage_1 = require("./storage");
 const settings_1 = require("./settings");
 const paths_1 = require("./paths");
+const icon_1 = require("./icon");
 function registerIpcHandlers(getMainWindow) {
     // App info
     electron_1.ipcMain.handle("app:version", () => electron_1.app.getVersion());
@@ -39,6 +40,12 @@ function registerIpcHandlers(getMainWindow) {
         const win = getMainWindow();
         if (win && ("transparency" in patch || "backgroundMaterial" in patch)) {
             (0, settings_1.applyTransparency)(win, updated.transparency ?? false, updated.backgroundMaterial);
+        }
+        if (win && "iconTheme" in patch) {
+            const icon = (0, icon_1.getWindowIcon)(updated.iconTheme);
+            if (icon) {
+                win.setIcon(icon);
+            }
         }
         return updated;
     });

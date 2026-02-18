@@ -189,7 +189,7 @@ export function InputBar({ onSubmit }: InputBarProps) {
   return (
     <div
       className={clsx(
-        "rounded-[24px] border p-4 shadow-sm transition-all",
+        "rounded-[24px] select-none border p-4 shadow-sm transition-all",
         "bg-white dark:bg-neutral-900/95 transparent:dark:bg-neutral-900/95 backdrop-blur-[24px] backdrop-saturate-150",
         `${
           isDragging

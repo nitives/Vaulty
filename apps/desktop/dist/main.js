@@ -9,6 +9,7 @@ const child_process_1 = require("child_process");
 const paths_1 = require("./lib/paths");
 const settings_1 = require("./lib/settings");
 const storage_1 = require("./lib/storage");
+const icon_1 = require("./lib/icon");
 const protocol_1 = require("./lib/protocol");
 const ipc_1 = require("./lib/ipc");
 const isDev = !electron_1.app.isPackaged;
@@ -17,6 +18,7 @@ let nextServer = null;
 const DEV_SERVER_URL = "http://localhost:3000";
 const PROD_SERVER_PORT = 3000;
 function createWindow() {
+    const settings = (0, settings_1.loadSettings)();
     mainWindow = new electron_1.BrowserWindow({
         show: false,
         width: 1250,
@@ -24,6 +26,7 @@ function createWindow() {
         minWidth: 300,
         minHeight: 200,
         title: "Vaulty",
+        icon: (0, icon_1.getWindowIcon)(settings.iconTheme),
         roundedCorners: true,
         titleBarStyle: "hidden",
         backgroundColor: "#1a1a1a",

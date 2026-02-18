@@ -1,7 +1,11 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import clsx from "clsx";
-import { useSettings, type AccentColor } from "@/lib/settings";
+import {
+  useSettings,
+  type AccentColor,
+  type AppIconTheme,
+} from "@/lib/settings";
 import { Icon, type IconName } from "./Icon";
 import { Toggle } from "./Toggle";
 import { Select } from "./Select";
@@ -77,6 +81,17 @@ function AppearanceSection() {
             { value: "system", label: "System" },
             { value: "light", label: "Light" },
             { value: "dark", label: "Dark" },
+          ]}
+        />
+      </SettingsRow>
+      <SettingsRow label="App icon" description="Choose the app icon variant">
+        <Select
+          value={settings.iconTheme ?? "default"}
+          onChange={(v) => update({ iconTheme: v as AppIconTheme })}
+          options={[
+            { value: "default", label: "Default" },
+            { value: "dev", label: "Dev" },
+            { value: "dawn", label: "Dawn" },
           ]}
         />
       </SettingsRow>
@@ -370,7 +385,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                       className={`flex select-none items-center gap-2.5 rounded-lg px-3 py-1.5 text-left text-sm font-medium transition-colors cursor-pointer ${
                         isActive
                           ? "bg-[var(--accent-600)] text-white"
-                          : "text-neutral-700 hover:bg-neutral-200/70 transparent:hover:bg-white/50 dark:text-neutral-300 dark:hover:bg-white/5 transparent:dark:hover:bg-black/10"
+                          : "text-neutral-700 hover:bg-neutral-200/70 transparent:hover:bg-white/50 dark:text-neutral-300 dark:hover:bg-white/5 transparent:dark:hover:bg-white/5"
                       }`}
                     >
                       <Icon

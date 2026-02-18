@@ -18,6 +18,11 @@
   ],
   "author": "",
   "license": "ISC",
+  "build": {
+    "win": {
+      "icon": "icons/ico/icon.ico"
+    }
+  },
   "devDependencies": {
     "@types/node": "^20.0.0",
     "electron": "^33.0.0",

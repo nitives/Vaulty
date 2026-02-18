@@ -1,6 +1,7 @@
 import fs from "fs";
 import { BrowserWindow } from "electron";
 import { getSettingsPath } from "./paths";
+import { AppIconTheme } from "./icon";
 
 export type BackgroundMaterial = "mica" | "acrylic";
 
@@ -9,6 +10,7 @@ export interface AppSettings {
   titlebarTransparent?: boolean;
   backgroundMaterial?: BackgroundMaterial;
   theme?: "system" | "light" | "dark";
+  iconTheme?: AppIconTheme;
   compactMode?: boolean;
   startCollapsed?: boolean;
   confirmBeforeDelete?: boolean;

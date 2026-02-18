@@ -24,6 +24,7 @@ import {
   AppSettings,
 } from "./settings";
 import { getVaultyDataPath, getImagesPath } from "./paths";
+import { getWindowIcon } from "./icon";
 
 export function registerIpcHandlers(
   getMainWindow: () => BrowserWindow | null,
@@ -71,6 +72,12 @@ export function registerIpcHandlers(
         updated.transparency ?? false,
         updated.backgroundMaterial,
       );
+    }
+    if (win && "iconTheme" in patch) {
+      const icon = getWindowIcon(updated.iconTheme);
+      if (icon) {
+        win.setIcon(icon);
+      }
     }
 
     return updated;

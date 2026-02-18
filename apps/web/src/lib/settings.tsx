@@ -24,11 +24,14 @@ export type AccentColor =
   | "green"
   | "graphite";
 
+export type AppIconTheme = "default" | "dev" | "dawn";
+
 export interface AppSettings {
   transparency?: boolean;
   titlebarTransparent?: boolean;
   backgroundMaterial?: "mica" | "acrylic";
   theme?: "system" | "light" | "dark";
+  iconTheme?: AppIconTheme;
   accentColor?: AccentColor;
   compactMode?: boolean;
   startCollapsed?: boolean;
@@ -44,6 +47,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   titlebarTransparent: false,
   backgroundMaterial: "mica",
   theme: "system",
+  iconTheme: "default",
   accentColor: "blue",
   compactMode: false,
   startCollapsed: false,
@@ -57,6 +61,17 @@ export const DEFAULT_SETTINGS: AppSettings = {
 // -- localStorage helpers (for fast sync access on page load) --
 
 const STORAGE_KEY = "vaulty-settings";
+
+function normalizeIconTheme(theme: unknown): AppIconTheme {
+  if (theme === "default" || theme === "dev" || theme === "dawn") {
+    return theme;
+  }
+  // Backward compatibility for previously saved values.
+  if (theme === "rounded") return "default";
+  if (theme === "dev-dawn") return "dawn";
+  if (theme === "dev-night") return "default";
+  return DEFAULT_SETTINGS.iconTheme ?? "default";
+}
 
 // Read settings injected by blocking script (prevents flash)
 function getPreloadedSettings(): AppSettings | null {
@@ -152,7 +167,13 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
   // Initialize from cached settings for instant load (no flash)
   const [settings, setSettings] = useState<AppSettings>(() => {
     const cached = getCachedSettings();
-    return cached ? { ...DEFAULT_SETTINGS, ...cached } : DEFAULT_SETTINGS;
+    return cached
+      ? {
+          ...DEFAULT_SETTINGS,
+          ...cached,
+          iconTheme: normalizeIconTheme(cached.iconTheme),
+        }
+      : DEFAULT_SETTINGS;
   });
   const [loading, setLoading] = useState(true);
 
@@ -163,7 +184,11 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
       api
         .getSettings()
         .then((saved) => {
-          const merged = { ...DEFAULT_SETTINGS, ...saved };
+          const merged = {
+            ...DEFAULT_SETTINGS,
+            ...saved,
+            iconTheme: normalizeIconTheme(saved.iconTheme),
+          };
           setSettings(merged);
           saveToLocalStorage(merged); // Keep localStorage in sync
           applyTheme(merged.theme ?? "system");
@@ -219,14 +244,19 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
   }, [settings.reduceMotion]);
 
   const update = useCallback((patch: Partial<AppSettings>) => {
+    const normalizedPatch =
+      "iconTheme" in patch
+        ? { ...patch, iconTheme: normalizeIconTheme(patch.iconTheme) }
+        : patch;
+
     setSettings((prev) => {
-      const next = { ...prev, ...patch };
+      const next = { ...prev, ...normalizedPatch };
       // Persist to localStorage for fast reload
       saveToLocalStorage(next);
       // Persist to Electron asynchronously
       const api = getElectronAPI();
       if (api?.setSettings) {
-        api.setSettings(patch);
+        api.setSettings(normalizedPatch);
       }
       return next;
     });
