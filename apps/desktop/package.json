@@ -47,7 +47,8 @@
       {
         "provider": "github",
         "owner": "nitives",
-        "repo": "Vaulty"
+        "repo": "Vaulty",
+        "releaseType": "release"
       }
     ],
     "win": {
