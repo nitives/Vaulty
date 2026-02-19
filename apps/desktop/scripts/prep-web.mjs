@@ -28,12 +28,31 @@ cpContents(
   path.join(out, ".next", "standalone"),
 );
 
-// Next standalone expects static files at .next/static
-cpContents(path.join(web, ".next", "static"), path.join(out, ".next", "static"));
+const staticSrc = path.join(web, ".next", "static");
+const publicSrc = path.join(web, "public");
+const rootStaticDest = path.join(out, ".next", "static");
+const nestedStaticDest = path.join(
+  out,
+  ".next",
+  "standalone",
+  "apps",
+  "web",
+  ".next",
+  "static",
+);
+const rootPublicDest = path.join(out, "public");
+const nestedPublicDest = path.join(out, ".next", "standalone", "apps", "web", "public");
+
+// Keep static assets in both locations:
+// - root path for simple standalone layouts
+// - nested apps/web path for monorepo standalone output
+cpContents(staticSrc, rootStaticDest);
+cpContents(staticSrc, nestedStaticDest);
 
 // Copy public assets
-if (fs.existsSync(path.join(web, "public"))) {
-  cpContents(path.join(web, "public"), path.join(out, "public"));
+if (fs.existsSync(publicSrc)) {
+  cpContents(publicSrc, rootPublicDest);
+  cpContents(publicSrc, nestedPublicDest);
 }
 
 const expectedServerPath = path.join(out, ".next", "standalone", "server.js");
