@@ -2,5 +2,12 @@
   "files.exclude": {
     "**/.git": false
   },
-  "cSpell.words": ["bradleyhodges", "FOUT", "sfsymbols", "venv", "vercel"]
+  "cSpell.words": [
+    "bradleyhodges",
+    "FOUT",
+    "nitives",
+    "sfsymbols",
+    "venv",
+    "vercel"
+  ]
 }

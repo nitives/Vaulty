@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "tsc && electron .",
     "build": "tsc",
-    "build:web": "npm run build --prefix ../web",
+    "build:web": "npm run build:web --prefix ../..",
     "prep:web": "node scripts/prep-web.mjs",
     "start": "electron .",
     "package": "npm run build:web && npm run prep:web && npm run build && electron-builder --win nsis",
@@ -17,11 +17,14 @@
     "nextjs",
     "scrapbook"
   ],
-  "author": "",
+  "author": "nitives",
   "license": "ISC",
   "build": {
-    "appId": "com.example.vaulty",
+    "appId": "com.nitives.vaulty",
     "productName": "Vaulty",
+    "directories": {
+      "output": "release"
+    },
     "files": [
       "dist/**",
       "package.json"
@@ -56,7 +59,7 @@
           ]
         }
       ],
-      "icon": "icons/ico/icon.ico"
+      "icon": "icons/ico/icon-rounded.ico"
     },
     "nsis": {
       "oneClick": false,
@@ -68,6 +71,7 @@
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
+    "app-builder-bin": "^4.2.0",
     "electron": "33.4.11",
     "electron-builder": "^25.0.0",
     "typescript": "^5.0.0"

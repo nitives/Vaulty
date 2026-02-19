@@ -2,6 +2,7 @@
 
 # dependencies
 /node_modules
+apps/desktop/node_modules
 /.pnp
 .pnp.*
 .yarn/*
@@ -17,6 +18,8 @@
 /.next/
 /out/
 apps/web/.next
+apps/desktop/resources
+apps/desktop/release
 
 # production
 /build
