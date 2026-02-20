@@ -46,6 +46,7 @@ declare global {
       ) => Promise<Record<string, unknown>>;
       setNativeTheme: (theme: string) => Promise<void>;
       getWindowsAccentColor: () => Promise<string | null>;
+      onAccentColorChanged?: (callback: (color: string) => void) => () => void;
       // Storage API
       loadItems: () => Promise<StoredItem[]>;
       saveItems: (items: StoredItem[]) => Promise<void>;

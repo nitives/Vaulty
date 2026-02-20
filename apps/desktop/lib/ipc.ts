@@ -108,6 +108,15 @@ export function registerIpcHandlers(
     return null;
   });
 
+  if (process.platform === "win32") {
+    systemPreferences.on("accent-color-changed", (_event, newColor) => {
+      const win = getMainWindow();
+      if (win && !win.isDestroyed()) {
+        win.webContents.send("accent:changed", `#${newColor.slice(0, 6)}`);
+      }
+    });
+  }
+
   // Items storage
   ipcMain.handle("items:load", () => {
     return loadItems();

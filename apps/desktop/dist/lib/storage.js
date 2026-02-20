@@ -14,6 +14,7 @@ exports.restoreFromTrash = restoreFromTrash;
 exports.permanentlyDeleteFromTrash = permanentlyDeleteFromTrash;
 exports.emptyTrash = emptyTrash;
 exports.cleanupOldTrash = cleanupOldTrash;
+exports.clearAllData = clearAllData;
 const fs_1 = __importDefault(require("fs"));
 const path_1 = __importDefault(require("path"));
 const paths_1 = require("./paths");
@@ -234,4 +235,32 @@ function cleanupOldTrash() {
         console.log(`Cleaned up ${deletedCount} items from trash (older than ${TRASH_RETENTION_DAYS} days)`);
     }
     return deletedCount;
+}
+function clearAllData() {
+    try {
+        ensureDataDirectories();
+        // Clear items.json
+        saveItems([]);
+        // Clear trash.json
+        saveTrash([]);
+        // Delete all images
+        const imagesPath = (0, paths_1.getImagesPath)();
+        if (fs_1.default.existsSync(imagesPath)) {
+            const files = fs_1.default.readdirSync(imagesPath);
+            for (const file of files) {
+                fs_1.default.unlinkSync(path_1.default.join(imagesPath, file));
+            }
+        }
+        // Delete all trash images
+        const trashImagesPath = (0, paths_1.getTrashImagesPath)();
+        if (fs_1.default.existsSync(trashImagesPath)) {
+            const files = fs_1.default.readdirSync(trashImagesPath);
+            for (const file of files) {
+                fs_1.default.unlinkSync(path_1.default.join(trashImagesPath, file));
+            }
+        }
+    }
+    catch (err) {
+        console.error("Failed to clear all data:", err);
+    }
 }

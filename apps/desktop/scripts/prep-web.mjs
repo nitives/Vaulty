@@ -15,6 +15,7 @@ function cpContents(src, dest) {
     fs.cpSync(path.join(src, entry), path.join(dest, entry), {
       recursive: true,
       force: true,
+      dereference: true,
     });
   }
 }
@@ -41,7 +42,14 @@ const nestedStaticDest = path.join(
   "static",
 );
 const rootPublicDest = path.join(out, "public");
-const nestedPublicDest = path.join(out, ".next", "standalone", "apps", "web", "public");
+const nestedPublicDest = path.join(
+  out,
+  ".next",
+  "standalone",
+  "apps",
+  "web",
+  "public",
+);
 
 // Keep static assets in both locations:
 // - root path for simple standalone layouts

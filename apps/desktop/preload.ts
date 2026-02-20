@@ -74,6 +74,12 @@ contextBridge.exposeInMainWorld("electronAPI", {
   setNativeTheme: (theme: string) => ipcRenderer.invoke("theme:set", theme),
   // Accent color (Windows only)
   getWindowsAccentColor: () => ipcRenderer.invoke("accent:getWindowsColor"),
+  onAccentColorChanged: (callback: (color: string) => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, color: string) =>
+      callback(color);
+    ipcRenderer.on("accent:changed", listener);
+    return () => ipcRenderer.removeListener("accent:changed", listener);
+  },
   // Items storage
   loadItems: () => ipcRenderer.invoke("items:load"),
   saveItems: (items: StoredItem[]) => ipcRenderer.invoke("items:save", items),
@@ -123,6 +129,7 @@ declare global {
       ) => Promise<Record<string, unknown>>;
       setNativeTheme: (theme: string) => Promise<void>;
       getWindowsAccentColor: () => Promise<string | null>;
+      onAccentColorChanged?: (callback: (color: string) => void) => () => void;
       // Items storage
       loadItems: () => Promise<StoredItem[]>;
       saveItems: (items: StoredItem[]) => Promise<{ success: boolean }>;

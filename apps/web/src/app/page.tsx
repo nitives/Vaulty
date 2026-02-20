@@ -104,7 +104,7 @@ function HomeContent() {
       settings.accentColor === "multicolor" &&
       window.electronAPI?.getWindowsAccentColor
     ) {
-      window.electronAPI.getWindowsAccentColor().then((color) => {
+      const applyWindowsColor = (color: string | null) => {
         if (color) {
           // Set the base color - CSS uses oklch to derive all shades
           document.documentElement.style.setProperty(
@@ -113,7 +113,17 @@ function HomeContent() {
           );
           console.log("Applied Windows accent color:", color);
         }
-      });
+      };
+
+      // 1. Fetch current color immediately on mount
+      window.electronAPI.getWindowsAccentColor().then(applyWindowsColor);
+
+      // 2. Listen for live system changes if supported
+      if (window.electronAPI.onAccentColorChanged) {
+        const unsubscribe =
+          window.electronAPI.onAccentColorChanged(applyWindowsColor);
+        return () => unsubscribe();
+      }
     }
   }, [settings.accentColor]);
 
