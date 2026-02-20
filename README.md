@@ -14,7 +14,7 @@
 ## Downloads
 
 > [!NOTE]
-> Vaulty is only avalible for Windows.
+> Vaulty is currently only avalible for Windows.
 
 - [Download](https://github.com/nitives/Vaulty/releases/latest)
 
