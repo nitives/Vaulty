@@ -10,6 +10,10 @@ interface StoredItem {
   reminder?: string;
   imageUrl?: string;
   size?: number;
+  analyzed?: {
+    tags: string[];
+    content: string;
+  };
 }
 
 interface TrashedItem {
@@ -132,7 +136,12 @@ declare global {
       saveImage: (
         imageData: string,
         filename: string,
-      ) => Promise<{ success: boolean; path?: string; size?: number; error?: string }>;
+      ) => Promise<{
+        success: boolean;
+        path?: string;
+        size?: number;
+        error?: string;
+      }>;
       getImagesPath: () => Promise<string>;
       // Storage path
       getStoragePath: () => Promise<string>;
@@ -146,15 +155,21 @@ declare global {
       cleanupTrash: () => Promise<{ success: boolean; deletedCount: number }>;
       // Auto updates
       checkForUpdates: () => Promise<
-        { ok: true; status: string; version?: string } | { ok: false; reason: string }
+        | { ok: true; status: string; version?: string }
+        | { ok: false; reason: string }
       >;
-      downloadUpdate: () => Promise<{ ok: boolean; reason?: string; message?: string }>;
+      downloadUpdate: () => Promise<{
+        ok: boolean;
+        reason?: string;
+        message?: string;
+      }>;
       installUpdate: () => Promise<{ ok: boolean; reason?: string }>;
       getUpdateStatus: () => Promise<UpdateStatusPayload>;
       onUpdateStatus: (callback: UpdateStatusListener) => () => void;
       // Aliases for compatibility
       updaterCheck: () => Promise<
-        { ok: true; status: string; version?: string } | { ok: false; reason: string }
+        | { ok: true; status: string; version?: string }
+        | { ok: false; reason: string }
       >;
       updaterInstall: () => Promise<{ ok: boolean; reason?: string }>;
       onUpdaterEvent: (callback: UpdateStatusListener) => () => void;

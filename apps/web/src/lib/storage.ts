@@ -10,6 +10,10 @@ export interface StoredItem {
   reminder?: string;
   imageUrl?: string;
   size?: number;
+  analyzed?: {
+    tags: string[];
+    content: string;
+  };
 }
 
 // Convert Item to StoredItem (serialize dates)
@@ -23,6 +27,7 @@ export function itemToStored(item: Item): StoredItem {
     reminder: item.reminder?.toISOString(),
     imageUrl: item.imageUrl,
     size: item.size,
+    analyzed: item.analyzed,
   };
 }
 
@@ -37,6 +42,7 @@ export function storedToItem(stored: StoredItem): Item {
     reminder: stored.reminder ? new Date(stored.reminder) : undefined,
     imageUrl: stored.imageUrl,
     size: stored.size,
+    analyzed: stored.analyzed,
   };
 }
 
@@ -165,7 +171,10 @@ export async function saveImage(
   if (!api) {
     // In browser, just return the data URL (size isn't accurate for data urls in this context, but we fallback gracefully)
     // calculating size of base64 snippet:
-    const size = Buffer.from(imageData.replace(/^data:image\/\w+;base64,/, ""), "base64").length;
+    const size = Buffer.from(
+      imageData.replace(/^data:image\/\w+;base64,/, ""),
+      "base64",
+    ).length;
     return { path: imageData, size };
   }
 

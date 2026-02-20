@@ -12,3 +12,4 @@ export { Select } from "./Select";
 export { DropdownMenu, type DropdownMenuItem } from "./DropdownMenu";
 export { AccentColorPicker } from "./AccentColorPicker";
 export * from "./ConfirmModal";
+export { Button, type ButtonProps } from "./Button";

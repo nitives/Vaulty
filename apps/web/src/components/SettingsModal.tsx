@@ -11,6 +11,7 @@ import { Toggle } from "./Toggle";
 import { Select } from "./Select";
 import { AccentColorPicker } from "./AccentColorPicker";
 import { Slider } from "./Slider";
+import { Button } from "./Button";
 import SFIcon from "@bradleyhodges/sfsymbols-react";
 import { sfXmark } from "@bradleyhodges/sfsymbols";
 import { motion, AnimatePresence } from "motion/react";
@@ -200,6 +201,51 @@ function AppearanceSection() {
 
 function BehaviorSection() {
   const { settings, update } = useSettings();
+  const [modelSize, setModelSize] = useState<number | null>(null);
+
+  // Check if the Florence-2 model is currently installed in the browser's Cache API
+  useEffect(() => {
+    const checkModelCache = async () => {
+      try {
+        const cacheKeys = await caches.keys();
+        const hfCacheName = cacheKeys.find((k) =>
+          k.includes("transformers-cache"),
+        );
+        if (!hfCacheName) {
+          setModelSize(0);
+          return;
+        }
+
+        const cache = await caches.open(hfCacheName);
+        const requests = await cache.keys();
+        let totalBytes = 0;
+
+        for (const req of requests) {
+          // Only size up requests related to the model we use
+          if (req.url.includes("Florence-2")) {
+            const res = await cache.match(req);
+            if (res && res.headers.has("content-length")) {
+              totalBytes += parseInt(
+                res.headers.get("content-length") || "0",
+                10,
+              );
+            } else if (res) {
+              // Fallback if no content-length: clone and read Blob (slower but accurate)
+              const blob = await res.clone().blob();
+              totalBytes += blob.size;
+            }
+          }
+        }
+
+        setModelSize(totalBytes);
+      } catch (e) {
+        console.error("Failed to check model cache size:", e);
+        setModelSize(0);
+      }
+    };
+
+    checkModelCache();
+  }, [settings.useFlorence]); // Re-check when the user toggles it, as it downloads in the background
 
   return (
     <div className="space-y-2">
@@ -240,13 +286,59 @@ function BehaviorSection() {
         />
       </SettingsRow>
       <SettingsRow
-        label="Show Image Size"
-        description="Display the file size of images next to their timestamp"
+        label="Florence Image Description"
+        description={`Use a highly-capable on-device vision model to generate rich descriptions for images (Approx ~200MB download). WARNING: This will significantly slow down the time it takes to process images. Turn off to use basic text detection.${modelSize ? ` Currently using ${(modelSize / 1024 / 1024).toFixed(1)} MB.` : ""}`}
       >
-        <Toggle
-          checked={settings.showImageSize ?? false}
-          onChange={(v) => update({ showImageSize: v })}
-        />
+        <div className="flex items-center gap-3">
+          {modelSize !== null && modelSize > 0 && (
+            <Button
+              variant="base"
+              className="text-xs px-2 py-1 text-red-600 dark:text-red-400"
+              onClick={async () => {
+                if (settings.useFlorence) update({ useFlorence: false });
+
+                try {
+                  const keys = await caches.keys();
+                  const hfCache = keys.find((k) =>
+                    k.includes("transformers-cache"),
+                  );
+                  if (hfCache) {
+                    const cache = await caches.open(hfCache);
+                    const requests = await cache.keys();
+                    // Just delete the Florence-2 ones so we don't wipe other models if the user has them
+                    for (const req of requests) {
+                      if (req.url.includes("Florence-2")) {
+                        await cache.delete(req);
+                      }
+                    }
+                  }
+                  setModelSize(0);
+                  alert(
+                    "Florence successfully uninstalled from browser cache.",
+                  );
+                } catch (e) {
+                  console.error("Failed to clear model cache:", e);
+                }
+              }}
+            >
+              Uninstall Model
+            </Button>
+          )}
+
+          <Button
+            variant={settings.useFlorence ? "base" : "primary"}
+            className="text-xs px-2 py-1"
+            onClick={() => {
+              if (!settings.useFlorence) {
+                update({ useFlorence: true });
+              } else {
+                update({ useFlorence: false });
+              }
+            }}
+          >
+            {settings.useFlorence ? "Disable" : "Install & Enable"}
+          </Button>
+        </div>
       </SettingsRow>
     </div>
   );
@@ -515,45 +607,131 @@ function GuideSection() {
   return (
     <div className="space-y-4 p-2 pb-6">
       <div className="rounded-lg bg-neutral-100 px-4 py-4 dark:bg-neutral-800">
-        <h4 className="font-semibold mb-2 text-neutral-900 dark:text-neutral-100">Search Operators</h4>
+        <h4 className="font-semibold mb-2 text-neutral-900 dark:text-neutral-100">
+          Search Operators
+        </h4>
         <p className="text-sm text-neutral-600 dark:text-neutral-400 mb-4">
-          Vaulty supports powerful search operators to filter your items. Type these directly into the search bar:
+          Vaulty supports powerful search operators to filter your items. Type
+          these directly into the search bar:
         </p>
-        
+
         <div className="space-y-4 text-sm">
           <div>
-            <code className="bg-neutral-200 dark:bg-neutral-700 px-1.5 py-0.5 rounded text-[var(--accent-600)] dark:text-[var(--accent-400)] font-mono text-[11px]">date:YYYY-MM-DD</code>
-            <p className="mt-1 text-neutral-600 dark:text-neutral-400">Find items created on an exact date.</p>
-            <p className="text-xs text-neutral-500 mt-1">Example: <code className="font-mono">date:2025-02-19</code></p>
-          </div>
-          
-          <div>
-            <code className="bg-neutral-200 dark:bg-neutral-700 px-1.5 py-0.5 rounded text-[var(--accent-600)] dark:text-[var(--accent-400)] font-mono text-[11px]">size:&lt;amount&gt;&lt;unit&gt;</code>
-            <p className="mt-1 text-neutral-600 dark:text-neutral-400">Find images smaller than a specific size. Supports <code>kb</code>, <code>mb</code>, and <code>gb</code>.</p>
-            <p className="text-xs text-neutral-500 mt-1">Example: <code className="font-mono">size:&lt;200mb</code></p>
-          </div>
-          
-          <div>
-            <span className="font-medium text-neutral-800 dark:text-neutral-200">Natural Time Filters</span>
+            <code className="bg-neutral-200 dark:bg-neutral-700 px-1.5 py-0.5 rounded text-[var(--accent-600)] dark:text-[var(--accent-400)] font-mono text-[11px]">
+              date:YYYY-MM-DD
+            </code>
             <p className="mt-1 text-neutral-600 dark:text-neutral-400">
-              Filter items by relative time. You can use phrases like <code className="font-mono text-[11px] bg-neutral-200 dark:bg-neutral-700 px-1.5 py-0.5 rounded text-neutral-800 dark:text-neutral-200">today</code>, <code className="font-mono text-[11px] bg-neutral-200 dark:bg-neutral-700 px-1.5 py-0.5 rounded text-neutral-800 dark:text-neutral-200">yesterday</code>, <code className="font-mono text-[11px] bg-neutral-200 dark:bg-neutral-700 px-1.5 py-0.5 rounded text-neutral-800 dark:text-neutral-200">last week</code>, <code className="font-mono text-[11px] bg-neutral-200 dark:bg-neutral-700 px-1.5 py-0.5 rounded text-neutral-800 dark:text-neutral-200">last month</code>, or <code className="font-mono text-[11px] bg-neutral-200 dark:bg-neutral-700 px-1.5 py-0.5 rounded text-neutral-800 dark:text-neutral-200">from 3 days ago</code>.
+              Find items created on an exact date.
+            </p>
+            <p className="text-xs text-neutral-500 mt-1">
+              Example: <code className="font-mono">date:2025-02-19</code>
+            </p>
+          </div>
+
+          <div>
+            <code className="bg-neutral-200 dark:bg-neutral-700 px-1.5 py-0.5 rounded text-[var(--accent-600)] dark:text-[var(--accent-400)] font-mono text-[11px]">
+              size:&lt;amount&gt;&lt;unit&gt;
+            </code>
+            <p className="mt-1 text-neutral-600 dark:text-neutral-400">
+              Find images smaller than a specific size. Supports <code>kb</code>
+              , <code>mb</code>, and <code>gb</code>.
+            </p>
+            <p className="text-xs text-neutral-500 mt-1">
+              Example: <code className="font-mono">size:&lt;200mb</code>
+            </p>
+          </div>
+
+          <div>
+            <span className="font-medium text-neutral-800 dark:text-neutral-200">
+              Natural Time Filters
+            </span>
+            <p className="mt-1 text-neutral-600 dark:text-neutral-400">
+              Filter items by relative time. You can use phrases like{" "}
+              <code className="font-mono text-[11px] bg-neutral-200 dark:bg-neutral-700 px-1.5 py-0.5 rounded text-neutral-800 dark:text-neutral-200">
+                today
+              </code>
+              ,{" "}
+              <code className="font-mono text-[11px] bg-neutral-200 dark:bg-neutral-700 px-1.5 py-0.5 rounded text-neutral-800 dark:text-neutral-200">
+                yesterday
+              </code>
+              ,{" "}
+              <code className="font-mono text-[11px] bg-neutral-200 dark:bg-neutral-700 px-1.5 py-0.5 rounded text-neutral-800 dark:text-neutral-200">
+                last week
+              </code>
+              ,{" "}
+              <code className="font-mono text-[11px] bg-neutral-200 dark:bg-neutral-700 px-1.5 py-0.5 rounded text-neutral-800 dark:text-neutral-200">
+                last month
+              </code>
+              , or{" "}
+              <code className="font-mono text-[11px] bg-neutral-200 dark:bg-neutral-700 px-1.5 py-0.5 rounded text-neutral-800 dark:text-neutral-200">
+                from 3 days ago
+              </code>
+              .
             </p>
           </div>
         </div>
       </div>
 
       <div className="rounded-lg bg-neutral-100 px-4 py-4 dark:bg-neutral-800">
-        <h4 className="font-semibold mb-2 text-neutral-900 dark:text-neutral-100">Markdown Formatting</h4>
+        <h4 className="font-semibold mb-2 text-neutral-900 dark:text-neutral-100">
+          Markdown Formatting
+        </h4>
         <p className="text-sm text-neutral-600 dark:text-neutral-400 mb-3">
           Format your text items using simple markdown:
         </p>
         <ul className="list-disc list-inside text-sm text-neutral-600 dark:text-neutral-400 space-y-1.5">
-          <li><strong>Headers:</strong> <code className="font-mono text-[11px] bg-neutral-200 dark:bg-neutral-700 px-1.5 py-0.5 rounded text-neutral-800 dark:text-neutral-200"># Header</code> or <code className="font-mono text-[11px] bg-neutral-200 dark:bg-neutral-700 px-1.5 py-0.5 rounded text-neutral-800 dark:text-neutral-200">## Smaller</code></li>
-          <li><strong>Lists:</strong> <code className="font-mono text-[11px] bg-neutral-200 dark:bg-neutral-700 px-1.5 py-0.5 rounded text-neutral-800 dark:text-neutral-200">- Item</code> or <code className="font-mono text-[11px] bg-neutral-200 dark:bg-neutral-700 px-1.5 py-0.5 rounded text-neutral-800 dark:text-neutral-200">1. Item</code></li>
-          <li><strong>Links:</strong> <code className="font-mono text-[11px] bg-neutral-200 dark:bg-neutral-700 px-1.5 py-0.5 rounded text-neutral-800 dark:text-neutral-200">[Title](https://url.com)</code></li>
-          <li><strong>Quotes:</strong> <code className="font-mono text-[11px] bg-neutral-200 dark:bg-neutral-700 px-1.5 py-0.5 rounded text-neutral-800 dark:text-neutral-200">&gt; Quote</code> or <code className="font-mono text-[11px] bg-neutral-200 dark:bg-neutral-700 px-1.5 py-0.5 rounded text-neutral-800 dark:text-neutral-200">&gt;&gt;&gt; Multi-line</code></li>
-          <li><strong>Code blocks:</strong> <code className="font-mono text-[11px] bg-neutral-200 dark:bg-neutral-700 px-1.5 py-0.5 rounded text-neutral-800 dark:text-neutral-200">`inline`</code> or <code className="font-mono text-[11px] bg-neutral-200 dark:bg-neutral-700 px-1.5 py-0.5 rounded text-neutral-800 dark:text-neutral-200">```block```</code></li>
-          <li><strong>Subtext:</strong> <code className="font-mono text-[11px] bg-neutral-200 dark:bg-neutral-700 px-1.5 py-0.5 rounded text-neutral-800 dark:text-neutral-200">-# small text</code></li>
+          <li>
+            <strong>Headers:</strong>{" "}
+            <code className="font-mono text-[11px] bg-neutral-200 dark:bg-neutral-700 px-1.5 py-0.5 rounded text-neutral-800 dark:text-neutral-200">
+              # Header
+            </code>{" "}
+            or{" "}
+            <code className="font-mono text-[11px] bg-neutral-200 dark:bg-neutral-700 px-1.5 py-0.5 rounded text-neutral-800 dark:text-neutral-200">
+              ## Smaller
+            </code>
+          </li>
+          <li>
+            <strong>Lists:</strong>{" "}
+            <code className="font-mono text-[11px] bg-neutral-200 dark:bg-neutral-700 px-1.5 py-0.5 rounded text-neutral-800 dark:text-neutral-200">
+              - Item
+            </code>{" "}
+            or{" "}
+            <code className="font-mono text-[11px] bg-neutral-200 dark:bg-neutral-700 px-1.5 py-0.5 rounded text-neutral-800 dark:text-neutral-200">
+              1. Item
+            </code>
+          </li>
+          <li>
+            <strong>Links:</strong>{" "}
+            <code className="font-mono text-[11px] bg-neutral-200 dark:bg-neutral-700 px-1.5 py-0.5 rounded text-neutral-800 dark:text-neutral-200">
+              [Title](https://url.com)
+            </code>
+          </li>
+          <li>
+            <strong>Quotes:</strong>{" "}
+            <code className="font-mono text-[11px] bg-neutral-200 dark:bg-neutral-700 px-1.5 py-0.5 rounded text-neutral-800 dark:text-neutral-200">
+              &gt; Quote
+            </code>{" "}
+            or{" "}
+            <code className="font-mono text-[11px] bg-neutral-200 dark:bg-neutral-700 px-1.5 py-0.5 rounded text-neutral-800 dark:text-neutral-200">
+              &gt;&gt;&gt; Multi-line
+            </code>
+          </li>
+          <li>
+            <strong>Code blocks:</strong>{" "}
+            <code className="font-mono text-[11px] bg-neutral-200 dark:bg-neutral-700 px-1.5 py-0.5 rounded text-neutral-800 dark:text-neutral-200">
+              `inline`
+            </code>{" "}
+            or{" "}
+            <code className="font-mono text-[11px] bg-neutral-200 dark:bg-neutral-700 px-1.5 py-0.5 rounded text-neutral-800 dark:text-neutral-200">
+              ```block```
+            </code>
+          </li>
+          <li>
+            <strong>Subtext:</strong>{" "}
+            <code className="font-mono text-[11px] bg-neutral-200 dark:bg-neutral-700 px-1.5 py-0.5 rounded text-neutral-800 dark:text-neutral-200">
+              -# small text
+            </code>
+          </li>
         </ul>
       </div>
     </div>

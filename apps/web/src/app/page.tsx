@@ -23,7 +23,12 @@ import {
   updateItem as updateStoredItem,
 } from "@/lib/storage";
 import SFIcon from "@bradleyhodges/sfsymbols-react";
-import { sfMagnifyingglass, sfXmark, sfArrowDown, sfArrowUp } from "@bradleyhodges/sfsymbols";
+import {
+  sfMagnifyingglass,
+  sfXmark,
+  sfArrowDown,
+  sfArrowUp,
+} from "@bradleyhodges/sfsymbols";
 
 export default function Home() {
   return (
@@ -174,7 +179,9 @@ function HomeContent() {
         type,
         // For images, use the image name as content if no caption provided
         content:
-          type === "image" && !finalContent && imageName ? imageName : finalContent,
+          type === "image" && !finalContent && imageName
+            ? imageName
+            : finalContent,
         tags: finalTags,
         createdAt: new Date(),
         imageUrl: imagePath,
@@ -190,28 +197,31 @@ function HomeContent() {
       // Process image in the background without blocking the UI
       if (imageData && type === "image") {
         setIsProcessingImage(true);
-        
+
         // Use IIFE to run this concurrently without blocking handleAddItem's return
         (async () => {
           try {
             const { processImage } = await import("@/lib/vision");
-            const visionResult = await processImage(imageData);
-            
+            const visionResult = await processImage(
+              imageData,
+              settings.useFlorence ?? false,
+            );
+
             if (visionResult.text || visionResult.labels.length > 0) {
               const analyzedData = {
                 content: visionResult.text || "",
-                tags: visionResult.labels || []
+                tags: visionResult.labels || [],
               };
-              
+
               const updatedItem = { ...newItem, analyzed: analyzedData };
-              
+
               // Update state with analyzed metadata
               setItems((prev) =>
                 prev.map((item) =>
-                  item.id === newItem.id ? updatedItem : item
-                )
+                  item.id === newItem.id ? updatedItem : item,
+                ),
               );
-              
+
               // Update storage with analyzed metadata
               await updateStoredItem(updatedItem);
             }
@@ -236,15 +246,18 @@ function HomeContent() {
     setItemToDelete(null);
   }, [itemToDelete]);
 
-  const handleDeleteItem = useCallback((id: string) => {
-    if (settings.confirmBeforeDelete ?? true) {
-      setItemToDelete(id);
-    } else {
-      // Inline execution of deletion bypassing modal
-      setItems((prev) => prev.filter((item) => item.id !== id));
-      deleteStoredItem(id);
-    }
-  }, [settings.confirmBeforeDelete]);
+  const handleDeleteItem = useCallback(
+    (id: string) => {
+      if (settings.confirmBeforeDelete ?? true) {
+        setItemToDelete(id);
+      } else {
+        // Inline execution of deletion bypassing modal
+        setItems((prev) => prev.filter((item) => item.id !== id));
+        deleteStoredItem(id);
+      }
+    },
+    [settings.confirmBeforeDelete],
+  );
 
   const handleEditItem = useCallback(async (id: string, newContent: string) => {
     // Optimistic local update
@@ -256,12 +269,12 @@ function HomeContent() {
           return updatedItem;
         }
         return item;
-      })
+      }),
     );
 
     // Persist to storage if item was found
     if (updatedItem) {
-        await updateStoredItem(updatedItem);
+      await updateStoredItem(updatedItem);
     }
   }, []);
 
@@ -302,7 +315,8 @@ function HomeContent() {
 
     // Filter by search query
     if (searchQuery) {
-      const { cleanQuery, startDate, endDate, sizeFilter } = parseSearchQuery(searchQuery);
+      const { cleanQuery, startDate, endDate, sizeFilter } =
+        parseSearchQuery(searchQuery);
       const lowerQuery = cleanQuery.toLowerCase();
 
       result = result.filter((item) => {
@@ -314,22 +328,22 @@ function HomeContent() {
         if (sizeFilter) {
           if (item.type === "image") {
             if (item.size !== undefined) {
-               const { operator, value } = sizeFilter;
-               let matchesSize = false;
-               if (operator === ">") matchesSize = item.size > value;
-               else if (operator === ">=") matchesSize = item.size >= value;
-               else if (operator === "<") matchesSize = item.size < value;
-               else if (operator === "<=") matchesSize = item.size <= value;
-               else matchesSize = item.size === value; // exact match or '='
-               
-               if (!matchesSize) return false;
+              const { operator, value } = sizeFilter;
+              let matchesSize = false;
+              if (operator === ">") matchesSize = item.size > value;
+              else if (operator === ">=") matchesSize = item.size >= value;
+              else if (operator === "<") matchesSize = item.size < value;
+              else if (operator === "<=") matchesSize = item.size <= value;
+              else matchesSize = item.size === value; // exact match or '='
+
+              if (!matchesSize) return false;
             } else {
-               // Image doesn't have a size recorded, assume it fails the filter
-               return false;
+              // Image doesn't have a size recorded, assume it fails the filter
+              return false;
             }
           } else if (settings.hideNotesWhenFilteringBySize) {
-             // If we are filtering by size, and hide notes is enabled, hide non-images
-             return false;
+            // If we are filtering by size, and hide notes is enabled, hide non-images
+            return false;
           }
         }
 
@@ -341,16 +355,21 @@ function HomeContent() {
           const matchesTags = item.tags.some((tag) =>
             tag.toLowerCase().includes(lowerQuery),
           );
-          
-          const matchesAnalyzedContent = item.analyzed?.content
-            ?.toLowerCase()
-            .includes(lowerQuery) ?? false;
-            
-          const matchesAnalyzedTags = item.analyzed?.tags?.some((tag) =>
-            tag.toLowerCase().includes(lowerQuery),
-          ) ?? false;
-          
-          return matchesContent || matchesTags || matchesAnalyzedContent || matchesAnalyzedTags;
+
+          const matchesAnalyzedContent =
+            item.analyzed?.content?.toLowerCase().includes(lowerQuery) ?? false;
+
+          const matchesAnalyzedTags =
+            item.analyzed?.tags?.some((tag) =>
+              tag.toLowerCase().includes(lowerQuery),
+            ) ?? false;
+
+          return (
+            matchesContent ||
+            matchesTags ||
+            matchesAnalyzedContent ||
+            matchesAnalyzedTags
+          );
         }
 
         return true;
@@ -358,7 +377,13 @@ function HomeContent() {
     }
 
     return result;
-  }, [items, activeFilter, searchQuery, activeTagFilter, settings.hideNotesWhenFilteringBySize]);
+  }, [
+    items,
+    activeFilter,
+    searchQuery,
+    activeTagFilter,
+    settings.hideNotesWhenFilteringBySize,
+  ]);
 
   const displayItems = useMemo(() => {
     const pos = settings.inputBarPosition ?? "bottom";
@@ -376,7 +401,8 @@ function HomeContent() {
     if (!el) return;
 
     if (settings.inputBarPosition === "bottom") {
-      const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+      const distanceFromBottom =
+        el.scrollHeight - el.scrollTop - el.clientHeight;
       stickToBottomRef.current = distanceFromBottom < 48;
       setShowScrollButton(distanceFromBottom > 150);
     } else {
@@ -387,11 +413,11 @@ function HomeContent() {
   const scrollToStart = useCallback(() => {
     const el = scrollRef.current;
     if (!el) return;
-    
+
     if (settings.inputBarPosition === "bottom") {
-      el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
+      el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
     } else {
-      el.scrollTo({ top: 0, behavior: 'smooth' });
+      el.scrollTo({ top: 0, behavior: "smooth" });
     }
   }, [settings.inputBarPosition]);
 
@@ -471,10 +497,10 @@ function HomeContent() {
           activeFilter={activeFilter}
           onFilterChange={setActiveFilter}
           isCollapsed={sidebarCollapsed}
-        // onTagClick={handleTagClick}
-        // recentTags={Array.from(
-        //   new Set(items.flatMap((item) => item.tags).filter(Boolean)),
-        // ).slice(0, 8)}
+          // onTagClick={handleTagClick}
+          // recentTags={Array.from(
+          //   new Set(items.flatMap((item) => item.tags).filter(Boolean)),
+          // ).slice(0, 8)}
         />
 
         {/* Main Content */}
@@ -538,8 +564,6 @@ function HomeContent() {
             )}
           </AnimatePresence>
 
-
-
           {/* Input Bar - Top position */}
           <div className="input-bar-top-container shrink-0 border-b border-[var(--edge-border-color-light)] dark:border-[var(--edge-border-color-dark)] px-6 py-4 bg-white dark:bg-neutral-900 transparent:bg-white/50 transparent:dark:bg-neutral-900/50 transparent:backdrop-blur-sm">
             <div className="mx-auto max-w-4xl">
@@ -561,13 +585,19 @@ function HomeContent() {
                   "bg-white/90 dark:bg-neutral-800/90 text-[var(--accent-600)] dark:text-[var(--accent-400)]",
                   "border border-neutral-200 dark:border-neutral-700",
                   "hover:bg-[var(--accent-50)] dark:hover:bg-[var(--accent-950)] transition-colors",
-                  settings.inputBarPosition === "bottom" ? "bottom-24" : "top-24"
+                  settings.inputBarPosition === "bottom"
+                    ? "bottom-24"
+                    : "top-24",
                 )}
                 aria-label="Scroll to latest"
               >
-                <SFIcon 
-                  icon={settings.inputBarPosition === "bottom" ? sfArrowDown : sfArrowUp} 
-                  size={16} 
+                <SFIcon
+                  icon={
+                    settings.inputBarPosition === "bottom"
+                      ? sfArrowDown
+                      : sfArrowUp
+                  }
+                  size={16}
                 />
               </motion.button>
             )}
