@@ -9,6 +9,7 @@ export interface StoredItem {
   createdAt: string;
   reminder?: string;
   imageUrl?: string;
+  size?: number;
 }
 
 // Convert Item to StoredItem (serialize dates)
@@ -21,6 +22,7 @@ export function itemToStored(item: Item): StoredItem {
     createdAt: item.createdAt.toISOString(),
     reminder: item.reminder?.toISOString(),
     imageUrl: item.imageUrl,
+    size: item.size,
   };
 }
 
@@ -34,6 +36,7 @@ export function storedToItem(stored: StoredItem): Item {
     createdAt: new Date(stored.createdAt),
     reminder: stored.reminder ? new Date(stored.reminder) : undefined,
     imageUrl: stored.imageUrl,
+    size: stored.size,
   };
 }
 
@@ -152,22 +155,24 @@ export async function updateItem(item: Item): Promise<void> {
   }
 }
 
-// Save an image and return the file path
+// Save an image and return the path and size
 export async function saveImage(
   imageData: string,
   filename: string,
-): Promise<string | null> {
+): Promise<{ path: string; size: number } | null> {
   const api = getElectronAPI();
 
   if (!api) {
-    // In browser, just return the data URL
-    return imageData;
+    // In browser, just return the data URL (size isn't accurate for data urls in this context, but we fallback gracefully)
+    // calculating size of base64 snippet:
+    const size = Buffer.from(imageData.replace(/^data:image\/\w+;base64,/, ""), "base64").length;
+    return { path: imageData, size };
   }
 
   try {
     const result = await api.saveImage(imageData, filename);
     if (result.success && result.path) {
-      return result.path;
+      return { path: result.path, size: result.size || 0 };
     }
     console.error("Failed to save image:", result.error);
     return null;

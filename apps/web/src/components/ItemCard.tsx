@@ -1,9 +1,12 @@
-"use client";
-
 import { formatTimeShort } from "@/lib/utils";
-import { sfCircleFill, sfEllipsis, sfTrash } from "@bradleyhodges/sfsymbols";
+import { sfCircleFill, sfEllipsis, sfTrash, sfPencil } from "@bradleyhodges/sfsymbols";
 import SFIcon from "@bradleyhodges/sfsymbols-react";
 import { DropdownMenu } from "./DropdownMenu";
+import { renderMarkdown } from "@/lib/markdown";
+import { useSettings } from "@/lib/settings";
+import { useState } from "react";
+import clsx from "clsx";
+import { buttonStyles } from "@/styles/Button";
 
 export interface Item {
   id: string;
@@ -13,42 +16,18 @@ export interface Item {
   createdAt: Date;
   reminder?: Date;
   imageUrl?: string;
+  size?: number;
 }
 
-interface ItemCardProps {
+export interface ItemCardProps {
   item: Item;
   onTagClick?: (tag: string) => void;
   onDelete?: (id: string) => void;
+  onEdit?: (id: string, newContent: string) => void;
 }
 
 // URL regex pattern
-const urlRegex = /(https?:\/\/[^\s]+)/g;
-
-// Render text with clickable links
-function renderContentWithLinks(content: string) {
-  const parts = content.split(urlRegex);
-
-  return parts.map((part, index) => {
-    if (urlRegex.test(part)) {
-      // Reset regex lastIndex since we're reusing it
-      urlRegex.lastIndex = 0;
-      return (
-        <a
-          key={index}
-          href={part}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-[var(--accent-600)] hover:underline dark:text-[var(--accent-400)] rounded"
-          onClick={(e) => e.stopPropagation()}
-        >
-          {part}
-        </a>
-      );
-    }
-    return part;
-  });
-}
-
+// Render text with clickable links (moved to markdown.tsx but we still need some for other uses, or just completely removed)
 // Convert image path to display URL
 function getImageUrl(imageUrl: string): string {
   // Data URLs (base64) - use as-is
@@ -77,11 +56,29 @@ function hasTextContent(content: string, imageUrl?: string): boolean {
   return true;
 }
 
-export function ItemCard({ item, onTagClick, onDelete }: ItemCardProps) {
+function formatSize(bytes?: number): string {
+  if (bytes === undefined) return "";
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+export function ItemCard({ item, onTagClick, onDelete, onEdit }: ItemCardProps) {
+  const { settings } = useSettings();
+  const [isEditing, setIsEditing] = useState(false);
+  const [editContent, setEditContent] = useState(item.content);
+
   const isLink = item.type === "link";
   const isImage = item.type === "image";
   const isReminder = item.type === "reminder";
   const showContent = hasTextContent(item.content, item.imageUrl);
+
+  const handleSaveEdit = () => {
+    if (editContent.trim() !== item.content) {
+      onEdit?.(item.id, editContent);
+    }
+    setIsEditing(false);
+  };
 
   return (
     <article className="group relative flex gap-3 rounded-lg px-2 py-2 transition-colors hover:bg-black/5 dark:hover:bg-white/5">
@@ -101,13 +98,47 @@ export function ItemCard({ item, onTagClick, onDelete }: ItemCardProps) {
           />
           <span className="text-xs text-black/50 dark:text-neutral-400">
             {formatTimeShort(item.createdAt)}
+            {settings.showImageSize && item.type === "image" && item.size !== undefined && (
+              <> • {formatSize(item.size)}</>
+            )}
           </span>
         </div>
 
         {/* Text content */}
         {showContent && (
-          <div className="mt-0.5">
-            {isLink ? (
+          <div className="mt-1">
+            {isEditing ? (
+              <div className="flex flex-col gap-2 mt-2 w-full">
+                <textarea
+                  value={editContent}
+                  onChange={(e) => setEditContent(e.target.value)}
+                  className="w-full resize rounded-lg border border-white/5 dark:border-white/5 bg-white dark:bg-neutral-800 p-2 text-sm text-neutral-900 dark:text-neutral-100 placeholder-neutral-400  focus:ring-1 focus:ring-white/0 outline-none"
+                  rows={4}
+                  autoFocus
+                />
+                <div className="flex justify-end gap-2">
+                  <button
+                    onClick={() => {
+                      setEditContent(item.content);
+                      setIsEditing(false);
+                    }}
+                    className={clsx(
+                      buttonStyles.base,
+                    )}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleSaveEdit}
+                    className={clsx(
+                      buttonStyles.primary,
+                    )}
+                  >
+                    Save
+                  </button>
+                </div>
+              </div>
+            ) : isLink ? (
               <a
                 href={item.content}
                 target="_blank"
@@ -117,9 +148,9 @@ export function ItemCard({ item, onTagClick, onDelete }: ItemCardProps) {
                 {item.content}
               </a>
             ) : (
-              <p className="whitespace-pre-wrap text-sm text-neutral-700 dark:text-neutral-300">
-                {renderContentWithLinks(item.content)}
-              </p>
+              <div className="text-sm text-neutral-700 dark:text-neutral-300 break-words">
+                {renderMarkdown(item.content)}
+              </div>
             )}
           </div>
         )}
@@ -178,9 +209,14 @@ export function ItemCard({ item, onTagClick, onDelete }: ItemCardProps) {
         <DropdownMenu
           trigger={<SFIcon icon={sfEllipsis} size={12} />}
           items={[
+            ...(onEdit ? [{
+              label: "Edit",
+              icon: sfPencil,
+              onClick: () => setIsEditing(true),
+            }] : []),
             {
               label: "Delete",
-              icon: <SFIcon icon={sfTrash} size={14} />,
+              icon: sfTrash,
               onClick: () => onDelete?.(item.id),
               variant: "danger",
             },

@@ -3,7 +3,7 @@
 import { motion, AnimatePresence } from "motion/react";
 import clsx from "clsx";
 import SFIcon from "@bradleyhodges/sfsymbols-react";
-import { sfTag } from "@bradleyhodges/sfsymbols";
+import { sfExternaldrive, sfTag } from "@bradleyhodges/sfsymbols";
 import { useEffect, useState, useMemo } from "react";
 import { loadItems } from "@/lib/storage";
 import { Item } from "./ItemCard";
@@ -33,6 +33,15 @@ export function Sidebar({
   const [isLoading, setIsLoading] = useState(true);
   const [items, setItems] = useState<Item[]>([]);
   const numberOfItems = useMemo(() => items.length || undefined, [items]);
+
+  const totalSize = useMemo(() => {
+    const bytes = items.reduce((sum, item) => sum + (item.size ?? 0), 0);
+    if (bytes === 0) return null;
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+    return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+  }, [items]);
   useEffect(() => {
     async function load() {
       try {
@@ -92,20 +101,31 @@ export function Sidebar({
 
       {/* Tags Section */}
       <div className="border-t border-neutral-200 p-2 dark:border-neutral-800 *:select-none">
-        <p className="flex items-center gap-2">
+        <p title="Number of items" className="flex items-center gap-2">
           <SFIcon
             icon={sfTag}
             size={16}
             className="text-black/50 dark:text-white/30"
           />
-
-          <span className="text-sm font-medium text-neutral-900 dark:text-neutral-300">
+          <span className="text-xs text-neutral-900 dark:text-white/25">
             {numberOfItems !== undefined
               ? `${numberOfItems} ${numberOfItems > 1 ? "items" : "item"}`
               : `-- items`}
           </span>
         </p>
-        <p></p>
+        {/* Size Section */}
+        {totalSize && (
+          <p title="Total size of all items" className="flex items-center gap-2 mt-1">
+            <SFIcon
+            icon={sfExternaldrive}
+            size={16}
+            className="text-black/50 dark:text-white/30"
+          />
+            <span className="text-xs text-neutral-900 dark:text-white/25">
+              {totalSize}
+            </span>
+          </p>
+        )}
         {/* <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
           Recent Tags
         </h3>

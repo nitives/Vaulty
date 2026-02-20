@@ -17,6 +17,7 @@ export interface StoredItem {
   createdAt: string;
   reminder?: string;
   imageUrl?: string;
+  size?: number;
 }
 
 export interface TrashedItem {
@@ -53,7 +54,32 @@ export function loadItems(): StoredItem[] {
       return [];
     }
     const data = fs.readFileSync(filePath, "utf-8");
-    return JSON.parse(data);
+    const items: StoredItem[] = JSON.parse(data);
+    let modified = false;
+
+    // Backfill size for images
+    for (const item of items) {
+      if (item.type === "image" && item.imageUrl && item.size === undefined) {
+        const filename = item.imageUrl.split(/[\\/]/).pop();
+        if (filename) {
+          const imgPath = path.join(getImagesPath(), filename);
+          if (fs.existsSync(imgPath)) {
+            try {
+              item.size = fs.statSync(imgPath).size;
+              modified = true;
+            } catch (e) {
+              // Ignore errors if file can't be stat'd
+            }
+          }
+        }
+      }
+    }
+
+    if (modified) {
+      saveItems(items);
+    }
+
+    return items;
   } catch (err) {
     console.error("Failed to load items:", err);
     return [];
@@ -72,7 +98,7 @@ export function saveItems(items: StoredItem[]): void {
 export function saveImage(
   imageData: string,
   filename: string,
-): { success: boolean; path?: string; error?: string } {
+): { success: boolean; path?: string; size?: number; error?: string } {
   try {
     ensureDataDirectories();
     const imagesPath = getImagesPath();
@@ -81,8 +107,9 @@ export function saveImage(
     // imageData is base64 encoded
     const base64Data = imageData.replace(/^data:image\/\w+;base64,/, "");
     fs.writeFileSync(filePath, base64Data, "base64");
+    const size = fs.statSync(filePath).size;
 
-    return { success: true, path: filePath };
+    return { success: true, path: filePath, size };
   } catch (err) {
     console.error("Failed to save image:", err);
     return { success: false, error: String(err) };

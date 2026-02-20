@@ -1,21 +1,26 @@
 "use client";
 
 import { ItemCard, Item } from "./ItemCard";
+import clsx from "clsx";
 
 interface ItemListProps {
   items: Item[];
   onTagClick?: (tag: string) => void;
-  onDeleteItem?: (id: string) => void;
+  onDelete?: (id: string) => void;
+  onEdit?: (id: string, newContent: string) => void;
   emptyMessage?: string;
   isLoading?: boolean;
+  compact?: boolean;
 }
 
 export function ItemList({
   items,
   onTagClick,
-  onDeleteItem,
+  onDelete,
+  onEdit,
   emptyMessage = "No items yet. Add something above!",
   isLoading = false,
+  compact = false,
 }: ItemListProps) {
   if (isLoading) {
     return (
@@ -44,13 +49,14 @@ export function ItemList({
   }
 
   return (
-    <div className="flex flex-col gap-1">
+    <div className={clsx("flex flex-col gap-1", compact && "gap-0.5")}>
       {items.map((item) => (
         <ItemCard
           key={item.id}
           item={item}
           onTagClick={onTagClick}
-          onDelete={onDeleteItem}
+          onDelete={onDelete}
+          onEdit={onEdit}
         />
       ))}
     </div>

@@ -55,7 +55,7 @@ declare global {
       saveImage: (
         imageData: string,
         filename: string,
-      ) => Promise<{ success: boolean; path?: string; error?: string }>;
+      ) => Promise<{ success: boolean; path?: string; size?: number; error?: string }>;
       getImagesPath: () => Promise<string>;
       getStoragePath: () => Promise<string>;
       // Updater API

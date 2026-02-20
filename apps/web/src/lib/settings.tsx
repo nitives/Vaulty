@@ -40,6 +40,8 @@ export interface AppSettings {
   backgroundTintOpacityLight?: number;
   backgroundTintOpacityDark?: number;
   reduceMotion?: boolean;
+  hideNotesWhenFilteringBySize?: boolean;
+  showImageSize?: boolean;
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -56,6 +58,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   backgroundTintOpacityLight: 1,
   backgroundTintOpacityDark: 1.5,
   reduceMotion: false,
+  hideNotesWhenFilteringBySize: false,
+  showImageSize: false,
 };
 
 // -- localStorage helpers (for fast sync access on page load) --

@@ -10,17 +10,20 @@ import {
   Item,
   Titlebar,
   SettingsModal,
+  ConfirmModal,
 } from "@/components";
-import { generateId, parseTimeQuery } from "@/lib/utils";
+import { generateId } from "@/lib/utils";
+import { parseSearchQuery } from "@/lib/search";
 import { SettingsProvider, useSettings } from "@/lib/settings";
 import {
   loadItems as loadStoredItems,
   addItem as addStoredItem,
   deleteItem as deleteStoredItem,
   saveImage,
+  updateItem as updateStoredItem,
 } from "@/lib/storage";
 import SFIcon from "@bradleyhodges/sfsymbols-react";
-import { sfMagnifyingglass, sfXmark } from "@bradleyhodges/sfsymbols";
+import { sfMagnifyingglass, sfXmark, sfArrowDown, sfArrowUp } from "@bradleyhodges/sfsymbols";
 
 export default function Home() {
   return (
@@ -40,6 +43,9 @@ function HomeContent() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [searchVisible, setSearchVisible] = useState(false);
+  const [showScrollButton, setShowScrollButton] = useState(false);
+  const [itemToDelete, setItemToDelete] = useState<string | null>(null);
+
   const searchInputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const stickToBottomRef = useRef(true);
@@ -142,6 +148,7 @@ function HomeContent() {
       imageName?: string,
     ) => {
       let imagePath: string | undefined;
+      let imageSize: number | undefined;
 
       // Save image to disk if present
       if (imageData && type === "image") {
@@ -153,9 +160,10 @@ function HomeContent() {
         );
         const uniqueFilename = `${timestamp}_${safeName}`;
 
-        const savedPath = await saveImage(imageData, uniqueFilename);
-        if (savedPath) {
-          imagePath = savedPath;
+        const saveResult = await saveImage(imageData, uniqueFilename);
+        if (saveResult && saveResult.path) {
+          imagePath = saveResult.path;
+          imageSize = saveResult.size;
         }
       }
 
@@ -168,6 +176,7 @@ function HomeContent() {
         tags,
         createdAt: new Date(),
         imageUrl: imagePath,
+        size: imageSize,
       };
 
       // Update local state immediately for responsiveness
@@ -179,12 +188,43 @@ function HomeContent() {
     [],
   );
 
-  const handleDeleteItem = useCallback(async (id: string) => {
+  const confirmDelete = useCallback(async () => {
+    if (!itemToDelete) return;
+    const id = itemToDelete;
     // Update local state immediately
     setItems((prev) => prev.filter((item) => item.id !== id));
-
     // Persist to storage
     await deleteStoredItem(id);
+    setItemToDelete(null);
+  }, [itemToDelete]);
+
+  const handleDeleteItem = useCallback((id: string) => {
+    if (settings.confirmBeforeDelete ?? true) {
+      setItemToDelete(id);
+    } else {
+      // Inline execution of deletion bypassing modal
+      setItems((prev) => prev.filter((item) => item.id !== id));
+      deleteStoredItem(id);
+    }
+  }, [settings.confirmBeforeDelete]);
+
+  const handleEditItem = useCallback(async (id: string, newContent: string) => {
+    // Optimistic local update
+    let updatedItem: Item | undefined;
+    setItems((prev) =>
+      prev.map((item) => {
+        if (item.id === id) {
+          updatedItem = { ...item, content: newContent };
+          return updatedItem;
+        }
+        return item;
+      })
+    );
+
+    // Persist to storage if item was found
+    if (updatedItem) {
+        await updateStoredItem(updatedItem);
+    }
   }, []);
 
   const handleTagClick = useCallback((tag: string) => {
@@ -224,13 +264,36 @@ function HomeContent() {
 
     // Filter by search query
     if (searchQuery) {
-      const { cleanQuery, startDate, endDate } = parseTimeQuery(searchQuery);
+      const { cleanQuery, startDate, endDate, sizeFilter } = parseSearchQuery(searchQuery);
       const lowerQuery = cleanQuery.toLowerCase();
 
       result = result.filter((item) => {
         // Date filter
         if (startDate && item.createdAt < startDate) return false;
         if (endDate && item.createdAt > endDate) return false;
+
+        // Size filter
+        if (sizeFilter) {
+          if (item.type === "image") {
+            if (item.size !== undefined) {
+               const { operator, value } = sizeFilter;
+               let matchesSize = false;
+               if (operator === ">") matchesSize = item.size > value;
+               else if (operator === ">=") matchesSize = item.size >= value;
+               else if (operator === "<") matchesSize = item.size < value;
+               else if (operator === "<=") matchesSize = item.size <= value;
+               else matchesSize = item.size === value; // exact match or '='
+               
+               if (!matchesSize) return false;
+            } else {
+               // Image doesn't have a size recorded, assume it fails the filter
+               return false;
+            }
+          } else if (settings.hideNotesWhenFilteringBySize) {
+             // If we are filtering by size, and hide notes is enabled, hide non-images
+             return false;
+          }
+        }
 
         // Text search
         if (lowerQuery) {
@@ -248,7 +311,7 @@ function HomeContent() {
     }
 
     return result;
-  }, [items, activeFilter, searchQuery, activeTagFilter]);
+  }, [items, activeFilter, searchQuery, activeTagFilter, settings.hideNotesWhenFilteringBySize]);
 
   const displayItems = useMemo(() => {
     const pos = settings.inputBarPosition ?? "bottom";
@@ -262,12 +325,27 @@ function HomeContent() {
 
   // NEW: Track whether user is near bottom (only in bottom mode)
   const handleScroll = useCallback(() => {
-    if (settings.inputBarPosition !== "bottom") return;
     const el = scrollRef.current;
     if (!el) return;
 
-    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
-    stickToBottomRef.current = distanceFromBottom < 48;
+    if (settings.inputBarPosition === "bottom") {
+      const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+      stickToBottomRef.current = distanceFromBottom < 48;
+      setShowScrollButton(distanceFromBottom > 150);
+    } else {
+      setShowScrollButton(el.scrollTop > 150);
+    }
+  }, [settings.inputBarPosition]);
+
+  const scrollToStart = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    
+    if (settings.inputBarPosition === "bottom") {
+      el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
+    } else {
+      el.scrollTo({ top: 0, behavior: 'smooth' });
+    }
   }, [settings.inputBarPosition]);
 
   // NEW: On first load or switching to bottom, jump to bottom
@@ -323,6 +401,15 @@ function HomeContent() {
         isOpen={settingsOpen}
         onClose={() => setSettingsOpen(false)}
       />
+      <ConfirmModal
+        isOpen={itemToDelete !== null}
+        title="Delete Item"
+        message="Are you sure you want to delete this item? This action cannot be undone."
+        confirmLabel="Delete"
+        onConfirm={confirmDelete}
+        onCancel={() => setItemToDelete(null)}
+        isDestructive={true}
+      />
 
       <div
         className={clsx(
@@ -336,10 +423,10 @@ function HomeContent() {
           activeFilter={activeFilter}
           onFilterChange={setActiveFilter}
           isCollapsed={sidebarCollapsed}
-          // onTagClick={handleTagClick}
-          // recentTags={Array.from(
-          //   new Set(items.flatMap((item) => item.tags).filter(Boolean)),
-          // ).slice(0, 8)}
+        // onTagClick={handleTagClick}
+        // recentTags={Array.from(
+        //   new Set(items.flatMap((item) => item.tags).filter(Boolean)),
+        // ).slice(0, 8)}
         />
 
         {/* Main Content */}
@@ -410,6 +497,32 @@ function HomeContent() {
             </div>
           </div>
 
+          {/* Scroll Back Button */}
+          <AnimatePresence>
+            {showScrollButton && (
+              <motion.button
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.8 }}
+                onClick={scrollToStart}
+                className={clsx(
+                  "cursor-pointer",
+                  "absolute right-8 z-40 flex h-10 w-10 items-center justify-center rounded-full shadow-lg backdrop-blur",
+                  "bg-white/90 dark:bg-neutral-800/90 text-[var(--accent-600)] dark:text-[var(--accent-400)]",
+                  "border border-neutral-200 dark:border-neutral-700",
+                  "hover:bg-[var(--accent-50)] dark:hover:bg-[var(--accent-950)] transition-colors",
+                  settings.inputBarPosition === "bottom" ? "bottom-24" : "top-24"
+                )}
+                aria-label="Scroll to latest"
+              >
+                <SFIcon 
+                  icon={settings.inputBarPosition === "bottom" ? sfArrowDown : sfArrowUp} 
+                  size={16} 
+                />
+              </motion.button>
+            )}
+          </AnimatePresence>
+
           {/* Content Area */}
           <div
             ref={scrollRef}
@@ -450,7 +563,9 @@ function HomeContent() {
               <ItemList
                 items={displayItems}
                 onTagClick={handleTagClick}
-                onDeleteItem={handleDeleteItem}
+                onDelete={handleDeleteItem}
+                onEdit={handleEditItem}
+                compact={settings.compactMode}
                 isLoading={isLoading}
                 emptyMessage={
                   searchQuery
@@ -463,6 +578,7 @@ function HomeContent() {
 
           {/* Input Bar - Bottom position (floating overlay) */}
           <div className="input-bar-bottom-container pointer-events-none absolute bottom-0 left-0 right-0 px-6 py-4 pt-8">
+            <button id="scroll-back" className="pointer-events-auto" />
             <div className="pointer-events-auto mx-auto">
               <InputBar onSubmit={handleAddItem} />
             </div>

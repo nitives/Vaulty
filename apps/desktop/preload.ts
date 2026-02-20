@@ -9,6 +9,7 @@ interface StoredItem {
   createdAt: string;
   reminder?: string;
   imageUrl?: string;
+  size?: number;
 }
 
 interface TrashedItem {
@@ -131,7 +132,7 @@ declare global {
       saveImage: (
         imageData: string,
         filename: string,
-      ) => Promise<{ success: boolean; path?: string; error?: string }>;
+      ) => Promise<{ success: boolean; path?: string; size?: number; error?: string }>;
       getImagesPath: () => Promise<string>;
       // Storage path
       getStoragePath: () => Promise<string>;

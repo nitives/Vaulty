@@ -2,10 +2,12 @@
 
 import { useState, useRef, useEffect, ReactNode } from "react";
 import clsx from "clsx";
+import SFIcon from "@bradleyhodges/sfsymbols-react";
+import { IconDefinition } from "@bradleyhodges/sfsymbols-types";
 
 export interface DropdownMenuItem {
   label: string;
-  icon?: ReactNode;
+  icon?: IconDefinition;
   onClick: () => void;
   variant?: "default" | "danger";
 }
@@ -64,7 +66,7 @@ export function DropdownMenu({
       <button
         ref={triggerRef}
         onClick={() => setIsOpen(!isOpen)}
-        className="rounded-full size-6 flex items-center justify-center cursor-pointer text-neutral-400 transition-colors hover:bg-neutral-200 hover:text-neutral-600 dark:hover:bg-neutral-700 dark:hover:text-neutral-300"
+        className="rounded-sm size-6 flex items-center justify-center cursor-pointer text-neutral-400 transition-colors hover:bg-neutral-200 hover:text-neutral-600 dark:hover:bg-neutral-700 dark:hover:text-neutral-300"
         aria-label="More options"
         aria-expanded={isOpen}
         aria-haspopup="true"
@@ -76,7 +78,7 @@ export function DropdownMenu({
         <div
           ref={menuRef}
           className={clsx(
-            "absolute z-50 mt-1 min-w-[140px] overflow-hidden rounded-2xl border py-1 shadow-lg",
+            "absolute z-50 min-w-[140px] overflow-hidden rounded-lg border shadow-lg",
             "border-neutral-200 bg-white dark:border-neutral-700 dark:bg-neutral-800",
             align === "right" ? "right-0" : "left-0",
           )}
@@ -89,13 +91,14 @@ export function DropdownMenu({
                 setIsOpen(false);
               }}
               className={clsx(
+                "cursor-pointer",
                 "flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors",
                 item.variant === "danger"
                   ? "text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
                   : "text-neutral-700 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-700",
               )}
             >
-              {item.icon && <span className="h-4 w-4">{item.icon}</span>}
+              {item.icon && <SFIcon icon={item.icon} size={16} />}
               {item.label}
             </button>
           ))}

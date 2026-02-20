@@ -44,7 +44,30 @@ function loadItems() {
             return [];
         }
         const data = fs_1.default.readFileSync(filePath, "utf-8");
-        return JSON.parse(data);
+        const items = JSON.parse(data);
+        let modified = false;
+        // Backfill size for images
+        for (const item of items) {
+            if (item.type === "image" && item.imageUrl && item.size === undefined) {
+                const filename = item.imageUrl.split(/[\\/]/).pop();
+                if (filename) {
+                    const imgPath = path_1.default.join((0, paths_1.getImagesPath)(), filename);
+                    if (fs_1.default.existsSync(imgPath)) {
+                        try {
+                            item.size = fs_1.default.statSync(imgPath).size;
+                            modified = true;
+                        }
+                        catch (e) {
+                            // Ignore errors if file can't be stat'd
+                        }
+                    }
+                }
+            }
+        }
+        if (modified) {
+            saveItems(items);
+        }
+        return items;
     }
     catch (err) {
         console.error("Failed to load items:", err);
@@ -68,7 +91,8 @@ function saveImage(imageData, filename) {
         // imageData is base64 encoded
         const base64Data = imageData.replace(/^data:image\/\w+;base64,/, "");
         fs_1.default.writeFileSync(filePath, base64Data, "base64");
-        return { success: true, path: filePath };
+        const size = fs_1.default.statSync(filePath).size;
+        return { success: true, path: filePath, size };
     }
     catch (err) {
         console.error("Failed to save image:", err);
