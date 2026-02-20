@@ -15,6 +15,7 @@ import { Button } from "./Button";
 import SFIcon from "@bradleyhodges/sfsymbols-react";
 import { sfXmark } from "@bradleyhodges/sfsymbols";
 import { motion, AnimatePresence } from "motion/react";
+import { buttonStyles } from "@/styles/Button";
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -345,24 +346,150 @@ function BehaviorSection() {
 }
 
 function StorageSection() {
+  const [dataLocation, setDataLocation] = useState<string>("Loading...");
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [clearConfirmText, setClearConfirmText] = useState("");
+
+  useEffect(() => {
+    window.electronAPI
+      ?.getStoragePath()
+      .then((path) => setDataLocation(path))
+      .catch(() => setDataLocation("Unknown"));
+  }, []);
+
+  const handleChangeLocation = async () => {
+    try {
+      const result = await window.electronAPI?.changeStoragePath();
+      if (result?.success && result.path) {
+        setDataLocation(result.path);
+        alert("Data successfully moved to the new location!");
+      } else if (result?.error) {
+        alert(`Failed to move data: ${result.error}`);
+      }
+    } catch (e) {
+      console.error(e);
+      alert("An error occurred trying to change the storage location.");
+    }
+  };
+
+  const handleOpenTrash = async () => {
+    try {
+      const result = await window.electronAPI?.openTrashFolder();
+      if (result && !result.success) {
+        alert(`Failed to open trash: ${result.error}`);
+      }
+    } catch (e) {
+      console.error(e);
+      alert("An error occurred trying to open the trash folder.");
+    }
+  };
+
+  const handleClearData = async () => {
+    try {
+      if (clearConfirmText !== "Clear all my data") return;
+
+      const result = await window.electronAPI?.clearAllData();
+      if (result?.success) {
+        alert("All data has been permanently deleted.");
+        setShowClearConfirm(false);
+        setClearConfirmText("");
+        // Reload to safely reflect empty state natively
+        window.location.reload();
+      }
+    } catch (e) {
+      console.error(e);
+      alert("Failed to clear data.");
+    }
+  };
+
   return (
-    <div className="space-y-2">
-      <SettingsRow
-        label="Data location"
-        description="Where your items are stored"
-      >
-        <button className="rounded-lg border border-neutral-300 bg-white px-3 py-1.5 text-sm font-medium text-neutral-700 transition-colors hover:bg-neutral-50 dark:border-neutral-600 dark:bg-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-600">
-          Change
-        </button>
-      </SettingsRow>
-      <SettingsRow
-        label="Clear all data"
-        description="Delete all saved items permanently"
-      >
-        <button className="rounded-lg bg-red-600 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-red-700">
-          Clear Data
-        </button>
-      </SettingsRow>
+    <div className="space-y-4 p-2 pb-6">
+      <div className="p-4">
+        <h4 className="font-semibold text-neutral-900 dark:text-neutral-100 mb-1">
+          Data Location
+        </h4>
+        <p className="text-sm text-neutral-600 dark:text-neutral-400 mb-4 block truncate">
+          {dataLocation}
+        </p>
+
+        <div className="flex items-center gap-2">
+          <Button
+            variant="base"
+            className="text-xs px-3 py-1.5"
+            onClick={handleChangeLocation}
+          >
+            Change location...
+          </Button>
+          <Button
+            variant="base"
+            className="text-xs px-3 py-1.5"
+            onClick={handleOpenTrash}
+          >
+            Open trash folder
+          </Button>
+        </div>
+      </div>
+
+      {/* <div className="p-4">
+        <h4 className="font-semibold text-red-900 dark:text-red-400">
+          Danger Zone
+        </h4>
+        <p className="text-sm text-red-700 dark:text-red-300 mt-1 mb-4">
+          Permanently delete all your items and clear the application data. This
+          cannot be undone.
+        </p>
+
+        {!showClearConfirm ? (
+          <Button
+            variant="danger"
+            className="text-xs px-3 py-1.5"
+            onClick={() => setShowClearConfirm(true)}
+          >
+            Clear all data
+          </Button>
+        ) : (
+          <div className="space-y-3">
+            <p className="text-xs font-medium text-red-800 dark:text-red-300">
+              Type{" "}
+              <strong className="font-bold select-all">
+                Clear all my data
+              </strong>{" "}
+              below to confirm.
+            </p>
+            <input
+              type="text"
+              className={clsx(
+                "w-full rounded border px-3 py-1.5 text-sm outline-none transition-colors",
+                "border-red-200 bg-white text-neutral-900 focus:border-red-500",
+                "dark:border-red-900/50 dark:bg-neutral-900 dark:text-white dark:focus:border-red-500",
+              )}
+              value={clearConfirmText}
+              onChange={(e) => setClearConfirmText(e.target.value)}
+              placeholder="Clear all my data"
+            />
+            <div className="flex gap-2">
+              <Button
+                variant="danger"
+                className="text-xs px-3 py-1.5 disabled:cursor-not-allowed disabled:opacity-50"
+                disabled={clearConfirmText !== "Clear all my data"}
+                onClick={handleClearData}
+              >
+                Permanently Delete
+              </Button>
+              <Button
+                variant="base"
+                className="text-xs px-3 py-1.5 bg-neutral-200/50 dark:bg-neutral-800"
+                onClick={() => {
+                  setShowClearConfirm(false);
+                  setClearConfirmText("");
+                }}
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
+        )}
+      </div> */}
     </div>
   );
 }
@@ -606,7 +733,7 @@ function AboutSection() {
 function GuideSection() {
   return (
     <div className="space-y-4 p-2 pb-6">
-      <div className="rounded-lg bg-neutral-100 px-4 py-4 dark:bg-neutral-800">
+      <div className="p-4">
         <h4 className="font-semibold mb-2 text-neutral-900 dark:text-neutral-100">
           Search Operators
         </h4>
@@ -828,7 +955,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
             {/* Sidebar */}
             <nav
               className={clsx(
-                "flex w-52 flex-shrink-0 flex-col border-r",
+                "flex w-52 shrink-0 flex-col border-r",
                 "bg-white/0 dark:bg-black/0",
                 "border-neutral-200 dark:border-neutral-700",
               )}

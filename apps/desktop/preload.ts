@@ -86,6 +86,9 @@ contextBridge.exposeInMainWorld("electronAPI", {
   getImagesPath: () => ipcRenderer.invoke("images:getPath"),
   // Storage path
   getStoragePath: () => ipcRenderer.invoke("storage:getPath"),
+  changeStoragePath: () => ipcRenderer.invoke("storage:changePath"),
+  clearAllData: () => ipcRenderer.invoke("storage:clearAll"),
+  openTrashFolder: () => ipcRenderer.invoke("storage:openTrash"),
   // Trash
   loadTrash: () => ipcRenderer.invoke("trash:load"),
   restoreFromTrash: (id: string) => ipcRenderer.invoke("trash:restore", id),
@@ -145,6 +148,14 @@ declare global {
       getImagesPath: () => Promise<string>;
       // Storage path
       getStoragePath: () => Promise<string>;
+      changeStoragePath: () => Promise<{
+        success: boolean;
+        path?: string;
+        canceled?: boolean;
+        error?: string;
+      }>;
+      clearAllData: () => Promise<{ success: boolean }>;
+      openTrashFolder: () => Promise<{ success: boolean; error?: string }>;
       // Trash
       loadTrash: () => Promise<TrashedItem[]>;
       restoreFromTrash: (

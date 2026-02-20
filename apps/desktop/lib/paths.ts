@@ -1,8 +1,22 @@
 import { app } from "electron";
 import path from "path";
+import fs from "fs";
 
 // Data storage paths
 export function getVaultyDataPath(): string {
+  try {
+    const settingsPath = getSettingsPath();
+    if (fs.existsSync(settingsPath)) {
+      const data = fs.readFileSync(settingsPath, "utf-8");
+      const settings = JSON.parse(data);
+      if (settings.vaultyDataPath) {
+        return settings.vaultyDataPath;
+      }
+    }
+  } catch (e) {
+    // Fall back to default if parsing fails
+  }
+
   return path.join(app.getPath("documents"), "vaulty");
 }
 

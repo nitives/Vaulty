@@ -1,7 +1,12 @@
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.registerIpcHandlers = registerIpcHandlers;
 const electron_1 = require("electron");
+const fs_1 = __importDefault(require("fs"));
+const path_1 = __importDefault(require("path"));
 const storage_1 = require("./storage");
 const settings_1 = require("./settings");
 const paths_1 = require("./paths");
@@ -130,5 +135,59 @@ function registerIpcHandlers(getMainWindow) {
     });
     electron_1.ipcMain.handle("storage:getPath", () => {
         return (0, paths_1.getVaultyDataPath)();
+    });
+    electron_1.ipcMain.handle("storage:changePath", async () => {
+        const win = getMainWindow();
+        if (!win)
+            return { success: false, error: "No window" };
+        const result = await electron_1.dialog.showOpenDialog(win, {
+            title: "Select Vaulty Data Location",
+            properties: ["openDirectory", "createDirectory"],
+        });
+        if (result.canceled || result.filePaths.length === 0) {
+            return { success: false, canceled: true };
+        }
+        const newPath = result.filePaths[0];
+        const oldPath = (0, paths_1.getVaultyDataPath)();
+        if (newPath === oldPath) {
+            return { success: true, path: oldPath };
+        }
+        try {
+            // 1. Move the data over
+            // For items.json
+            const oldItemsPath = path_1.default.join(oldPath, "items.json");
+            const newItemsPath = path_1.default.join(newPath, "items.json");
+            if (fs_1.default.existsSync(oldItemsPath)) {
+                fs_1.default.cpSync(oldItemsPath, newItemsPath);
+            }
+            // For images folder
+            const oldImagesPath = path_1.default.join(oldPath, "images");
+            const newImagesPath = path_1.default.join(newPath, "images");
+            if (fs_1.default.existsSync(oldImagesPath)) {
+                fs_1.default.cpSync(oldImagesPath, newImagesPath, { recursive: true });
+            }
+            // For trash folder
+            const oldTrashPath = path_1.default.join(oldPath, "trash");
+            const newTrashPath = path_1.default.join(newPath, "trash");
+            if (fs_1.default.existsSync(oldTrashPath)) {
+                fs_1.default.cpSync(oldTrashPath, newTrashPath, { recursive: true });
+            }
+            // 2. Save settings to use new path
+            const settings = (0, settings_1.loadSettings)();
+            settings.vaultyDataPath = newPath;
+            (0, settings_1.saveSettings)(settings);
+            // 3. Delete old data to save space (safely)
+            if (fs_1.default.existsSync(oldItemsPath))
+                fs_1.default.unlinkSync(oldItemsPath);
+            if (fs_1.default.existsSync(oldImagesPath))
+                fs_1.default.rmSync(oldImagesPath, { recursive: true, force: true });
+            if (fs_1.default.existsSync(oldTrashPath))
+                fs_1.default.rmSync(oldTrashPath, { recursive: true, force: true });
+            return { success: true, path: newPath };
+        }
+        catch (e) {
+            console.error("Failed to migrate Vaulty data location:", e);
+            return { success: false, error: String(e) };
+        }
     });
 }

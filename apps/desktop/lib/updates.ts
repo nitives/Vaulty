@@ -56,7 +56,8 @@ function publishStatus(status: UpdateStatusPayload): void {
 function updatesDisabledInDev(): CheckForUpdatesResult {
   publishStatus({
     state: "disabled-in-dev",
-    message: "Updates are disabled in dev mode. Package the app to test updates.",
+    message:
+      "Updates are disabled in dev mode. Package the app to test updates.",
   });
   return { status: "disabled-in-dev" };
 }

@@ -55,14 +55,32 @@ declare global {
       saveImage: (
         imageData: string,
         filename: string,
-      ) => Promise<{ success: boolean; path?: string; size?: number; error?: string }>;
+      ) => Promise<{
+        success: boolean;
+        path?: string;
+        size?: number;
+        error?: string;
+      }>;
       getImagesPath: () => Promise<string>;
       getStoragePath: () => Promise<string>;
+      changeStoragePath: () => Promise<{
+        success: boolean;
+        path?: string;
+        canceled?: boolean;
+        error?: string;
+      }>;
+      clearAllData: () => Promise<{ success: boolean }>;
+      openTrashFolder: () => Promise<{ success: boolean; error?: string }>;
       // Updater API
       checkForUpdates: () => Promise<
-        { ok: true; status: string; version?: string } | { ok: false; reason: string }
+        | { ok: true; status: string; version?: string }
+        | { ok: false; reason: string }
       >;
-      downloadUpdate: () => Promise<{ ok: boolean; reason?: string; message?: string }>;
+      downloadUpdate: () => Promise<{
+        ok: boolean;
+        reason?: string;
+        message?: string;
+      }>;
       installUpdate: () => Promise<{ ok: boolean; reason?: string }>;
       getUpdateStatus: () => Promise<UpdateStatusPayload>;
       onUpdateStatus: (
@@ -70,7 +88,8 @@ declare global {
       ) => () => void;
       // Aliases for compatibility
       updaterCheck: () => Promise<
-        { ok: true; status: string; version?: string } | { ok: false; reason: string }
+        | { ok: true; status: string; version?: string }
+        | { ok: false; reason: string }
       >;
       updaterInstall: () => Promise<{ ok: boolean; reason?: string }>;
       onUpdaterEvent: (

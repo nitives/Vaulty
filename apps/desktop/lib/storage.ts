@@ -276,3 +276,35 @@ export function cleanupOldTrash(): number {
 
   return deletedCount;
 }
+
+export function clearAllData(): void {
+  try {
+    ensureDataDirectories();
+
+    // Clear items.json
+    saveItems([]);
+
+    // Clear trash.json
+    saveTrash([]);
+
+    // Delete all images
+    const imagesPath = getImagesPath();
+    if (fs.existsSync(imagesPath)) {
+      const files = fs.readdirSync(imagesPath);
+      for (const file of files) {
+        fs.unlinkSync(path.join(imagesPath, file));
+      }
+    }
+
+    // Delete all trash images
+    const trashImagesPath = getTrashImagesPath();
+    if (fs.existsSync(trashImagesPath)) {
+      const files = fs.readdirSync(trashImagesPath);
+      for (const file of files) {
+        fs.unlinkSync(path.join(trashImagesPath, file));
+      }
+    }
+  } catch (err) {
+    console.error("Failed to clear all data:", err);
+  }
+}

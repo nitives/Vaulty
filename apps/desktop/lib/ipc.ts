@@ -4,7 +4,11 @@ import {
   nativeTheme,
   BrowserWindow,
   systemPreferences,
+  dialog,
+  shell,
 } from "electron";
+import fs from "fs";
+import path from "path";
 import {
   loadItems,
   saveItems,
@@ -16,6 +20,7 @@ import {
   permanentlyDeleteFromTrash,
   emptyTrash,
   cleanupOldTrash,
+  clearAllData,
 } from "./storage";
 import {
   loadSettings,
@@ -23,7 +28,7 @@ import {
   applyTransparency,
   AppSettings,
 } from "./settings";
-import { getVaultyDataPath, getImagesPath } from "./paths";
+import { getVaultyDataPath, getImagesPath, getTrashPath } from "./paths";
 import { getWindowIcon } from "./icon";
 
 export function registerIpcHandlers(
@@ -180,5 +185,77 @@ export function registerIpcHandlers(
 
   ipcMain.handle("storage:getPath", () => {
     return getVaultyDataPath();
+  });
+
+  ipcMain.handle("storage:clearAll", () => {
+    clearAllData();
+    return { success: true };
+  });
+
+  ipcMain.handle("storage:openTrash", async () => {
+    const errorString = await shell.openPath(getTrashPath());
+    return { success: !errorString, error: errorString };
+  });
+
+  ipcMain.handle("storage:changePath", async () => {
+    const win = getMainWindow();
+    if (!win) return { success: false, error: "No window" };
+
+    const result = await dialog.showOpenDialog(win, {
+      title: "Select Vaulty Data Location",
+      properties: ["openDirectory", "createDirectory"],
+    });
+
+    if (result.canceled || result.filePaths.length === 0) {
+      return { success: false, canceled: true };
+    }
+
+    const newPath = result.filePaths[0];
+    const oldPath = getVaultyDataPath();
+
+    if (newPath === oldPath) {
+      return { success: true, path: oldPath };
+    }
+
+    try {
+      // 1. Move the data over
+      // For items.json
+      const oldItemsPath = path.join(oldPath, "items.json");
+      const newItemsPath = path.join(newPath, "items.json");
+      if (fs.existsSync(oldItemsPath)) {
+        fs.cpSync(oldItemsPath, newItemsPath);
+      }
+
+      // For images folder
+      const oldImagesPath = path.join(oldPath, "images");
+      const newImagesPath = path.join(newPath, "images");
+      if (fs.existsSync(oldImagesPath)) {
+        fs.cpSync(oldImagesPath, newImagesPath, { recursive: true });
+      }
+
+      // For trash folder
+      const oldTrashPath = path.join(oldPath, "trash");
+      const newTrashPath = path.join(newPath, "trash");
+      if (fs.existsSync(oldTrashPath)) {
+        fs.cpSync(oldTrashPath, newTrashPath, { recursive: true });
+      }
+
+      // 2. Save settings to use new path
+      const settings = loadSettings();
+      settings.vaultyDataPath = newPath;
+      saveSettings(settings);
+
+      // 3. Delete old data to save space (safely)
+      if (fs.existsSync(oldItemsPath)) fs.unlinkSync(oldItemsPath);
+      if (fs.existsSync(oldImagesPath))
+        fs.rmSync(oldImagesPath, { recursive: true, force: true });
+      if (fs.existsSync(oldTrashPath))
+        fs.rmSync(oldTrashPath, { recursive: true, force: true });
+
+      return { success: true, path: newPath };
+    } catch (e) {
+      console.error("Failed to migrate Vaulty data location:", e);
+      return { success: false, error: String(e) };
+    }
   });
 }

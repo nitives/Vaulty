@@ -14,6 +14,7 @@ export interface AppSettings {
   compactMode?: boolean;
   startCollapsed?: boolean;
   confirmBeforeDelete?: boolean;
+  vaultyDataPath?: string;
 }
 
 export function loadSettings(): AppSettings {

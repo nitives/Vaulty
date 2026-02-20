@@ -247,6 +247,7 @@ export function InputBar({ onSubmit }: InputBarProps) {
         onPaste={handlePaste}
         placeholder="Drop an image, paste a link, or type a quick note…"
         className={clsx(
+          "caret-[var(--accent-500)]",
           "w-full resize-none overflow-hidden",
           "bg-transparent !outline-none text-base",
           "text-neutral-900 placeholder-neutral-400 dark:text-white dark:placeholder-white/25",
