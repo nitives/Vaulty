@@ -18,6 +18,10 @@ export interface StoredItem {
   reminder?: string;
   imageUrl?: string;
   size?: number;
+  analyzed?: {
+    tags: string[];
+    content: string;
+  };
 }
 
 export interface TrashedItem {

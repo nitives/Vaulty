@@ -1,6 +1,7 @@
 import clsx from "clsx";
 import { motion, AnimatePresence } from "motion/react";
 import { useSettings } from "@/lib/settings";
+import { buttonStyles } from "@/styles/Button";
 
 interface ConfirmModalProps {
   isOpen: boolean;
@@ -70,10 +71,7 @@ export function ConfirmModal({
             <div className="flex justify-end gap-3">
               <button
                 onClick={onCancel}
-                className={clsx(
-                  "rounded-lg px-4 py-2 text-sm font-medium transition-colors",
-                  "text-neutral-700 hover:bg-black/5 dark:text-neutral-300 dark:hover:bg-white/10"
-                )}
+                className={clsx(buttonStyles.base)}
               >
                 {cancelLabel}
               </button>
@@ -82,8 +80,8 @@ export function ConfirmModal({
                 className={clsx(
                   "rounded-lg px-4 py-2 text-sm font-medium text-white transition-opacity",
                   isDestructive
-                    ? "bg-red-600 hover:bg-red-700 dark:bg-red-600 dark:hover:bg-red-700"
-                    : "bg-[var(--accent-600)] hover:opacity-90"
+                    ? buttonStyles.danger
+                    : buttonStyles.primary
                 )}
               >
                 {confirmLabel}

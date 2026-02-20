@@ -45,6 +45,7 @@ function HomeContent() {
   const [searchVisible, setSearchVisible] = useState(false);
   const [showScrollButton, setShowScrollButton] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<string | null>(null);
+  const [isProcessingImage, setIsProcessingImage] = useState(false);
 
   const searchInputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -149,8 +150,9 @@ function HomeContent() {
     ) => {
       let imagePath: string | undefined;
       let imageSize: number | undefined;
-
-      // Save image to disk if present
+      let finalContent = content;
+      let finalTags = [...tags];
+      // Save image to disk and process it if present
       if (imageData && type === "image") {
         // Generate unique filename: timestamp_originalname
         const timestamp = Date.now();
@@ -172,8 +174,8 @@ function HomeContent() {
         type,
         // For images, use the image name as content if no caption provided
         content:
-          type === "image" && !content && imageName ? imageName : content,
-        tags,
+          type === "image" && !finalContent && imageName ? imageName : finalContent,
+        tags: finalTags,
         createdAt: new Date(),
         imageUrl: imagePath,
         size: imageSize,
@@ -184,6 +186,42 @@ function HomeContent() {
 
       // Persist to storage
       await addStoredItem(newItem);
+
+      // Process image in the background without blocking the UI
+      if (imageData && type === "image") {
+        setIsProcessingImage(true);
+        
+        // Use IIFE to run this concurrently without blocking handleAddItem's return
+        (async () => {
+          try {
+            const { processImage } = await import("@/lib/vision");
+            const visionResult = await processImage(imageData);
+            
+            if (visionResult.text || visionResult.labels.length > 0) {
+              const analyzedData = {
+                content: visionResult.text || "",
+                tags: visionResult.labels || []
+              };
+              
+              const updatedItem = { ...newItem, analyzed: analyzedData };
+              
+              // Update state with analyzed metadata
+              setItems((prev) =>
+                prev.map((item) =>
+                  item.id === newItem.id ? updatedItem : item
+                )
+              );
+              
+              // Update storage with analyzed metadata
+              await updateStoredItem(updatedItem);
+            }
+          } catch (e) {
+            console.error("Failed to process image:", e);
+          } finally {
+            setIsProcessingImage(false);
+          }
+        })();
+      }
     },
     [],
   );
@@ -303,7 +341,16 @@ function HomeContent() {
           const matchesTags = item.tags.some((tag) =>
             tag.toLowerCase().includes(lowerQuery),
           );
-          return matchesContent || matchesTags;
+          
+          const matchesAnalyzedContent = item.analyzed?.content
+            ?.toLowerCase()
+            .includes(lowerQuery) ?? false;
+            
+          const matchesAnalyzedTags = item.analyzed?.tags?.some((tag) =>
+            tag.toLowerCase().includes(lowerQuery),
+          ) ?? false;
+          
+          return matchesContent || matchesTags || matchesAnalyzedContent || matchesAnalyzedTags;
         }
 
         return true;
@@ -394,6 +441,7 @@ function HomeContent() {
         onToggleSidebar={() => setSidebarCollapsed(!sidebarCollapsed)}
         onOpenSettings={() => setSettingsOpen(true)}
         onToggleSearch={toggleSearch}
+        isProcessing={isProcessingImage}
       />
 
       {/* Settings Modal */}
@@ -489,6 +537,8 @@ function HomeContent() {
               </motion.div>
             )}
           </AnimatePresence>
+
+
 
           {/* Input Bar - Top position */}
           <div className="input-bar-top-container shrink-0 border-b border-[var(--edge-border-color-light)] dark:border-[var(--edge-border-color-dark)] px-6 py-4 bg-white dark:bg-neutral-900 transparent:bg-white/50 transparent:dark:bg-neutral-900/50 transparent:backdrop-blur-sm">

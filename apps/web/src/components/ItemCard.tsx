@@ -17,6 +17,10 @@ export interface Item {
   reminder?: Date;
   imageUrl?: string;
   size?: number;
+  analyzed?: {
+    tags: string[];
+    content: string;
+  };
 }
 
 export interface ItemCardProps {

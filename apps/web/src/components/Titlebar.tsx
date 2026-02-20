@@ -1,5 +1,4 @@
 "use client";
-
 import { useState, useEffect, useCallback, useSyncExternalStore } from "react";
 import clsx from "clsx";
 import SFIcon from "@bradleyhodges/sfsymbols-react";
@@ -13,6 +12,7 @@ import {
 } from "@bradleyhodges/sfsymbols";
 import { useSettings } from "@/lib/settings";
 import { SidebarIcon } from "./SidebarIcon";
+import { Spinner } from "./Spinner";
 
 // Get electronAPI safely
 function getElectronAPI() {
@@ -46,6 +46,7 @@ interface TitlebarProps {
   onToggleSidebar?: () => void;
   onOpenSettings?: () => void;
   onToggleSearch?: () => void;
+  isProcessing?: boolean;
 }
 
 export function Titlebar({
@@ -53,6 +54,7 @@ export function Titlebar({
   onToggleSidebar,
   onOpenSettings,
   onToggleSearch,
+  isProcessing,
 }: TitlebarProps) {
   const { settings } = useSettings();
   const isElectron = useSyncExternalStore(
@@ -188,6 +190,11 @@ export function Titlebar({
         >
           <SFIcon icon={sfMagnifyingglass} size={16} />
         </button>
+        {isProcessing && (
+          <div className="flex h-6 w-9 rounded-[5px] text-white items-center justify-center">
+            <Spinner size="md" />
+          </div>
+        )}
       </div>
 
       {/* Window Controls */}
