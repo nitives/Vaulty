@@ -517,6 +517,18 @@ interface UpdateStatusPayload {
 
 const defaultUpdateStatus: UpdateStatusPayload = { state: "idle" };
 
+function formatUpdateError(error: unknown): string {
+  const msg = error instanceof Error ? error.message : String(error);
+  if (
+    msg.includes("Cannot parse releases feed") ||
+    msg.includes("HttpError: 406") ||
+    msg.includes("Method Not Allowed")
+  ) {
+    return "Unable to check for updates. Please ensure a production release exists.";
+  }
+  return msg;
+}
+
 function getUpdateStatusText(status: UpdateStatusPayload): string {
   switch (status.state) {
     case "idle":
@@ -603,7 +615,7 @@ function AboutSection() {
     } catch (error) {
       setUpdateStatus({
         state: "error",
-        message: error instanceof Error ? error.message : String(error),
+        message: formatUpdateError(error),
       });
     }
   };
@@ -626,7 +638,7 @@ function AboutSection() {
     } catch (error) {
       setUpdateStatus({
         state: "error",
-        message: error instanceof Error ? error.message : String(error),
+        message: formatUpdateError(error),
       });
     }
   };
@@ -649,7 +661,7 @@ function AboutSection() {
     } catch (error) {
       setUpdateStatus({
         state: "error",
-        message: error instanceof Error ? error.message : String(error),
+        message: formatUpdateError(error),
       });
     }
   };

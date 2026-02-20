@@ -29,6 +29,17 @@ export interface CheckForUpdatesResult {
 
 const UPDATE_STATUS_CHANNEL = "updates:status";
 
+function formatError(error: unknown): string {
+  const msg = error instanceof Error ? error.message : String(error);
+  if (
+    msg.includes("Cannot parse releases feed") ||
+    msg.includes("HttpError: 406")
+  ) {
+    return "Unable to check for updates. Please ensure a production release exists.";
+  }
+  return msg;
+}
+
 let getMainWindow: () => BrowserWindow | null = () => null;
 let isConfigured = false;
 let isChecking = false;
@@ -195,7 +206,7 @@ export function setupAutoUpdates(getWindow: () => BrowserWindow | null): void {
     publishStatus({
       state: "error",
       availableVersion: lastKnownAvailableVersion,
-      message: error?.message ?? String(error),
+      message: formatError(error),
     });
   });
 }
@@ -233,7 +244,7 @@ export async function checkForUpdates(): Promise<CheckForUpdatesResult> {
     publishStatus({
       state: "error",
       availableVersion: lastKnownAvailableVersion,
-      message: error instanceof Error ? error.message : String(error),
+      message: formatError(error),
     });
     return { status: "error" };
   } finally {
@@ -257,7 +268,7 @@ export async function downloadUpdate(): Promise<void> {
     publishStatus({
       state: "error",
       availableVersion: lastKnownAvailableVersion,
-      message: error instanceof Error ? error.message : String(error),
+      message: formatError(error),
     });
     throw error;
   } finally {

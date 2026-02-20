@@ -25,6 +25,11 @@ electron_1.contextBridge.exposeInMainWorld("electronAPI", {
     setNativeTheme: (theme) => electron_1.ipcRenderer.invoke("theme:set", theme),
     // Accent color (Windows only)
     getWindowsAccentColor: () => electron_1.ipcRenderer.invoke("accent:getWindowsColor"),
+    onAccentColorChanged: (callback) => {
+        const listener = (_event, color) => callback(color);
+        electron_1.ipcRenderer.on("accent:changed", listener);
+        return () => electron_1.ipcRenderer.removeListener("accent:changed", listener);
+    },
     // Items storage
     loadItems: () => electron_1.ipcRenderer.invoke("items:load"),
     saveItems: (items) => electron_1.ipcRenderer.invoke("items:save", items),

@@ -9,5 +9,6 @@
     "sfsymbols",
     "venv",
     "vercel"
-  ]
+  ],
+  "tailwindCSS.lint.suggestCanonicalClasses": "ignore"
 }

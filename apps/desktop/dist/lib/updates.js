@@ -9,6 +9,14 @@ exports.quitAndInstall = quitAndInstall;
 const electron_1 = require("electron");
 const electron_updater_1 = require("electron-updater");
 const UPDATE_STATUS_CHANNEL = "updates:status";
+function formatError(error) {
+    const msg = error instanceof Error ? error.message : String(error);
+    if (msg.includes("Cannot parse releases feed") ||
+        msg.includes("HttpError: 406")) {
+        return "Unable to check for updates. Please ensure a production release exists.";
+    }
+    return msg;
+}
 let getMainWindow = () => null;
 let isConfigured = false;
 let isChecking = false;
@@ -147,7 +155,7 @@ function setupAutoUpdates(getWindow) {
         publishStatus({
             state: "error",
             availableVersion: lastKnownAvailableVersion,
-            message: error?.message ?? String(error),
+            message: formatError(error),
         });
     });
 }
@@ -180,7 +188,7 @@ async function checkForUpdates() {
         publishStatus({
             state: "error",
             availableVersion: lastKnownAvailableVersion,
-            message: error instanceof Error ? error.message : String(error),
+            message: formatError(error),
         });
         return { status: "error" };
     }
@@ -204,7 +212,7 @@ async function downloadUpdate() {
         publishStatus({
             state: "error",
             availableVersion: lastKnownAvailableVersion,
-            message: error instanceof Error ? error.message : String(error),
+            message: formatError(error),
         });
         throw error;
     }
