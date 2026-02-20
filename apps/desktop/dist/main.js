@@ -82,10 +82,11 @@ async function startNextServer() {
         if (!fs_1.default.existsSync(serverPath) && fs_1.default.existsSync(nestedServerPath)) {
             serverPath = nestedServerPath;
         }
-        nextServer = (0, child_process_1.spawn)("node", [serverPath], {
+        nextServer = (0, child_process_1.spawn)(isDev ? "node" : process.execPath, [serverPath], {
             cwd: webAppPath,
             env: {
                 ...process.env,
+                ...(isDev ? {} : { ELECTRON_RUN_AS_NODE: "1" }),
                 PORT: String(PROD_SERVER_PORT),
                 HOSTNAME: "localhost",
             },

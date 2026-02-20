@@ -112,11 +112,11 @@ async function startNextServer(): Promise<void> {
     if (!fs.existsSync(serverPath) && fs.existsSync(nestedServerPath)) {
       serverPath = nestedServerPath;
     }
-
-    nextServer = spawn("node", [serverPath], {
+    nextServer = spawn(isDev ? "node" : process.execPath, [serverPath], {
       cwd: webAppPath,
       env: {
         ...process.env,
+        ...(isDev ? {} : { ELECTRON_RUN_AS_NODE: "1" }),
         PORT: String(PROD_SERVER_PORT),
         HOSTNAME: "localhost",
       },
