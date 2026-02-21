@@ -27,11 +27,9 @@ import {
 } from "@/lib/storage";
 import { Item } from "./ItemCard";
 import { generateId } from "@/lib/utils";
-import { DropdownChevron } from "./DropdownChevron";
 import { useSettings } from "@/lib/settings";
 import { SidebarFolder } from "./SidebarFolder";
 import { SidebarPage } from "./SidebarPage";
-import { RenameModal } from "./RenameModal";
 
 interface SidebarProps {
   activeFilter: string;
@@ -454,7 +452,7 @@ export function Sidebar({
       </div>
 
       {/* Tags Section */}
-      <div className="border-t border-black/10 p-2 dark:border-white/10 *:select-none">
+      <div className="p-2 *:select-none">
         <p title="Number of items" className="flex items-center gap-2">
           <SFIcon
             icon={sfTag}

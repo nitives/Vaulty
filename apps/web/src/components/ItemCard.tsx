@@ -13,6 +13,7 @@ import { useSettings } from "@/lib/settings";
 import { useState } from "react";
 import clsx from "clsx";
 import { buttonStyles } from "@/styles/Button";
+import { Lightbox } from "./Lightbox";
 
 export interface Item {
   id: string;
@@ -90,6 +91,7 @@ export function ItemCard({
   const { settings } = useSettings();
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState(item.content);
+  const [isLightboxOpen, setIsLightboxOpen] = useState(false);
 
   const isLink = item.type === "link";
   const isImage = item.type === "image";
@@ -216,8 +218,15 @@ export function ItemCard({
             <img
               src={getImageUrl(item.imageUrl)}
               alt="Saved image"
-              className="rounded-lg object-cover"
+              className="rounded-lg object-cover cursor-pointer transition-opacity hover:opacity-90"
               style={{ maxHeight: "300px", maxWidth: "100%" }}
+              onClick={() => setIsLightboxOpen(true)}
+            />
+            <Lightbox
+              isOpen={isLightboxOpen}
+              onClose={() => setIsLightboxOpen(false)}
+              imageUrl={getImageUrl(item.imageUrl)}
+              alt="Saved image"
             />
           </div>
         )}
