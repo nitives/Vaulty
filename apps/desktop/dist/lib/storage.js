@@ -154,7 +154,9 @@ function saveImage(imageData, filename) {
         const base64Data = imageData.replace(/^data:image\/\w+;base64,/, "");
         fs_1.default.writeFileSync(filePath, base64Data, "base64");
         const size = fs_1.default.statSync(filePath).size;
-        return { success: true, path: filePath, size };
+        // Return relative path so frontend can construct vaulty-image:// URLs correctly
+        const relativePath = `images/${filename}`;
+        return { success: true, path: relativePath, size };
     }
     catch (err) {
         console.error("Failed to save image:", err);
@@ -170,7 +172,9 @@ function saveAudio(audioData, filename) {
         const base64Data = audioData.replace(/^data:audio\/\w+;base64,/, "");
         fs_1.default.writeFileSync(filePath, base64Data, "base64");
         const size = fs_1.default.statSync(filePath).size;
-        return { success: true, path: filePath, size };
+        // Return relative path so frontend can construct vaulty-image:// URLs correctly
+        const relativePath = `audios/${filename}`;
+        return { success: true, path: relativePath, size };
     }
     catch (err) {
         console.error("Failed to save audio:", err);

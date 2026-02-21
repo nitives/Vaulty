@@ -114,3 +114,29 @@ button,
     }
   }
 }
+
+@utility vibrant-border {
+  position: relative;
+  &::after {
+    --inset: 2px;
+    content: "";
+    position: absolute;
+    inset: 0;
+    display: block;
+    pointer-events: none;
+    z-index: 1;
+    border-radius: inherit;
+    /* box-shadow: inset 0 0 0 var(--inset) hsla(0, 0%, 100%, var(--opacity)); */
+    backdrop-filter: saturate(110%) brightness(110%);
+    padding: var(--inset);
+    -webkit-mask:
+      linear-gradient(#000 0 0) content-box,
+      conic-gradient(#000 0 360deg);
+    -webkit-mask-composite: source-out; /* Safari */
+    mask:
+      linear-gradient(#000 0 0) content-box,
+      conic-gradient(#000 0 360deg);
+    mask-composite: exclude;
+  }
+}
+

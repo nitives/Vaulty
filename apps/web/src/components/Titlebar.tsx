@@ -174,6 +174,7 @@ export function Titlebar({
         </button>
         {/* Sidebar Toggle */}
         <button
+          suppressHydrationWarning
           onClick={onToggleSidebar}
           tabIndex={-1}
           className={sidebarButtonClassnames}

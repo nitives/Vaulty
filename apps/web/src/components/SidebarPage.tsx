@@ -15,6 +15,7 @@ interface SidebarPageProps {
   onRenameChange?: (value: string) => void;
   onRenameCommit?: () => void;
   onRenameCancel?: () => void;
+  onStartRename?: (id: string, type: "page", currentName: string) => void;
 }
 
 export function SidebarPage({
@@ -28,6 +29,7 @@ export function SidebarPage({
   onRenameChange,
   onRenameCommit,
   onRenameCancel,
+  onStartRename,
 }: SidebarPageProps) {
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -76,7 +78,15 @@ export function SidebarPage({
           className="flex-1 w-full min-w-0 bg-transparent outline-none selection:bg-[var(--accent-600)] selection:text-white rounded-sm placeholder-neutral-400 px-2 pl-0 py-1"
         />
       ) : (
-        <span className="px-2 pl-0 py-1 truncate text-left">{page.name}</span>
+        <span
+          className="px-2 pl-0 py-1 truncate text-left"
+          onDoubleClick={(e) => {
+            e.stopPropagation();
+            onStartRename?.(page.id, "page", page.name);
+          }}
+        >
+          {page.name}
+        </span>
       )}
     </button>
   );

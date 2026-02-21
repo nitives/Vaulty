@@ -182,7 +182,7 @@ export function AudioCard({ item, audioUrl }: AudioCardProps) {
 
   return (
     <div
-      className="mt-3 p-[18px] compact:p-[14px] rounded-4xl compact:rounded-3xl flex w-full max-w-sm flex-col overflow-hidden transition-colors duration-500 ease-in-out"
+      className="mt-3 p-[18px] vibrant-border compact:p-[14px] rounded-4xl compact:rounded-3xl flex w-full max-w-sm flex-col overflow-hidden transition-colors duration-500 ease-in-out"
       style={{
         backgroundColor: bgColor,
       }}
@@ -252,7 +252,7 @@ export function AudioCard({ item, audioUrl }: AudioCardProps) {
               <button
                 onClick={togglePlay}
                 className={clsx(
-                  "flex cursor-pointer size-8 shrink-0 items-center justify-center rounded-full transition-transform hover:scale-105 active:scale-95",
+                  "flex cursor-pointer size-8 shrink-0 items-center justify-center rounded-full transition-transform active:scale-95",
                   isDark
                     ? "bg-neutral-600 text-neutral-200 hover:bg-neutral-500"
                     : "bg-neutral-400 text-neutral-700 hover:bg-neutral-400",
@@ -309,7 +309,7 @@ export function AudioCard({ item, audioUrl }: AudioCardProps) {
             onClick={togglePlay}
             style={{ mixBlendMode: isDark ? "plus-lighter" : "color-burn" }}
             className={clsx(
-              "hidden compact:flex cursor-pointer size-10 shrink-0 items-center justify-center rounded-full transition-transform hover:scale-105 active:scale-95",
+              "hidden compact:flex cursor-pointer size-10 shrink-0 items-center justify-center rounded-full transition-transform active:scale-95",
               isDark
                 ? "bg-neutral-600 text-neutral-200 hover:bg-neutral-500"
                 : "bg-neutral-400/60 text-neutral-600 hover:bg-neutral-400/80",

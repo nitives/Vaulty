@@ -30,6 +30,7 @@ export function SidebarIcon({
       className={`inline-block align-middle overflow-visible text-current box-content ${className ?? ""}`}
       role="img"
       aria-hidden="true"
+      suppressHydrationWarning
     >
       {/* Outer rounded rectangle */}
       <path
@@ -42,6 +43,7 @@ export function SidebarIcon({
         d="M3.75977 15.0781L6.52344 15.0781C7.12891 15.0781 7.37305 14.8242 7.37305 14.1992L7.37305 3.78906C7.37305 3.16406 7.12891 2.91016 6.52344 2.91016L3.75977 2.91016C3.1543 2.91016 2.91016 3.16406 2.91016 3.78906L2.91016 14.1992C2.91016 14.8242 3.1543 15.0781 3.75977 15.0781Z"
         fill="currentColor"
         fillOpacity="0.85"
+        suppressHydrationWarning
         style={{
           willChange: "transform, opacity",
           transformOrigin: "2.91px 8.99px",

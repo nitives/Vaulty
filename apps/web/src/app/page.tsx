@@ -1,5 +1,4 @@
 "use client";
-
 import { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import clsx from "clsx";
@@ -7,36 +6,28 @@ import {
   Sidebar,
   InputBar,
   ItemList,
-  Item,
   Titlebar,
   SettingsModal,
   ConfirmModal,
   MoveModal,
   FloatingSearchBar,
 } from "@/components";
-import { generateId } from "@/lib/utils";
 import { useSettings } from "@/lib/settings";
 import { useThemeClasses } from "@/hooks/useThemeClasses";
 import { useItems } from "@/hooks/useItems";
-import {
-  loadItems as loadStoredItems,
-  addItem as addStoredItem,
-  deleteItem as deleteStoredItem,
-  saveImage,
-  updateItem as updateStoredItem,
-} from "@/lib/storage";
 import SFIcon from "@bradleyhodges/sfsymbols-react";
-import {
-  sfMagnifyingglass,
-  sfXmark,
-  sfArrowDown,
-  sfArrowUp,
-} from "@bradleyhodges/sfsymbols";
+import { sfArrowDown, sfArrowUp } from "@bradleyhodges/sfsymbols";
 
 export default function Home() {
   const { settings } = useSettings();
 
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    if (typeof window !== "undefined") {
+      const cached = (window as any).__VAULTY_SETTINGS__;
+      if (cached && cached.startCollapsed) return true;
+    }
+    return false;
+  });
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [searchVisible, setSearchVisible] = useState(false);
   const [showScrollButton, setShowScrollButton] = useState(false);
@@ -138,7 +129,6 @@ export default function Home() {
       });
     }
   }, [isLoading, settings.inputBarPosition]);
-
   // NEW: When list/filters change in bottom mode, keep pinned only if user was near bottom
   useEffect(() => {
     if (settings.inputBarPosition !== "bottom") return;
@@ -208,10 +198,24 @@ export default function Home() {
           activeFilter={activeFilter}
           onFilterChange={setActiveFilter}
           isCollapsed={sidebarCollapsed}
-          // onTagClick={handleTagClick}
-          // recentTags={Array.from(
-          //   new Set(items.flatMap((item) => item.tags).filter(Boolean)),
-          // ).slice(0, 8)}
+          items={items}
+        />
+        {/* Inline script: runs before first paint to collapse sidebar if needed */}
+        <script
+          suppressHydrationWarning
+          dangerouslySetInnerHTML={{
+            __html: `(${(() => {
+              const s = (window as any).__VAULTY_SETTINGS__;
+              if (s && s.startCollapsed) {
+                const el = document.getElementById("vaulty-sidebar");
+                if (el) {
+                  el.style.width = "0px";
+                  el.style.borderRightWidth = "0px";
+                  el.style.overflow = "hidden";
+                }
+              }
+            }).toString()})()`,
+          }}
         />
 
         {/* Main Content */}

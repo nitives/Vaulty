@@ -37,6 +37,9 @@ const themeScript = `
       if (settings.inputBarPosition === 'top') {
         document.documentElement.classList.add('input-bar-top');
       }
+      if (settings.startCollapsed) {
+        document.documentElement.classList.add('sidebar-start-collapsed');
+      }
       // Apply accent color
       var accentColor = settings.accentColor || 'blue';
       document.documentElement.setAttribute('data-accent', accentColor);

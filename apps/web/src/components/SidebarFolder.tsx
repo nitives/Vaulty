@@ -31,6 +31,11 @@ interface SidebarFolderProps {
   onRenameCommit?: () => void;
   onRenameCancel?: () => void;
   renamingTarget?: { id: string; type: "folder" | "page" } | null;
+  onStartRename?: (
+    id: string,
+    type: "folder" | "page",
+    currentName: string,
+  ) => void;
 }
 
 export function SidebarFolder({
@@ -54,6 +59,7 @@ export function SidebarFolder({
   onRenameCommit,
   onRenameCancel,
   renamingTarget,
+  onStartRename,
 }: SidebarFolderProps) {
   const renameInputRef = useRef<HTMLInputElement>(null);
 
@@ -102,7 +108,15 @@ export function SidebarFolder({
               className="flex-1 w-full min-w-0 bg-transparent outline-none selection:bg-[var(--accent-600)] selection:text-white text-left rounded-sm placeholder-neutral-400"
             />
           ) : (
-            <span className="truncate text-left">{folder.name}</span>
+            <span
+              className="truncate text-left"
+              onDoubleClick={(e) => {
+                e.stopPropagation();
+                onStartRename?.(folder.id, "folder", folder.name);
+              }}
+            >
+              {folder.name}
+            </span>
           )}
         </button>
         <button
@@ -156,6 +170,7 @@ export function SidebarFolder({
                 onRenameChange={onRenameChange}
                 onRenameCommit={onRenameCommit}
                 onRenameCancel={onRenameCancel}
+                onStartRename={onStartRename}
               />
             ))
           )}
