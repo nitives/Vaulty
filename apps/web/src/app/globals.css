@@ -63,21 +63,9 @@ body.transparent-mode {
 }
 
 /* Input bar position - controlled via class set by blocking script */
-.input-bar-top .input-bar-top-container {
-  display: block;
-}
-.input-bar-top .input-bar-bottom-container {
-  display: none;
-}
 .input-bar-top .content-area {
   padding-bottom: 1.5rem;
   flex-direction: column;
-}
-html:not(.input-bar-top) .input-bar-top-container {
-  display: none;
-}
-html:not(.input-bar-top) .input-bar-bottom-container {
-  display: block;
 }
 html:not(.input-bar-top) .content-area {
   padding-bottom: 8rem;

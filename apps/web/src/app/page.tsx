@@ -237,9 +237,23 @@ export default function Home() {
             )}
           </AnimatePresence>
 
-          {/* Input Bar - Top position */}
-          <div className="input-bar-top-container shrink-0 border-b border-[var(--edge-border-color-light)] dark:border-[var(--edge-border-color-dark)] px-6 py-4 bg-white dark:bg-neutral-900 transparent:bg-white/50 transparent:dark:bg-neutral-900/50 transparent:backdrop-blur-sm">
-            <div className="mx-auto max-w-4xl">
+          {/* Unified Input Bar */}
+          <div
+            className={clsx(
+              "z-10 transition-all duration-300",
+              settings.inputBarPosition === "top"
+                ? "shrink-0 border-b border-[var(--edge-border-color-light)] dark:border-[var(--edge-border-color-dark)] px-6 py-4 bg-white dark:bg-neutral-900 transparent:bg-white/50 transparent:dark:bg-neutral-900/50 transparent:backdrop-blur-sm"
+                : "pointer-events-none absolute bottom-0 left-0 right-0 px-6 py-4 pt-8",
+            )}
+          >
+            <div
+              className={clsx(
+                "mx-auto transition-all duration-300",
+                settings.inputBarPosition === "top"
+                  ? "max-w-4xl"
+                  : "pointer-events-auto",
+              )}
+            >
               <InputBar onSubmit={handleAddItem} />
             </div>
           </div>
@@ -327,14 +341,6 @@ export default function Home() {
                     : "No items yet. Add something!"
                 }
               />
-            </div>
-          </div>
-
-          {/* Input Bar - Bottom position (floating overlay) */}
-          <div className="input-bar-bottom-container pointer-events-none absolute bottom-0 left-0 right-0 px-6 py-4 pt-8">
-            <button id="scroll-back" className="pointer-events-auto" />
-            <div className="pointer-events-auto mx-auto">
-              <InputBar onSubmit={handleAddItem} />
             </div>
           </div>
         </main>

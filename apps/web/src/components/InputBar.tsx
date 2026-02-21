@@ -249,10 +249,9 @@ export function InputBar({ onSubmit }: InputBarProps) {
               "opacity-0 group-hover/img:opacity-100",
               "flex items-center justify-center",
               "rounded-full p-1 size-5",
-              "mix-blend-plus-lighter",
               "backdrop-blur-xl backdrop-saturate-150",
-              "bg-white/10 hover:bg-neutral-100 dark:hover:bg-neutral-800",
-              "text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300",
+              "bg-black/10 hover:bg-black/25 dark:bg-white/10  dark:hover:bg-white/25",
+              "text-black/25 hover:text-black/50 dark:text-white/25 dark:hover:text-white/50",
             )}
             aria-label="Remove image"
           >
