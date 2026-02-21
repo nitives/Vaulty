@@ -5,6 +5,8 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getVaultyDataPath = getVaultyDataPath;
 exports.getItemsFilePath = getItemsFilePath;
+exports.getFoldersFilePath = getFoldersFilePath;
+exports.getPagesFilePath = getPagesFilePath;
 exports.getImagesPath = getImagesPath;
 exports.getTrashPath = getTrashPath;
 exports.getTrashFilePath = getTrashFilePath;
@@ -33,6 +35,12 @@ function getVaultyDataPath() {
 }
 function getItemsFilePath() {
     return path_1.default.join(getVaultyDataPath(), "items.json");
+}
+function getFoldersFilePath() {
+    return path_1.default.join(getVaultyDataPath(), "folders.json");
+}
+function getPagesFilePath() {
+    return path_1.default.join(getVaultyDataPath(), "pages.json");
 }
 function getImagesPath() {
     return path_1.default.join(getVaultyDataPath(), "images");

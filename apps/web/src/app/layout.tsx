@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
-import { MotionConfig } from "motion/react";
+import { VaultyMotionConfig } from "@/components/VaultyMotionConfig";
+import { SettingsProvider } from "@/lib/settings";
 
 const SFPro = localFont({
   src: "../../public/fonts/SF-Pro.ttf",
@@ -55,12 +56,18 @@ const themeScript = `
 
 // Script that runs at start of body to apply transparent-mode class
 // Must be separate because body doesn't exist when head scripts run
-const transparencyScript = `
+const settingsScript = `
 (function() {
   try {
     var settings = window.__VAULTY_SETTINGS__;
     if (settings && settings.transparency) {
       document.body.classList.add('transparent-mode');
+    }
+    if (settings && settings.compactMode) {
+      document.body.classList.add('compact-mode');
+    }
+    if (settings && settings.sidebarTransparent) {
+      document.body.classList.add('sidebar-transparent');
     }
   } catch (e) {}
 })();
@@ -82,15 +89,17 @@ export default function RootLayout({
           href="/apple-touch-icon.png"
         />
       </head>
-      <MotionConfig reducedMotion="user">
-        <body
-          suppressHydrationWarning
-          className={`${SFPro.variable} antialiased`}
-        >
-          <script dangerouslySetInnerHTML={{ __html: transparencyScript }} />
-          {children}
-        </body>
-      </MotionConfig>
+      <body
+        suppressHydrationWarning
+        className={`${SFPro.variable} antialiased`}
+      >
+        <SettingsProvider>
+          <VaultyMotionConfig>
+            <script dangerouslySetInnerHTML={{ __html: settingsScript }} />
+            {children}
+          </VaultyMotionConfig>
+        </SettingsProvider>
+      </body>
     </html>
   );
 }

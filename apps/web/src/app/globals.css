@@ -6,6 +6,8 @@
 /* ------------------------------ */
 
 @custom-variant transparent (&:is(.transparent-mode *));
+@custom-variant compact (&:is(.compact-mode *));
+@custom-variant sidebar-transparent (&:is(.sidebar-transparent *));
 
 :root {
   --background: #fafafa;
@@ -55,6 +57,11 @@ body.transparent-mode {
   background: transparent !important;
 }
 
+/* Sidebar transparency - applied via class set by blocking script */
+.sidebar-transparent .sidebar {
+  background: transparent !important;
+}
+
 /* Input bar position - controlled via class set by blocking script */
 .input-bar-top .input-bar-top-container {
   display: block;
@@ -87,4 +94,35 @@ html:not(.input-bar-top) .content-area {
 button,
 [role="button"] {
   user-select: none;
+}
+
+/* ------------- */
+
+@utility secondary-text {
+  --color: rgba(0, 0, 0, 0.1);
+  color: var(--color);
+  fill: var(--color);
+  stroke: var(--color);
+  transition:
+    color 0.22s ease,
+    fill 0.22s ease,
+    stroke 0.22s ease;
+  &:hover {
+    --color: rgba(0, 0, 0, 0.75);
+    color: var(--color);
+    fill: var(--color);
+    stroke: var(--color);
+  }
+  @variant dark {
+    --color: rgba(255, 255, 255, 0.1);
+    color: var(--color);
+    fill: var(--color);
+    stroke: var(--color);
+    &:hover {
+      --color: rgba(255, 255, 255, 0.25);
+      color: var(--color);
+      fill: var(--color);
+      stroke: var(--color);
+    }
+  }
 }

@@ -114,6 +114,21 @@ function registerIpcHandlers(getMainWindow) {
         }
         return { success: true, items };
     });
+    // Folders & Pages
+    electron_1.ipcMain.handle("folders:load", () => {
+        return (0, storage_1.loadFolders)();
+    });
+    electron_1.ipcMain.handle("folders:save", (_event, folders) => {
+        (0, storage_1.saveFolders)(folders);
+        return { success: true };
+    });
+    electron_1.ipcMain.handle("pages:load", () => {
+        return (0, storage_1.loadPages)();
+    });
+    electron_1.ipcMain.handle("pages:save", (_event, pages) => {
+        (0, storage_1.savePages)(pages);
+        return { success: true };
+    });
     // Trash operations
     electron_1.ipcMain.handle("trash:load", () => {
         return (0, storage_1.loadTrash)();
@@ -170,11 +185,21 @@ function registerIpcHandlers(getMainWindow) {
         }
         try {
             // 1. Move the data over
-            // For items.json
+            // For items.json, folders.json, pages.json
             const oldItemsPath = path_1.default.join(oldPath, "items.json");
             const newItemsPath = path_1.default.join(newPath, "items.json");
             if (fs_1.default.existsSync(oldItemsPath)) {
                 fs_1.default.cpSync(oldItemsPath, newItemsPath);
+            }
+            const oldFoldersPath = path_1.default.join(oldPath, "folders.json");
+            const newFoldersPath = path_1.default.join(newPath, "folders.json");
+            if (fs_1.default.existsSync(oldFoldersPath)) {
+                fs_1.default.cpSync(oldFoldersPath, newFoldersPath);
+            }
+            const oldPagesPath = path_1.default.join(oldPath, "pages.json");
+            const newPagesPath = path_1.default.join(newPath, "pages.json");
+            if (fs_1.default.existsSync(oldPagesPath)) {
+                fs_1.default.cpSync(oldPagesPath, newPagesPath);
             }
             // For images folder
             const oldImagesPath = path_1.default.join(oldPath, "images");
@@ -195,6 +220,10 @@ function registerIpcHandlers(getMainWindow) {
             // 3. Delete old data to save space (safely)
             if (fs_1.default.existsSync(oldItemsPath))
                 fs_1.default.unlinkSync(oldItemsPath);
+            if (fs_1.default.existsSync(oldFoldersPath))
+                fs_1.default.unlinkSync(oldFoldersPath);
+            if (fs_1.default.existsSync(oldPagesPath))
+                fs_1.default.unlinkSync(oldPagesPath);
             if (fs_1.default.existsSync(oldImagesPath))
                 fs_1.default.rmSync(oldImagesPath, { recursive: true, force: true });
             if (fs_1.default.existsSync(oldTrashPath))

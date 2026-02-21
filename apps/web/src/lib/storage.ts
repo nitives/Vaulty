@@ -3,7 +3,7 @@ import { Item } from "@/components";
 // Stored item type (dates serialized as ISO strings)
 export interface StoredItem {
   id: string;
-  type: "note" | "image" | "link" | "reminder";
+  type: "note" | "image" | "link" | "reminder" | "audio" | "video";
   content: string;
   tags: string[];
   createdAt: string;
@@ -14,6 +14,38 @@ export interface StoredItem {
     tags: string[];
     content: string;
   };
+  metadata?: {
+    title?: string;
+    description?: string;
+    image?: string;
+  };
+  pageId?: string;
+}
+
+export interface StoredFolder {
+  id: string;
+  name: string;
+  createdAt: string;
+}
+
+export interface StoredPage {
+  id: string;
+  folderId: string | null;
+  name: string;
+  createdAt: string;
+}
+
+export interface Folder {
+  id: string;
+  name: string;
+  createdAt: Date;
+}
+
+export interface Page {
+  id: string;
+  folderId: string | null;
+  name: string;
+  createdAt: Date;
 }
 
 // Convert Item to StoredItem (serialize dates)
@@ -28,6 +60,8 @@ export function itemToStored(item: Item): StoredItem {
     imageUrl: item.imageUrl,
     size: item.size,
     analyzed: item.analyzed,
+    metadata: item.metadata,
+    pageId: item.pageId,
   };
 }
 
@@ -43,7 +77,25 @@ export function storedToItem(stored: StoredItem): Item {
     imageUrl: stored.imageUrl,
     size: stored.size,
     analyzed: stored.analyzed,
+    metadata: stored.metadata,
+    pageId: stored.pageId,
   };
+}
+
+export function folderToStored(folder: Folder): StoredFolder {
+  return { ...folder, createdAt: folder.createdAt.toISOString() };
+}
+
+export function storedToFolder(stored: StoredFolder): Folder {
+  return { ...stored, createdAt: new Date(stored.createdAt) };
+}
+
+export function pageToStored(page: Page): StoredPage {
+  return { ...page, createdAt: page.createdAt.toISOString() };
+}
+
+export function storedToPage(stored: StoredPage): Page {
+  return { ...stored, createdAt: new Date(stored.createdAt) };
 }
 
 // Get Electron API if available (type-safe narrowing)
@@ -161,6 +213,52 @@ export async function updateItem(item: Item): Promise<void> {
   }
 }
 
+// Folders
+export async function loadFolders(): Promise<Folder[]> {
+  const api = getElectronAPI();
+  if (!api) return [];
+  try {
+    const stored = await api.loadFolders();
+    return stored.map(storedToFolder);
+  } catch (err) {
+    console.error("Failed to load folders:", err);
+    return [];
+  }
+}
+
+export async function saveFolders(folders: Folder[]): Promise<void> {
+  const api = getElectronAPI();
+  if (!api) return;
+  try {
+    await api.saveFolders(folders.map(folderToStored));
+  } catch (err) {
+    console.error("Failed to save folders:", err);
+  }
+}
+
+// Pages
+export async function loadPages(): Promise<Page[]> {
+  const api = getElectronAPI();
+  if (!api) return [];
+  try {
+    const stored = await api.loadPages();
+    return stored.map(storedToPage);
+  } catch (err) {
+    console.error("Failed to load pages:", err);
+    return [];
+  }
+}
+
+export async function savePages(pages: Page[]): Promise<void> {
+  const api = getElectronAPI();
+  if (!api) return;
+  try {
+    await api.savePages(pages.map(pageToStored));
+  } catch (err) {
+    console.error("Failed to save pages:", err);
+  }
+}
+
 // Save an image and return the path and size
 export async function saveImage(
   imageData: string,
@@ -172,7 +270,7 @@ export async function saveImage(
     // In browser, just return the data URL (size isn't accurate for data urls in this context, but we fallback gracefully)
     // calculating size of base64 snippet:
     const size = Buffer.from(
-      imageData.replace(/^data:image\/\w+;base64,/, ""),
+      imageData.replace(/^data:[^;]+;base64,/, ""),
       "base64",
     ).length;
     return { path: imageData, size };

@@ -36,6 +36,11 @@ electron_1.contextBridge.exposeInMainWorld("electronAPI", {
     addItem: (item) => electron_1.ipcRenderer.invoke("items:add", item),
     deleteItem: (id) => electron_1.ipcRenderer.invoke("items:delete", id),
     updateItem: (item) => electron_1.ipcRenderer.invoke("items:update", item),
+    // Folders & Pages
+    loadFolders: () => electron_1.ipcRenderer.invoke("folders:load"),
+    saveFolders: (folders) => electron_1.ipcRenderer.invoke("folders:save", folders),
+    loadPages: () => electron_1.ipcRenderer.invoke("pages:load"),
+    savePages: (pages) => electron_1.ipcRenderer.invoke("pages:save", pages),
     // Image storage
     saveImage: (imageData, filename) => electron_1.ipcRenderer.invoke("images:save", imageData, filename),
     getImagesPath: () => electron_1.ipcRenderer.invoke("images:getPath"),

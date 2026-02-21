@@ -15,6 +15,7 @@ export interface AppSettings {
   startCollapsed?: boolean;
   confirmBeforeDelete?: boolean;
   vaultyDataPath?: string;
+  showImageFileName?: boolean;
 }
 
 export function loadSettings(): AppSettings {

@@ -3,6 +3,8 @@ import path from "path";
 import {
   getVaultyDataPath,
   getItemsFilePath,
+  getFoldersFilePath,
+  getPagesFilePath,
   getImagesPath,
   getTrashPath,
   getTrashFilePath,
@@ -22,6 +24,19 @@ export interface StoredItem {
     tags: string[];
     content: string;
   };
+}
+
+export interface StoredFolder {
+  id: string;
+  name: string;
+  createdAt: string;
+}
+
+export interface StoredPage {
+  id: string;
+  folderId: string | null;
+  name: string;
+  createdAt: string;
 }
 
 export interface TrashedItem {
@@ -96,6 +111,54 @@ export function saveItems(items: StoredItem[]): void {
     fs.writeFileSync(getItemsFilePath(), JSON.stringify(items, null, 2));
   } catch (err) {
     console.error("Failed to save items:", err);
+  }
+}
+
+export function loadFolders(): StoredFolder[] {
+  try {
+    ensureDataDirectories();
+    const filePath = getFoldersFilePath();
+    if (!fs.existsSync(filePath)) {
+      return [];
+    }
+    const data = fs.readFileSync(filePath, "utf-8");
+    return JSON.parse(data);
+  } catch (err) {
+    console.error("Failed to load folders:", err);
+    return [];
+  }
+}
+
+export function saveFolders(folders: StoredFolder[]): void {
+  try {
+    ensureDataDirectories();
+    fs.writeFileSync(getFoldersFilePath(), JSON.stringify(folders, null, 2));
+  } catch (err) {
+    console.error("Failed to save folders:", err);
+  }
+}
+
+export function loadPages(): StoredPage[] {
+  try {
+    ensureDataDirectories();
+    const filePath = getPagesFilePath();
+    if (!fs.existsSync(filePath)) {
+      return [];
+    }
+    const data = fs.readFileSync(filePath, "utf-8");
+    return JSON.parse(data);
+  } catch (err) {
+    console.error("Failed to load pages:", err);
+    return [];
+  }
+}
+
+export function savePages(pages: StoredPage[]): void {
+  try {
+    ensureDataDirectories();
+    fs.writeFileSync(getPagesFilePath(), JSON.stringify(pages, null, 2));
+  } catch (err) {
+    console.error("Failed to save pages:", err);
   }
 }
 
@@ -283,6 +346,10 @@ export function clearAllData(): void {
 
     // Clear items.json
     saveItems([]);
+
+    // Clear folders.json and pages.json
+    saveFolders([]);
+    savePages([]);
 
     // Clear trash.json
     saveTrash([]);

@@ -24,6 +24,14 @@ export function getItemsFilePath(): string {
   return path.join(getVaultyDataPath(), "items.json");
 }
 
+export function getFoldersFilePath(): string {
+  return path.join(getVaultyDataPath(), "folders.json");
+}
+
+export function getPagesFilePath(): string {
+  return path.join(getVaultyDataPath(), "pages.json");
+}
+
 export function getImagesPath(): string {
   return path.join(getVaultyDataPath(), "images");
 }

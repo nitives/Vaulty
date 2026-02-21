@@ -42,7 +42,9 @@ export interface AppSettings {
   reduceMotion?: boolean;
   hideNotesWhenFilteringBySize?: boolean;
   showImageSize?: boolean;
+  showImageFileName?: boolean;
   useFlorence?: boolean;
+  sidebarTransparent?: boolean;
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -61,7 +63,9 @@ export const DEFAULT_SETTINGS: AppSettings = {
   reduceMotion: false,
   hideNotesWhenFilteringBySize: false,
   showImageSize: false,
+  showImageFileName: false,
   useFlorence: false,
+  sidebarTransparent: false,
 };
 
 // -- localStorage helpers (for fast sync access on page load) --

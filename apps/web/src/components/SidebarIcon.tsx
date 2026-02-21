@@ -1,27 +1,12 @@
 "use client";
 
+import { useSettings } from "@/lib/settings";
 import { useEffect, useState } from "react";
 
 interface SidebarIconProps {
   size?: number;
   collapsed?: boolean;
   className?: string;
-}
-
-function usePrefersReducedMotion() {
-  const [reduced, setReduced] = useState(() =>
-    typeof window !== "undefined"
-      ? window.matchMedia("(prefers-reduced-motion: reduce)").matches
-      : false,
-  );
-  useEffect(() => {
-    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const handler = (e: MediaQueryListEvent) => setReduced(e.matches);
-    mq.addEventListener("change", handler);
-    return () => mq.removeEventListener("change", handler);
-  }, []);
-
-  return reduced;
 }
 
 // ease-out-quart: element is entering/exiting
@@ -33,8 +18,7 @@ export function SidebarIcon({
   collapsed = false,
   className,
 }: SidebarIconProps) {
-  const reducedMotion = usePrefersReducedMotion();
-
+  const reducedMotion = useSettings().settings.reduceMotion;
   return (
     <svg
       width={size}

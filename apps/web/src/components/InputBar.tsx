@@ -16,7 +16,7 @@ interface InputBarProps {
   onSubmit: (
     content: string,
     tags: string[],
-    type: "note" | "image" | "link",
+    type: "note" | "image" | "link" | "audio" | "video",
     imageData?: string,
     imageName?: string,
   ) => void | Promise<void>;
@@ -45,12 +45,12 @@ export function InputBar({ onSubmit }: InputBarProps) {
   }, [content]);
 
   // Convert image file to data URL
-  const handleImageFile = useCallback((file: File) => {
+  const handleMediaFile = useCallback((file: File) => {
     const reader = new FileReader();
     reader.onload = (e) => {
       const dataUrl = e.target?.result as string;
       setImagePreview(dataUrl);
-      setImageName(file.name || "Image");
+      setImageName(file.name || file.type.split("/")[0]);
       setShowTagInput(true);
       setTimeout(() => tagInputRef.current?.focus(), 0);
     };
@@ -64,26 +64,32 @@ export function InputBar({ onSubmit }: InputBarProps) {
       if (!items) return;
 
       for (const item of items) {
-        if (item.type.startsWith("image/")) {
+        if (
+          item.type.startsWith("image/") ||
+          item.type.startsWith("video/") ||
+          item.type.startsWith("audio/")
+        ) {
           e.preventDefault();
           const file = item.getAsFile();
           if (file) {
-            handleImageFile(file);
+            handleMediaFile(file);
           }
           return;
         }
       }
     },
-    [handleImageFile],
+    [handleMediaFile],
   );
 
   const handleSubmit = useCallback(() => {
     if (!content.trim() && !imagePreview) return;
 
     // Detect type based on content
-    let type: "note" | "image" | "link" = "note";
+    let type: "note" | "image" | "link" | "audio" | "video" = "note";
     if (imagePreview) {
-      type = "image";
+      if (imagePreview.startsWith("data:video/")) type = "video";
+      else if (imagePreview.startsWith("data:audio/")) type = "audio";
+      else type = "image";
     } else if (content.match(/^https?:\/\//)) {
       type = "link";
     }
@@ -172,10 +178,15 @@ export function InputBar({ onSubmit }: InputBarProps) {
 
     // Handle dropped files
     const files = Array.from(e.dataTransfer.files);
-    const imageFile = files.find((f) => f.type.startsWith("image/"));
+    const mediaFile = files.find(
+      (f) =>
+        f.type.startsWith("image/") ||
+        f.type.startsWith("audio/") ||
+        f.type.startsWith("video/"),
+    );
 
-    if (imageFile) {
-      handleImageFile(imageFile);
+    if (mediaFile) {
+      handleMediaFile(mediaFile);
       return;
     }
 
@@ -204,12 +215,24 @@ export function InputBar({ onSubmit }: InputBarProps) {
       {/* Image Preview */}
       {imagePreview && (
         <div className="group/img relative mb-3 inline-block">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={imagePreview}
-            alt="Preview"
-            className="max-h-32 rounded-lg object-cover"
-          />
+          {imagePreview.startsWith("data:image/") ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={imagePreview}
+              alt="Preview"
+              className="max-h-32 rounded-lg object-cover"
+            />
+          ) : imagePreview.startsWith("data:video/") ? (
+            <video
+              src={imagePreview}
+              className="max-h-32 rounded-lg object-cover bg-black"
+              muted
+            />
+          ) : (
+            <div className="h-16 px-4 py-2 flex items-center justify-center rounded-lg bg-neutral-100 dark:bg-neutral-800 text-sm font-medium">
+              Audio File
+            </div>
+          )}
           <button
             onClick={() => {
               setImagePreview(null);
@@ -245,7 +268,7 @@ export function InputBar({ onSubmit }: InputBarProps) {
         onChange={(e) => setContent(e.target.value)}
         onKeyDown={handleKeyDown}
         onPaste={handlePaste}
-        placeholder="Drop an image, paste a link, or type a quick note…"
+        placeholder="Drop a file, paste a link, or type a quick note…"
         className={clsx(
           "caret-[var(--accent-500)]",
           "w-full resize-none overflow-hidden",

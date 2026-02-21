@@ -13,9 +13,17 @@ import { AccentColorPicker } from "./AccentColorPicker";
 import { Slider } from "./Slider";
 import { Button } from "./Button";
 import SFIcon from "@bradleyhodges/sfsymbols-react";
-import { sfXmark } from "@bradleyhodges/sfsymbols";
+import {
+  sfBookClosed,
+  sfInfoCircle,
+  sfInternaldrive,
+  sfPaintbrush,
+  sfSliderHorizontal3,
+  sfXmark,
+} from "@bradleyhodges/sfsymbols";
 import { motion, AnimatePresence } from "motion/react";
 import { buttonStyles } from "@/styles/Button";
+import { IconDefinition } from "@bradleyhodges/sfsymbols-types";
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -29,15 +37,15 @@ type SectionId = "appearance" | "behavior" | "storage" | "guide" | "about";
 interface SectionDef {
   id: SectionId;
   label: string;
-  icon: IconName;
+  icon: IconDefinition;
 }
 
 const sections: SectionDef[] = [
-  { id: "appearance", label: "Appearance", icon: "paintbrush" },
-  { id: "behavior", label: "Behavior", icon: "sliderHorizontal3" },
-  { id: "storage", label: "Storage", icon: "internaldrive" },
-  { id: "guide", label: "Guide", icon: "bookClosed" },
-  { id: "about", label: "About", icon: "infoCircle" },
+  { id: "appearance", label: "Appearance", icon: sfPaintbrush },
+  { id: "behavior", label: "Behavior", icon: sfSliderHorizontal3 },
+  { id: "storage", label: "Storage", icon: sfInternaldrive },
+  { id: "guide", label: "Guide", icon: sfBookClosed },
+  { id: "about", label: "About", icon: sfInfoCircle },
 ];
 
 // -- Reusable settings row --
@@ -136,6 +144,15 @@ function AppearanceSection() {
         />
       </SettingsRow>
       <SettingsRow
+        label="Transparent sidebar"
+        description="Make the sidebar background transparent (Requires window transparency to be visible)"
+      >
+        <Toggle
+          checked={settings.sidebarTransparent ?? false}
+          onChange={(v) => update({ sidebarTransparent: v })}
+        />
+      </SettingsRow>
+      <SettingsRow
         label="Window transparency"
         description="Enable transparent blur background"
       >
@@ -203,6 +220,7 @@ function AppearanceSection() {
 function BehaviorSection() {
   const { settings, update } = useSettings();
   const [modelSize, setModelSize] = useState<number | null>(null);
+  const [needsRestartForMotion, setNeedsRestartForMotion] = useState(false);
 
   // Check if the Florence-2 model is currently installed in the browser's Cache API
   useEffect(() => {
@@ -272,9 +290,43 @@ function BehaviorSection() {
         label="Reduce motion"
         description="Disables most animations and transitions"
       >
+        <div className="flex items-center gap-3">
+          {needsRestartForMotion && (
+            <Button
+              variant="base"
+              className="text-xs px-2 py-1 text-[var(--accent-600)] dark:text-[var(--accent-400)]"
+              onClick={() =>
+                window.electronAPI?.restartApp?.() || window.location.reload()
+              }
+            >
+              Restart to apply
+            </Button>
+          )}
+          <Toggle
+            checked={settings.reduceMotion ?? false}
+            onChange={(v) => {
+              update({ reduceMotion: v });
+              setNeedsRestartForMotion(true);
+            }}
+          />
+        </div>
+      </SettingsRow>
+      <SettingsRow
+        label="Show Image Size"
+        description="Display the file size of an image below the timestamp"
+      >
         <Toggle
-          checked={settings.reduceMotion ?? false}
-          onChange={(v) => update({ reduceMotion: v })}
+          checked={settings.showImageSize ?? false}
+          onChange={(v) => update({ showImageSize: v })}
+        />
+      </SettingsRow>
+      <SettingsRow
+        label="Show Image File Name"
+        description="Display the file name of an image below the image"
+      >
+        <Toggle
+          checked={settings.showImageFileName ?? false}
+          onChange={(v) => update({ showImageFileName: v })}
         />
       </SettingsRow>
       <SettingsRow
@@ -353,7 +405,7 @@ function StorageSection() {
   useEffect(() => {
     window.electronAPI
       ?.getStoragePath()
-      .then((path) => setDataLocation(path))
+      .then((path: string) => setDataLocation(path))
       .catch(() => setDataLocation("Unknown"));
   }, []);
 
@@ -573,16 +625,16 @@ function AboutSection() {
 
     api
       .getVersion()
-      .then((version) => setAppVersion(version))
+      .then((version: string) => setAppVersion(version))
       .catch(() => setAppVersion("unknown"));
 
     api
       .getUpdateStatus()
-      .then((status) => setUpdateStatus(status))
+      .then((status: UpdateStatusPayload) => setUpdateStatus(status))
       .catch(() => setUpdateStatus(defaultUpdateStatus));
 
     // eslint-disable-next-line prefer-const
-    unsubscribe = api.onUpdateStatus((status) => {
+    unsubscribe = api.onUpdateStatus((status: UpdateStatusPayload) => {
       setUpdateStatus(status);
     });
 
@@ -988,15 +1040,17 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                     <button
                       key={section.id}
                       onClick={() => setActiveSection(section.id)}
-                      className={`flex select-none items-center gap-2.5 rounded-lg px-3 py-1.5 text-left text-sm font-medium transition-colors cursor-pointer ${
+                      className={`flex select-none items-center gap-2.5 rounded-lg px-3 py-1.5 compact:px-2 compact:py-1 text-left text-sm font-medium transition-colors cursor-pointer ${
                         isActive
                           ? "bg-[var(--accent-600)] text-white"
                           : "text-neutral-700 hover:bg-neutral-200/70 transparent:hover:bg-white/50 dark:text-neutral-300 dark:hover:bg-white/5 transparent:dark:hover:bg-white/5"
                       }`}
                     >
-                      <Icon
-                        name={section.icon}
-                        className={`text-[16px] ${isActive ? "text-white" : "text-neutral-500 dark:text-neutral-400"}`}
+                      <SFIcon
+                        icon={section.icon}
+                        size={18}
+                        weight={0.1}
+                        className={`compact:scale-[0.9] ${isActive ? "text-white" : "text-neutral-500 dark:text-neutral-400"}`}
                       />
                       {section.label}
                     </button>

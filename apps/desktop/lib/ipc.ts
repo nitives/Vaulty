@@ -21,6 +21,12 @@ import {
   emptyTrash,
   cleanupOldTrash,
   clearAllData,
+  loadFolders,
+  saveFolders,
+  loadPages,
+  savePages,
+  StoredFolder,
+  StoredPage,
 } from "./storage";
 import {
   loadSettings,
@@ -155,6 +161,25 @@ export function registerIpcHandlers(
     return { success: true, items };
   });
 
+  // Folders & Pages
+  ipcMain.handle("folders:load", () => {
+    return loadFolders();
+  });
+
+  ipcMain.handle("folders:save", (_event, folders: StoredFolder[]) => {
+    saveFolders(folders);
+    return { success: true };
+  });
+
+  ipcMain.handle("pages:load", () => {
+    return loadPages();
+  });
+
+  ipcMain.handle("pages:save", (_event, pages: StoredPage[]) => {
+    savePages(pages);
+    return { success: true };
+  });
+
   // Trash operations
   ipcMain.handle("trash:load", () => {
     return loadTrash();
@@ -228,11 +253,23 @@ export function registerIpcHandlers(
 
     try {
       // 1. Move the data over
-      // For items.json
+      // For items.json, folders.json, pages.json
       const oldItemsPath = path.join(oldPath, "items.json");
       const newItemsPath = path.join(newPath, "items.json");
       if (fs.existsSync(oldItemsPath)) {
         fs.cpSync(oldItemsPath, newItemsPath);
+      }
+
+      const oldFoldersPath = path.join(oldPath, "folders.json");
+      const newFoldersPath = path.join(newPath, "folders.json");
+      if (fs.existsSync(oldFoldersPath)) {
+        fs.cpSync(oldFoldersPath, newFoldersPath);
+      }
+
+      const oldPagesPath = path.join(oldPath, "pages.json");
+      const newPagesPath = path.join(newPath, "pages.json");
+      if (fs.existsSync(oldPagesPath)) {
+        fs.cpSync(oldPagesPath, newPagesPath);
       }
 
       // For images folder
@@ -256,6 +293,8 @@ export function registerIpcHandlers(
 
       // 3. Delete old data to save space (safely)
       if (fs.existsSync(oldItemsPath)) fs.unlinkSync(oldItemsPath);
+      if (fs.existsSync(oldFoldersPath)) fs.unlinkSync(oldFoldersPath);
+      if (fs.existsSync(oldPagesPath)) fs.unlinkSync(oldPagesPath);
       if (fs.existsSync(oldImagesPath))
         fs.rmSync(oldImagesPath, { recursive: true, force: true });
       if (fs.existsSync(oldTrashPath))

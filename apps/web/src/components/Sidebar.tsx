@@ -3,10 +3,35 @@
 import { motion, AnimatePresence } from "motion/react";
 import clsx from "clsx";
 import SFIcon from "@bradleyhodges/sfsymbols-react";
-import { sfExternaldrive, sfTag } from "@bradleyhodges/sfsymbols";
-import { useEffect, useState, useMemo } from "react";
-import { loadItems } from "@/lib/storage";
+import {
+  sfExternaldrive,
+  sfPlus,
+  sfTag,
+  sfFolder,
+  sfFolderFill,
+  sfTextPage,
+  sfPencil,
+  sfTrash,
+  sfChevronDown,
+} from "@bradleyhodges/sfsymbols";
+import { useEffect, useState, useMemo, useRef } from "react";
+import { ContextMenu } from "./ContextMenu";
+import {
+  loadItems,
+  loadFolders,
+  loadPages,
+  saveFolders,
+  savePages,
+  Folder,
+  Page,
+} from "@/lib/storage";
 import { Item } from "./ItemCard";
+import { generateId } from "@/lib/utils";
+import { DropdownChevron } from "./DropdownChevron";
+import { useSettings } from "@/lib/settings";
+import { SidebarFolder } from "./SidebarFolder";
+import { SidebarPage } from "./SidebarPage";
+import { RenameModal } from "./RenameModal";
 
 interface SidebarProps {
   activeFilter: string;
@@ -30,8 +55,107 @@ export function Sidebar({
   onFilterChange,
   isCollapsed,
 }: SidebarProps) {
+  const { settings } = useSettings();
   const [isLoading, setIsLoading] = useState(true);
   const [items, setItems] = useState<Item[]>([]);
+  const [folders, setFolders] = useState<Folder[]>([]);
+  const [pages, setPages] = useState<Page[]>([]);
+  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(
+    new Set(),
+  );
+
+  const [isCreatingFolder, setIsCreatingFolder] = useState(false);
+  const [newFolderName, setNewFolderName] = useState("New Folder");
+  const folderInputRef = useRef<HTMLInputElement>(null);
+
+  const [isCreatingPage, setIsCreatingPage] = useState<string | null>(null);
+  const [newPageName, setNewPageName] = useState("New Page");
+  const pageInputRef = useRef<HTMLInputElement>(null);
+
+  const [contextMenu, setContextMenu] = useState<{
+    isOpen: boolean;
+    x: number;
+    y: number;
+    targetId: string | null;
+    targetType: "folder" | "page" | null;
+  }>({ isOpen: false, x: 0, y: 0, targetId: null, targetType: null });
+
+  const [renamingTarget, setRenamingTarget] = useState<{
+    id: string;
+    type: "folder" | "page";
+  } | null>(null);
+  const [renameValue, setRenameValue] = useState("");
+
+  const handleContextMenu = (
+    e: React.MouseEvent,
+    targetId: string,
+    targetType: "folder" | "page",
+  ) => {
+    e.preventDefault();
+    setContextMenu({
+      isOpen: true,
+      x: e.clientX,
+      y: e.clientY,
+      targetId,
+      targetType,
+    });
+  };
+
+  const deleteFolder = async (id: string) => {
+    if (
+      !window.confirm(
+        "Are you sure you want to delete this folder? All pages inside will also be deleted.",
+      )
+    )
+      return;
+    const newFolders = folders.filter((f) => f.id !== id);
+    setFolders(newFolders);
+    await saveFolders(newFolders);
+
+    // Also delete associated pages
+    const newPages = pages.filter((p) => p.folderId !== id);
+    setPages(newPages);
+    await savePages(newPages);
+  };
+
+  const deletePage = async (id: string) => {
+    if (!window.confirm("Are you sure you want to delete this page?")) return;
+    const newPages = pages.filter((p) => p.id !== id);
+    setPages(newPages);
+    await savePages(newPages);
+    if (activeFilter === `page:${id}`) {
+      onFilterChange("all");
+    }
+  };
+
+  const handleRenameCommit = async () => {
+    if (!renamingTarget) return;
+    const name = renameValue.trim();
+    if (!name) {
+      setRenamingTarget(null);
+      return;
+    }
+
+    if (renamingTarget.type === "folder") {
+      const newFolders = folders.map((f) =>
+        f.id === renamingTarget.id ? { ...f, name } : f,
+      );
+      setFolders(newFolders);
+      await saveFolders(newFolders);
+    } else {
+      const newPages = pages.map((p) =>
+        p.id === renamingTarget.id ? { ...p, name } : p,
+      );
+      setPages(newPages);
+      await savePages(newPages);
+    }
+    setRenamingTarget(null);
+  };
+
+  const handleRenameCancel = () => {
+    setRenamingTarget(null);
+  };
+
   const numberOfItems = useMemo(() => items.length || undefined, [items]);
 
   const totalSize = useMemo(() => {
@@ -46,16 +170,103 @@ export function Sidebar({
   useEffect(() => {
     async function load() {
       try {
-        const storedItems = await loadItems();
+        const [storedItems, storedFolders, storedPages] = await Promise.all([
+          loadItems(),
+          loadFolders(),
+          loadPages(),
+        ]);
         setItems(storedItems);
+        setFolders(storedFolders);
+        setPages(storedPages);
       } catch (err) {
-        console.error("Failed to load items:", err);
+        console.error("Failed to load sidebar data:", err);
       } finally {
         setIsLoading(false);
       }
     }
     load();
   }, []);
+
+  const toggleFolder = (folderId: string) => {
+    setExpandedFolders((prev) => {
+      const next = new Set(prev);
+      if (next.has(folderId)) {
+        next.delete(folderId);
+      } else {
+        next.add(folderId);
+      }
+      return next;
+    });
+  };
+
+  const startCreateFolder = () => {
+    setIsCreatingFolder(true);
+    setNewFolderName("New Folder");
+    setTimeout(() => {
+      folderInputRef.current?.focus();
+      folderInputRef.current?.select();
+    }, 0);
+  };
+
+  const commitCreateFolder = async () => {
+    if (!isCreatingFolder) return;
+    setIsCreatingFolder(false);
+    const name = newFolderName.trim();
+    if (!name) return;
+
+    const newFolder: Folder = { id: generateId(), name, createdAt: new Date() };
+    const newFolders = [...folders, newFolder];
+    setFolders(newFolders);
+    await saveFolders(newFolders);
+  };
+
+  const handleFolderInputKeyDown = (
+    e: React.KeyboardEvent<HTMLInputElement>,
+  ) => {
+    if (e.key === "Enter") {
+      commitCreateFolder();
+    } else if (e.key === "Escape") {
+      setIsCreatingFolder(false);
+    }
+  };
+
+  const startCreatePage = (folderId: string | null = null) => {
+    setIsCreatingPage(folderId || "root");
+    setNewPageName("New Page");
+    if (folderId) {
+      setExpandedFolders((prev) => new Set(prev).add(folderId));
+    }
+    setTimeout(() => {
+      pageInputRef.current?.focus();
+      pageInputRef.current?.select();
+    }, 0);
+  };
+
+  const commitCreatePage = async () => {
+    if (!isCreatingPage) return;
+    const targetFolderId = isCreatingPage === "root" ? null : isCreatingPage;
+    setIsCreatingPage(null);
+    const name = newPageName.trim();
+    if (!name) return;
+
+    const newPage: Page = {
+      id: generateId(),
+      name,
+      folderId: targetFolderId,
+      createdAt: new Date(),
+    };
+    const newPages = [...pages, newPage];
+    setPages(newPages);
+    await savePages(newPages);
+  };
+
+  const handlePageInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      commitCreatePage();
+    } else if (e.key === "Escape") {
+      setIsCreatingPage(null);
+    }
+  };
 
   return (
     <motion.aside
@@ -65,6 +276,7 @@ export function Sidebar({
         "border-r",
         "border-[var(--edge-border-color-light)] dark:border-[var(--edge-border-color-dark)]",
         "bg-white dark:bg-neutral-900",
+        "sidebar",
       )}
       // Motion animates the width directly (0px -> 224px)
       animate={{ width: isCollapsed ? COLLAPSED_WIDTH : EXPANDED_WIDTH }}
@@ -73,7 +285,7 @@ export function Sidebar({
       style={{ width: isCollapsed ? COLLAPSED_WIDTH : EXPANDED_WIDTH }}
     >
       {/* Filters */}
-      <nav className="flex-1 space-y-1 p-2">
+      <nav className="space-y-1 p-2">
         <AnimatePresence initial={false}>
           {filters.map((filter) =>
             !isCollapsed ? (
@@ -81,10 +293,12 @@ export function Sidebar({
                 key={filter.id}
                 onClick={() => onFilterChange(filter.id)}
                 className={clsx(
-                  "flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                  "flex w-full items-center gap-3 rounded-lg px-3 py-2 compact:py-1 text-sm transition-colors duration-[250ms] hover:duration-0",
                   activeFilter === filter.id
-                    ? "bg-black/10 text-neutral-900 dark:bg-white/5 dark:text-neutral-100"
-                    : "text-neutral-600 hover:bg-black/5 hover:text-neutral-900 dark:text-neutral-400 dark:hover:bg-white/5 dark:hover:text-white",
+                    ? `text-black/90 dark:text-white/90
+                       bg-black/10 dark:bg-white/5`
+                    : `text-black/75 hover:text-black/90 dark:text-white/75 dark:hover:text-white/90
+                      hover:bg-black/5 dark:hover:bg-white/5`,
                 )}
                 initial={{ opacity: 0, x: -12 }}
                 animate={{ opacity: 1, x: 0 }}
@@ -100,8 +314,147 @@ export function Sidebar({
         </AnimatePresence>
       </nav>
 
+      {/* Folders & Pages Tree */}
+      <div className="flex-1 overflow-y-auto px-2 pb-4">
+        {!isCollapsed && (
+          <div className="flex items-center justify-between px-3 py-2">
+            <h3
+              className={clsx(
+                "select-none",
+                "text-xs font-semibold uppercase tracking-wider",
+                "text-black/35 dark:text-white/25",
+              )}
+            >
+              Folders
+            </h3>
+            <div className="flex gap-2.5">
+              <button
+                onClick={startCreateFolder}
+                className={clsx(
+                  "cursor-pointer",
+                  "transition-colors",
+                  "text-black/35 hover:text-black/75",
+                  "dark:text-white/25 dark:hover:text-white/35",
+                )}
+                title="New Folder"
+              >
+                <SFIcon icon={sfFolder} size={14} />
+              </button>
+              <button
+                onClick={() => startCreatePage(null)}
+                className={clsx(
+                  "cursor-pointer",
+                  "transition-colors",
+                  "text-black/35 hover:text-black/75",
+                  "dark:text-white/25 dark:hover:text-white/35",
+                )}
+                title="New Page"
+              >
+                <SFIcon icon={sfTextPage} size={13} />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {!isCollapsed && (
+          <div className="space-y-0.5">
+            {/* Inline create folder */}
+            {isCreatingFolder && (
+              <div>
+                <div className="flex items-center group">
+                  <div className="flex flex-1 items-center gap-2 rounded-lg px-3 py-1.5 text-sm text-neutral-700 dark:text-neutral-200">
+                    <span className="w-4 flex justify-center opacity-70">
+                      <SFIcon icon={sfFolder} size={14} />
+                    </span>
+                    <input
+                      ref={folderInputRef}
+                      value={newFolderName}
+                      onChange={(e) => setNewFolderName(e.target.value)}
+                      onBlur={commitCreateFolder}
+                      onKeyDown={handleFolderInputKeyDown}
+                      className="flex-1 w-full min-w-0 bg-transparent outline-none selection:bg-[var(--accent-600)] selection:text-white rounded-sm placeholder-neutral-400"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Inline create page at root */}
+            {isCreatingPage === "root" && (
+              <div className="flex w-full items-center gap-2 rounded-lg px-3 py-1.5 text-sm text-neutral-700 dark:text-neutral-200">
+                <SFIcon icon={sfTag} size={12} className="opacity-70 mx-0.5" />
+                <input
+                  ref={pageInputRef}
+                  value={newPageName}
+                  onChange={(e) => setNewPageName(e.target.value)}
+                  onBlur={commitCreatePage}
+                  onKeyDown={handlePageInputKeyDown}
+                  className="flex-1 w-full min-w-0 bg-transparent outline-none selection:bg-[var(--accent-600)] selection:text-white rounded-sm placeholder-neutral-400"
+                />
+              </div>
+            )}
+
+            {/* Pages without a folder */}
+            {pages
+              .filter((p) => !p.folderId)
+              .map((page) => (
+                <SidebarPage
+                  key={page.id}
+                  page={page}
+                  activeFilter={activeFilter}
+                  onFilterChange={onFilterChange}
+                  onContextMenu={handleContextMenu}
+                  isRenaming={
+                    renamingTarget?.id === page.id &&
+                    renamingTarget?.type === "page"
+                  }
+                  renameValue={renameValue}
+                  onRenameChange={setRenameValue}
+                  onRenameCommit={handleRenameCommit}
+                  onRenameCancel={handleRenameCancel}
+                />
+              ))}
+
+            {/* Folders containing pages */}
+            {folders.map((folder) => {
+              const folderPages = pages.filter((p) => p.folderId === folder.id);
+              const isExpanded = expandedFolders.has(folder.id);
+
+              return (
+                <SidebarFolder
+                  key={folder.id}
+                  folder={folder}
+                  pages={folderPages}
+                  isExpanded={isExpanded}
+                  activeFilter={activeFilter}
+                  isCreatingPage={isCreatingPage === folder.id}
+                  newPageName={newPageName}
+                  pageInputRef={pageInputRef}
+                  onToggle={toggleFolder}
+                  onContextMenu={handleContextMenu}
+                  onStartCreatePage={startCreatePage}
+                  onFilterChange={onFilterChange}
+                  onCommitCreatePage={commitCreatePage}
+                  onPageInputKeyDown={handlePageInputKeyDown}
+                  setNewPageName={setNewPageName}
+                  isRenaming={
+                    renamingTarget?.id === folder.id &&
+                    renamingTarget?.type === "folder"
+                  }
+                  renameValue={renameValue}
+                  onRenameChange={setRenameValue}
+                  onRenameCommit={handleRenameCommit}
+                  onRenameCancel={handleRenameCancel}
+                  renamingTarget={renamingTarget}
+                />
+              );
+            })}
+          </div>
+        )}
+      </div>
+
       {/* Tags Section */}
-      <div className="border-t border-neutral-200 p-2 dark:border-neutral-800 *:select-none">
+      <div className="border-t border-black/10 p-2 dark:border-white/10 *:select-none">
         <p title="Number of items" className="flex items-center gap-2">
           <SFIcon
             icon={sfTag}
@@ -144,6 +497,48 @@ export function Sidebar({
           ))}
         </div> */}
       </div>
+
+      <ContextMenu
+        isOpen={contextMenu.isOpen}
+        x={contextMenu.x}
+        y={contextMenu.y}
+        onClose={() => setContextMenu((prev) => ({ ...prev, isOpen: false }))}
+        items={[
+          {
+            label: "Rename",
+            icon: sfPencil,
+            onClick: () => {
+              if (contextMenu.targetType === "folder") {
+                const folder = folders.find(
+                  (f) => f.id === contextMenu.targetId,
+                );
+                if (folder) {
+                  setRenamingTarget({ id: folder.id, type: "folder" });
+                  setRenameValue(folder.name);
+                }
+              } else if (contextMenu.targetType === "page") {
+                const page = pages.find((p) => p.id === contextMenu.targetId);
+                if (page) {
+                  setRenamingTarget({ id: page.id, type: "page" });
+                  setRenameValue(page.name);
+                }
+              }
+            },
+          },
+          {
+            label: "Delete",
+            icon: sfTrash,
+            variant: "danger",
+            onClick: () => {
+              if (contextMenu.targetType === "folder") {
+                if (contextMenu.targetId) deleteFolder(contextMenu.targetId);
+              } else if (contextMenu.targetType === "page") {
+                if (contextMenu.targetId) deletePage(contextMenu.targetId);
+              }
+            },
+          },
+        ]}
+      />
     </motion.aside>
   );
 }

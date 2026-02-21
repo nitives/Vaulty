@@ -1,5 +1,11 @@
 import { formatTimeShort } from "@/lib/utils";
-import { sfCircleFill, sfEllipsis, sfTrash, sfPencil } from "@bradleyhodges/sfsymbols";
+import {
+  sfCircleFill,
+  sfEllipsis,
+  sfTrash,
+  sfPencil,
+  sfFolder,
+} from "@bradleyhodges/sfsymbols";
 import SFIcon from "@bradleyhodges/sfsymbols-react";
 import { DropdownMenu } from "./DropdownMenu";
 import { renderMarkdown } from "@/lib/markdown";
@@ -10,7 +16,7 @@ import { buttonStyles } from "@/styles/Button";
 
 export interface Item {
   id: string;
-  type: "note" | "image" | "link" | "reminder";
+  type: "note" | "image" | "link" | "reminder" | "audio" | "video";
   content: string;
   tags: string[];
   createdAt: Date;
@@ -21,6 +27,12 @@ export interface Item {
     tags: string[];
     content: string;
   };
+  metadata?: {
+    title?: string;
+    description?: string;
+    image?: string;
+  };
+  pageId?: string;
 }
 
 export interface ItemCardProps {
@@ -28,6 +40,7 @@ export interface ItemCardProps {
   onTagClick?: (tag: string) => void;
   onDelete?: (id: string) => void;
   onEdit?: (id: string, newContent: string) => void;
+  onMove?: (id: string) => void;
 }
 
 // URL regex pattern
@@ -67,13 +80,21 @@ function formatSize(bytes?: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-export function ItemCard({ item, onTagClick, onDelete, onEdit }: ItemCardProps) {
+export function ItemCard({
+  item,
+  onTagClick,
+  onDelete,
+  onEdit,
+  onMove,
+}: ItemCardProps) {
   const { settings } = useSettings();
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState(item.content);
 
   const isLink = item.type === "link";
   const isImage = item.type === "image";
+  const isAudio = item.type === "audio";
+  const isVideo = item.type === "video";
   const isReminder = item.type === "reminder";
   const showContent = hasTextContent(item.content, item.imageUrl);
 
@@ -100,11 +121,11 @@ export function ItemCard({ item, onTagClick, onDelete, onEdit }: ItemCardProps) 
             icon={sfCircleFill}
             size={6}
           />
-          <span className="text-xs text-black/50 dark:text-neutral-400">
+          <span className="text-xs text-black/50 dark:text-white/50">
             {formatTimeShort(item.createdAt)}
-            {settings.showImageSize && item.type === "image" && item.size !== undefined && (
-              <> • {formatSize(item.size)}</>
-            )}
+            {settings.showImageSize &&
+              item.type === "image" &&
+              item.size !== undefined && <> • {formatSize(item.size)}</>}
           </span>
         </div>
 
@@ -126,31 +147,60 @@ export function ItemCard({ item, onTagClick, onDelete, onEdit }: ItemCardProps) 
                       setEditContent(item.content);
                       setIsEditing(false);
                     }}
-                    className={clsx(
-                      buttonStyles.base,
-                    )}
+                    className={clsx(buttonStyles.base)}
                   >
                     Cancel
                   </button>
                   <button
                     onClick={handleSaveEdit}
-                    className={clsx(
-                      buttonStyles.primary,
-                    )}
+                    className={clsx(buttonStyles.primary)}
                   >
                     Save
                   </button>
                 </div>
               </div>
             ) : isLink ? (
-              <a
-                href={item.content}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-[var(--accent-500)] hover:underline dark:text-[var(--accent-400)]"
-              >
-                {item.content}
-              </a>
+              <div className="flex flex-col gap-2">
+                <a
+                  href={item.content}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-[var(--accent-500)] hover:underline dark:text-[var(--accent-400)] break-words"
+                >
+                  {item.content}
+                </a>
+                {item.metadata && (
+                  <a
+                    href={item.content}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="group/card flex flex-col sm:flex-row gap-3 mt-1 overflow-hidden rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white/50 dark:bg-neutral-800/50 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors"
+                  >
+                    {item.metadata.image && (
+                      <div className="sm:w-32 h-32 shrink-0 overflow-hidden bg-neutral-100 dark:bg-neutral-900">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={item.metadata.image}
+                          alt=""
+                          className="h-full w-full object-cover transition-transform duration-300 group-hover/card:scale-105"
+                        />
+                      </div>
+                    )}
+                    <div className="flex flex-col justify-center p-3 sm:px-0 sm:py-3 sm:pr-3 min-w-0">
+                      {item.metadata.title && (
+                        <h4 className="font-semibold text-sm text-neutral-900 dark:text-neutral-100 line-clamp-2">
+                          {item.metadata.title}
+                        </h4>
+                      )}
+                      {item.metadata.description && (
+                        <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400 line-clamp-2">
+                          {item.metadata.description}
+                        </p>
+                      )}
+                    </div>
+                  </a>
+                )}
+              </div>
             ) : (
               <div className="text-sm text-neutral-700 dark:text-neutral-300 break-words">
                 {renderMarkdown(item.content)}
@@ -159,7 +209,7 @@ export function ItemCard({ item, onTagClick, onDelete, onEdit }: ItemCardProps) 
           </div>
         )}
 
-        {/* Image */}
+        {/* Image / Video / Audio */}
         {isImage && item.imageUrl && (
           <div className="mt-2 max-w-md">
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -167,6 +217,33 @@ export function ItemCard({ item, onTagClick, onDelete, onEdit }: ItemCardProps) 
               src={getImageUrl(item.imageUrl)}
               alt="Saved image"
               className="rounded-lg object-cover"
+              style={{ maxHeight: "300px", maxWidth: "100%" }}
+            />
+          </div>
+        )}
+        {/* Image Filename */}
+        {settings.showImageFileName && isImage && item.imageUrl && (
+          <div className="mt-2 text-sm text-black/50 dark:text-white/50 mb-2">
+            {item.content}
+          </div>
+        )}
+
+        {isAudio && item.imageUrl && (
+          <div className="mt-2 max-w-md">
+            <audio
+              controls
+              src={getImageUrl(item.imageUrl)}
+              className="w-full h-10 rounded-lg outline-none"
+            />
+          </div>
+        )}
+
+        {isVideo && item.imageUrl && (
+          <div className="mt-2 max-w-md">
+            <video
+              controls
+              src={getImageUrl(item.imageUrl)}
+              className="rounded-lg object-cover bg-black"
               style={{ maxHeight: "300px", maxWidth: "100%" }}
             />
           </div>
@@ -213,11 +290,20 @@ export function ItemCard({ item, onTagClick, onDelete, onEdit }: ItemCardProps) 
         <DropdownMenu
           trigger={<SFIcon icon={sfEllipsis} size={12} />}
           items={[
-            ...(onEdit ? [{
-              label: "Edit",
-              icon: sfPencil,
-              onClick: () => setIsEditing(true),
-            }] : []),
+            ...(onEdit
+              ? [
+                  {
+                    label: "Edit",
+                    icon: sfPencil,
+                    onClick: () => setIsEditing(true),
+                  },
+                ]
+              : []),
+            {
+              label: "Move to Page",
+              icon: sfFolder,
+              onClick: () => onMove?.(item.id),
+            },
             {
               label: "Delete",
               icon: sfTrash,

@@ -16,6 +16,19 @@ interface StoredItem {
   };
 }
 
+interface StoredFolder {
+  id: string;
+  name: string;
+  createdAt: string;
+}
+
+interface StoredPage {
+  id: string;
+  folderId: string | null;
+  name: string;
+  createdAt: string;
+}
+
 interface TrashedItem {
   item: StoredItem;
   deletedAt: string;
@@ -86,6 +99,12 @@ contextBridge.exposeInMainWorld("electronAPI", {
   addItem: (item: StoredItem) => ipcRenderer.invoke("items:add", item),
   deleteItem: (id: string) => ipcRenderer.invoke("items:delete", id),
   updateItem: (item: StoredItem) => ipcRenderer.invoke("items:update", item),
+  // Folders & Pages
+  loadFolders: () => ipcRenderer.invoke("folders:load"),
+  saveFolders: (folders: StoredFolder[]) =>
+    ipcRenderer.invoke("folders:save", folders),
+  loadPages: () => ipcRenderer.invoke("pages:load"),
+  savePages: (pages: StoredPage[]) => ipcRenderer.invoke("pages:save", pages),
   // Image storage
   saveImage: (imageData: string, filename: string) =>
     ipcRenderer.invoke("images:save", imageData, filename),
@@ -142,6 +161,11 @@ declare global {
       updateItem: (
         item: StoredItem,
       ) => Promise<{ success: boolean; items: StoredItem[] }>;
+      // Folders & Pages
+      loadFolders: () => Promise<StoredFolder[]>;
+      saveFolders: (folders: StoredFolder[]) => Promise<{ success: boolean }>;
+      loadPages: () => Promise<StoredPage[]>;
+      savePages: (pages: StoredPage[]) => Promise<{ success: boolean }>;
       // Image storage
       saveImage: (
         imageData: string,

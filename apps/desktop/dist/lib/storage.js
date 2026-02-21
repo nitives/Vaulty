@@ -6,6 +6,10 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.ensureDataDirectories = ensureDataDirectories;
 exports.loadItems = loadItems;
 exports.saveItems = saveItems;
+exports.loadFolders = loadFolders;
+exports.saveFolders = saveFolders;
+exports.loadPages = loadPages;
+exports.savePages = savePages;
 exports.saveImage = saveImage;
 exports.loadTrash = loadTrash;
 exports.saveTrash = saveTrash;
@@ -82,6 +86,54 @@ function saveItems(items) {
     }
     catch (err) {
         console.error("Failed to save items:", err);
+    }
+}
+function loadFolders() {
+    try {
+        ensureDataDirectories();
+        const filePath = (0, paths_1.getFoldersFilePath)();
+        if (!fs_1.default.existsSync(filePath)) {
+            return [];
+        }
+        const data = fs_1.default.readFileSync(filePath, "utf-8");
+        return JSON.parse(data);
+    }
+    catch (err) {
+        console.error("Failed to load folders:", err);
+        return [];
+    }
+}
+function saveFolders(folders) {
+    try {
+        ensureDataDirectories();
+        fs_1.default.writeFileSync((0, paths_1.getFoldersFilePath)(), JSON.stringify(folders, null, 2));
+    }
+    catch (err) {
+        console.error("Failed to save folders:", err);
+    }
+}
+function loadPages() {
+    try {
+        ensureDataDirectories();
+        const filePath = (0, paths_1.getPagesFilePath)();
+        if (!fs_1.default.existsSync(filePath)) {
+            return [];
+        }
+        const data = fs_1.default.readFileSync(filePath, "utf-8");
+        return JSON.parse(data);
+    }
+    catch (err) {
+        console.error("Failed to load pages:", err);
+        return [];
+    }
+}
+function savePages(pages) {
+    try {
+        ensureDataDirectories();
+        fs_1.default.writeFileSync((0, paths_1.getPagesFilePath)(), JSON.stringify(pages, null, 2));
+    }
+    catch (err) {
+        console.error("Failed to save pages:", err);
     }
 }
 function saveImage(imageData, filename) {
@@ -241,6 +293,9 @@ function clearAllData() {
         ensureDataDirectories();
         // Clear items.json
         saveItems([]);
+        // Clear folders.json and pages.json
+        saveFolders([]);
+        savePages([]);
         // Clear trash.json
         saveTrash([]);
         // Delete all images
