@@ -11,6 +11,9 @@ import {
 } from "react";
 import SFIcon from "@bradleyhodges/sfsymbols-react";
 import { sfXmark } from "@bradleyhodges/sfsymbols";
+import { AudioPreview } from "./items/AudioCard";
+// @ts-expect-error - ignoring type errors for pre-built bundle
+import jsmediatags from "jsmediatags/dist/jsmediatags.min.js";
 
 interface InputBarProps {
   onSubmit: (
@@ -19,6 +22,7 @@ interface InputBarProps {
     type: "note" | "image" | "link" | "audio" | "video",
     imageData?: string,
     imageName?: string,
+    metadata?: Record<string, any>,
   ) => void | Promise<void>;
 }
 
@@ -30,6 +34,10 @@ export function InputBar({ onSubmit }: InputBarProps) {
   const [showTagInput, setShowTagInput] = useState(false);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [imageName, setImageName] = useState<string | null>(null);
+  const [audioMetadata, setAudioMetadata] = useState<Record<
+    string,
+    any
+  > | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const tagInputRef = useRef<HTMLInputElement>(null);
 
@@ -44,8 +52,37 @@ export function InputBar({ onSubmit }: InputBarProps) {
     textarea.style.height = `${Math.max(textarea.scrollHeight, minHeight)}px`;
   }, [content]);
 
-  // Convert image file to data URL
+  // Convert image file to data URL and attempt ID3 parsing for audio
   const handleMediaFile = useCallback((file: File) => {
+    // Attempt ID3 parsing if audio
+    if (file.type.startsWith("audio/")) {
+      jsmediatags.read(file, {
+        onSuccess: function (tag: any) {
+          const tags = tag.tags;
+          let base64String: string | undefined;
+
+          if (tags.picture) {
+            let base64 = "";
+            for (let i = 0; i < tags.picture.data.length; i++) {
+              base64 += String.fromCharCode(tags.picture.data[i]);
+            }
+            base64String = `data:${tags.picture.format};base64,${btoa(base64)}`;
+          }
+
+          setAudioMetadata({
+            title: tags.title || file.name,
+            artist: tags.artist,
+            album: tags.album,
+            year: tags.year,
+            image: base64String, // the base64 cover art
+          });
+        },
+        onError: function (error: any) {
+          console.error("Error reading audio metadata:", error);
+        },
+      });
+    }
+
     const reader = new FileReader();
     reader.onload = (e) => {
       const dataUrl = e.target?.result as string;
@@ -100,6 +137,7 @@ export function InputBar({ onSubmit }: InputBarProps) {
       type,
       imagePreview ?? undefined,
       imageName ?? undefined,
+      audioMetadata ?? undefined,
     );
     setContent("");
     setTags([]);
@@ -107,8 +145,9 @@ export function InputBar({ onSubmit }: InputBarProps) {
     setShowTagInput(false);
     setImagePreview(null);
     setImageName(null);
+    setAudioMetadata(null);
     inputRef.current?.focus();
-  }, [content, tags, imagePreview, imageName, onSubmit]);
+  }, [content, tags, imagePreview, imageName, audioMetadata, onSubmit]);
 
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -227,6 +266,11 @@ export function InputBar({ onSubmit }: InputBarProps) {
               src={imagePreview}
               className="max-h-32 rounded-lg object-cover bg-black"
               muted
+            />
+          ) : audioMetadata ? (
+            <AudioPreview
+              metadata={audioMetadata}
+              filename={imageName || "Audio File"}
             />
           ) : (
             <div className="h-16 px-4 py-2 flex items-center justify-center rounded-lg bg-neutral-100 dark:bg-neutral-800 text-sm font-medium">

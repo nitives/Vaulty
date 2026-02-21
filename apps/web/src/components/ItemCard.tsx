@@ -14,6 +14,7 @@ import { useState } from "react";
 import clsx from "clsx";
 import { buttonStyles } from "@/styles/Button";
 import { Lightbox } from "./Lightbox";
+import { AudioCard } from "./items/AudioCard";
 
 export interface Item {
   id: string;
@@ -32,6 +33,9 @@ export interface Item {
     title?: string;
     description?: string;
     image?: string;
+    artist?: string;
+    album?: string;
+    year?: string;
   };
   pageId?: string;
 }
@@ -238,13 +242,7 @@ export function ItemCard({
         )}
 
         {isAudio && item.imageUrl && (
-          <div className="mt-2 max-w-md">
-            <audio
-              controls
-              src={getImageUrl(item.imageUrl)}
-              className="w-full h-10 rounded-lg outline-none"
-            />
-          </div>
+          <AudioCard item={item} audioUrl={getImageUrl(item.imageUrl)} />
         )}
 
         {isVideo && item.imageUrl && (

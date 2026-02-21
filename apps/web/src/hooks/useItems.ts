@@ -44,6 +44,7 @@ export function useItems() {
       type: "note" | "image" | "link" | "audio" | "video",
       imageData?: string,
       imageName?: string,
+      providedMetadata?: Record<string, any>,
     ) => {
       let imagePath: string | undefined;
       let imageSize: number | undefined;
@@ -85,6 +86,22 @@ export function useItems() {
           }
         } catch (e) {
           console.error("Failed to fetch metadata:", e);
+        }
+      } else if (providedMetadata) {
+        metadata = providedMetadata;
+
+        // Let's also save the extracted audio cover art using saveImage to avoid blowing up our DB with base64
+        if (metadata.image && metadata.image.startsWith("data:image/")) {
+          const safeName = (metadata.title || "cover").replace(
+            /[^a-zA-Z0-9._-]/g,
+            "_",
+          );
+          const timestamp = Date.now();
+          const coverFilename = `${timestamp}_${safeName}_cover.jpg`;
+          const saveResult = await saveImage(metadata.image, coverFilename);
+          if (saveResult && saveResult.path) {
+            metadata.image = saveResult.path; // Store the local path instead of base64
+          }
         }
       }
 
@@ -244,6 +261,8 @@ export function useItems() {
         notes: "note",
         images: "image",
         links: "link",
+        audio: "audio",
+        videos: "video",
         reminders: "reminder",
       };
       const filterType = typeMap[activeFilter];

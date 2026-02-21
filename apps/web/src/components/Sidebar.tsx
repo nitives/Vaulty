@@ -38,11 +38,12 @@ interface SidebarProps {
 }
 
 const filters = [
-  { id: "all", label: "All Items", icon: "📦" },
-  { id: "notes", label: "Notes", icon: "📝" },
-  { id: "images", label: "Images", icon: "🖼️" },
-  { id: "links", label: "Links", icon: "🔗" },
-  // { id: "reminders", label: "Reminders", icon: "⏰" },
+  { id: "all", label: "All Items" },
+  { id: "notes", label: "Notes" },
+  { id: "images", label: "Images" },
+  { id: "links", label: "Links" },
+  { id: "audio", label: "Audio" },
+  // { id: "reminders", label: "Reminders" },
 ];
 
 const EXPANDED_WIDTH = 224; // 56 * 4 (Tailwind w-56)
@@ -303,7 +304,6 @@ export function Sidebar({
                 exit={{ opacity: 0, x: -12 }}
                 transition={{ duration: 0.15, ease: "easeOut" }}
               >
-                {/* If you want icons even when collapsed, uncomment this */}
                 {/* <span className="text-base">{filter.icon}</span> */}
                 {filter.label}
               </motion.button>
