@@ -44,6 +44,9 @@ electron_1.contextBridge.exposeInMainWorld("electronAPI", {
     // Image storage
     saveImage: (imageData, filename) => electron_1.ipcRenderer.invoke("images:save", imageData, filename),
     getImagesPath: () => electron_1.ipcRenderer.invoke("images:getPath"),
+    // Audio storage
+    saveAudio: (audioData, filename) => electron_1.ipcRenderer.invoke("audios:save", audioData, filename),
+    getAudiosPath: () => electron_1.ipcRenderer.invoke("audios:getPath"),
     // Storage path
     getStoragePath: () => electron_1.ipcRenderer.invoke("storage:getPath"),
     changeStoragePath: () => electron_1.ipcRenderer.invoke("storage:changePath"),

@@ -6,14 +6,16 @@ import {
   getFoldersFilePath,
   getPagesFilePath,
   getImagesPath,
+  getAudiosPath,
   getTrashPath,
   getTrashFilePath,
   getTrashImagesPath,
+  getTrashAudiosPath,
 } from "./paths";
 
 export interface StoredItem {
   id: string;
-  type: "note" | "image" | "link" | "reminder";
+  type: "note" | "image" | "link" | "reminder" | "audio" | "video";
   content: string;
   tags: string[];
   createdAt: string;
@@ -48,8 +50,10 @@ export interface TrashedItem {
 export function ensureDataDirectories(): void {
   const dataPath = getVaultyDataPath();
   const imagesPath = getImagesPath();
+  const audiosPath = getAudiosPath();
   const trashPath = getTrashPath();
   const trashImagesPath = getTrashImagesPath();
+  const trashAudiosPath = getTrashAudiosPath();
 
   if (!fs.existsSync(dataPath)) {
     fs.mkdirSync(dataPath, { recursive: true });
@@ -57,11 +61,17 @@ export function ensureDataDirectories(): void {
   if (!fs.existsSync(imagesPath)) {
     fs.mkdirSync(imagesPath, { recursive: true });
   }
+  if (!fs.existsSync(audiosPath)) {
+    fs.mkdirSync(audiosPath, { recursive: true });
+  }
   if (!fs.existsSync(trashPath)) {
     fs.mkdirSync(trashPath, { recursive: true });
   }
   if (!fs.existsSync(trashImagesPath)) {
     fs.mkdirSync(trashImagesPath, { recursive: true });
+  }
+  if (!fs.existsSync(trashAudiosPath)) {
+    fs.mkdirSync(trashAudiosPath, { recursive: true });
   }
 }
 
@@ -176,9 +186,34 @@ export function saveImage(
     fs.writeFileSync(filePath, base64Data, "base64");
     const size = fs.statSync(filePath).size;
 
-    return { success: true, path: filePath, size };
+    // Return relative path so frontend can construct vaulty-image:// URLs correctly
+    const relativePath = `images/${filename}`;
+    return { success: true, path: relativePath, size };
   } catch (err) {
     console.error("Failed to save image:", err);
+    return { success: false, error: String(err) };
+  }
+}
+
+export function saveAudio(
+  audioData: string,
+  filename: string,
+): { success: boolean; path?: string; size?: number; error?: string } {
+  try {
+    ensureDataDirectories();
+    const audiosPath = getAudiosPath();
+    const filePath = path.join(audiosPath, filename);
+
+    // Strip out standard data-URI prefixes mapping audio types (audio/mp3, audio/mpeg...)
+    const base64Data = audioData.replace(/^data:audio\/\w+;base64,/, "");
+    fs.writeFileSync(filePath, base64Data, "base64");
+    const size = fs.statSync(filePath).size;
+
+    // Return relative path so frontend can construct vaulty-image:// URLs correctly
+    const relativePath = `audios/${filename}`;
+    return { success: true, path: relativePath, size };
+  } catch (err) {
+    console.error("Failed to save audio:", err);
     return { success: false, error: String(err) };
   }
 }
@@ -217,14 +252,21 @@ export function moveToTrash(item: StoredItem): void {
     deletedAt: new Date().toISOString(),
   };
 
-  // Move image to trash folder if exists
   if (item.imageUrl) {
     const filename = item.imageUrl.split(/[\\/]/).pop();
     if (filename) {
-      const srcPath = path.join(getImagesPath(), filename);
-      const destPath = path.join(getTrashImagesPath(), filename);
-      if (fs.existsSync(srcPath)) {
-        fs.renameSync(srcPath, destPath);
+      if (item.type === "audio") {
+        const srcPath = path.join(getAudiosPath(), filename);
+        const destPath = path.join(getTrashAudiosPath(), filename);
+        if (fs.existsSync(srcPath)) {
+          fs.renameSync(srcPath, destPath);
+        }
+      } else {
+        const srcPath = path.join(getImagesPath(), filename);
+        const destPath = path.join(getTrashImagesPath(), filename);
+        if (fs.existsSync(srcPath)) {
+          fs.renameSync(srcPath, destPath);
+        }
       }
     }
   }
@@ -242,14 +284,21 @@ export function restoreFromTrash(id: string): StoredItem | null {
   trash.splice(index, 1);
   saveTrash(trash);
 
-  // Move image back from trash folder if exists
   if (trashedItem.item.imageUrl) {
     const filename = trashedItem.item.imageUrl.split(/[\\/]/).pop();
     if (filename) {
-      const srcPath = path.join(getTrashImagesPath(), filename);
-      const destPath = path.join(getImagesPath(), filename);
-      if (fs.existsSync(srcPath)) {
-        fs.renameSync(srcPath, destPath);
+      if (trashedItem.item.type === "audio") {
+        const srcPath = path.join(getTrashAudiosPath(), filename);
+        const destPath = path.join(getAudiosPath(), filename);
+        if (fs.existsSync(srcPath)) {
+          fs.renameSync(srcPath, destPath);
+        }
+      } else {
+        const srcPath = path.join(getTrashImagesPath(), filename);
+        const destPath = path.join(getImagesPath(), filename);
+        if (fs.existsSync(srcPath)) {
+          fs.renameSync(srcPath, destPath);
+        }
       }
     }
   }
@@ -269,13 +318,19 @@ export function permanentlyDeleteFromTrash(id: string): void {
 
   const trashedItem = trash[index];
 
-  // Delete image file if exists
   if (trashedItem.item.imageUrl) {
     const filename = trashedItem.item.imageUrl.split(/[\\/]/).pop();
     if (filename) {
-      const filePath = path.join(getTrashImagesPath(), filename);
-      if (fs.existsSync(filePath)) {
-        fs.unlinkSync(filePath);
+      if (trashedItem.item.type === "audio") {
+        const filePath = path.join(getTrashAudiosPath(), filename);
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
+        }
+      } else {
+        const filePath = path.join(getTrashImagesPath(), filename);
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
+        }
       }
     }
   }
@@ -287,14 +342,20 @@ export function permanentlyDeleteFromTrash(id: string): void {
 export function emptyTrash(): void {
   const trash = loadTrash();
 
-  // Delete all images in trash
   for (const trashedItem of trash) {
     if (trashedItem.item.imageUrl) {
       const filename = trashedItem.item.imageUrl.split(/[\\/]/).pop();
       if (filename) {
-        const filePath = path.join(getTrashImagesPath(), filename);
-        if (fs.existsSync(filePath)) {
-          fs.unlinkSync(filePath);
+        if (trashedItem.item.type === "audio") {
+          const filePath = path.join(getTrashAudiosPath(), filename);
+          if (fs.existsSync(filePath)) {
+            fs.unlinkSync(filePath);
+          }
+        } else {
+          const filePath = path.join(getTrashImagesPath(), filename);
+          if (fs.existsSync(filePath)) {
+            fs.unlinkSync(filePath);
+          }
         }
       }
     }
@@ -314,13 +375,19 @@ export function cleanupOldTrash(): number {
     const age = now - deletedAt;
 
     if (age > retentionMs) {
-      // Delete image file if exists
       if (trashedItem.item.imageUrl) {
         const filename = trashedItem.item.imageUrl.split(/[\\/]/).pop();
         if (filename) {
-          const filePath = path.join(getTrashImagesPath(), filename);
-          if (fs.existsSync(filePath)) {
-            fs.unlinkSync(filePath);
+          if (trashedItem.item.type === "audio") {
+            const filePath = path.join(getTrashAudiosPath(), filename);
+            if (fs.existsSync(filePath)) {
+              fs.unlinkSync(filePath);
+            }
+          } else {
+            const filePath = path.join(getTrashImagesPath(), filename);
+            if (fs.existsSync(filePath)) {
+              fs.unlinkSync(filePath);
+            }
           }
         }
       }
@@ -363,12 +430,30 @@ export function clearAllData(): void {
       }
     }
 
+    // Delete all audios
+    const audiosPath = getAudiosPath();
+    if (fs.existsSync(audiosPath)) {
+      const files = fs.readdirSync(audiosPath);
+      for (const file of files) {
+        fs.unlinkSync(path.join(audiosPath, file));
+      }
+    }
+
     // Delete all trash images
     const trashImagesPath = getTrashImagesPath();
     if (fs.existsSync(trashImagesPath)) {
       const files = fs.readdirSync(trashImagesPath);
       for (const file of files) {
         fs.unlinkSync(path.join(trashImagesPath, file));
+      }
+    }
+
+    // Delete all trash audios
+    const trashAudiosPath = getTrashAudiosPath();
+    if (fs.existsSync(trashAudiosPath)) {
+      const files = fs.readdirSync(trashAudiosPath);
+      for (const file of files) {
+        fs.unlinkSync(path.join(trashAudiosPath, file));
       }
     }
   } catch (err) {

@@ -289,6 +289,34 @@ export async function saveImage(
   }
 }
 
+// Save an audio file and return the path and size
+export async function saveAudio(
+  audioData: string,
+  filename: string,
+): Promise<{ path: string; size: number } | null> {
+  const api = getElectronAPI();
+
+  if (!api) {
+    const size = Buffer.from(
+      audioData.replace(/^data:[^;]+;base64,/, ""),
+      "base64",
+    ).length;
+    return { path: audioData, size };
+  }
+
+  try {
+    const result = await api.saveAudio(audioData, filename);
+    if (result.success && result.path) {
+      return { path: result.path, size: result.size || 0 };
+    }
+    console.error("Failed to save audio:", result.error);
+    return null;
+  } catch (err) {
+    console.error("Failed to save audio:", err);
+    return null;
+  }
+}
+
 // Get the storage path
 export async function getStoragePath(): Promise<string | null> {
   const api = getElectronAPI();

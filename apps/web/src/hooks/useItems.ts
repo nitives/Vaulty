@@ -8,6 +8,7 @@ import {
   addItem as addStoredItem,
   deleteItem as deleteStoredItem,
   saveImage,
+  saveAudio,
   updateItem as updateStoredItem,
 } from "@/lib/storage";
 
@@ -69,10 +70,18 @@ export function useItems() {
         );
         const uniqueFilename = `${timestamp}_${safeName}`;
 
-        const saveResult = await saveImage(imageData, uniqueFilename);
-        if (saveResult && saveResult.path) {
-          imagePath = saveResult.path;
-          imageSize = saveResult.size;
+        if (type === "audio") {
+          const saveResult = await saveAudio(imageData, uniqueFilename);
+          if (saveResult && saveResult.path) {
+            imagePath = saveResult.path;
+            imageSize = saveResult.size;
+          }
+        } else {
+          const saveResult = await saveImage(imageData, uniqueFilename);
+          if (saveResult && saveResult.path) {
+            imagePath = saveResult.path;
+            imageSize = saveResult.size;
+          }
         }
       }
 
@@ -90,7 +99,7 @@ export function useItems() {
       } else if (providedMetadata) {
         metadata = providedMetadata;
 
-        // Let's also save the extracted audio cover art using saveImage to avoid blowing up our DB with base64
+        // Let's also save the extracted audio cover art using saveImage
         if (metadata.image && metadata.image.startsWith("data:image/")) {
           const safeName = (metadata.title || "cover").replace(
             /[^a-zA-Z0-9._-]/g,

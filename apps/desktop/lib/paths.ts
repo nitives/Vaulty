@@ -36,6 +36,10 @@ export function getImagesPath(): string {
   return path.join(getVaultyDataPath(), "images");
 }
 
+export function getAudiosPath(): string {
+  return path.join(getVaultyDataPath(), "audios");
+}
+
 export function getTrashPath(): string {
   return path.join(getVaultyDataPath(), "trash");
 }
@@ -46,6 +50,10 @@ export function getTrashFilePath(): string {
 
 export function getTrashImagesPath(): string {
   return path.join(getTrashPath(), "images");
+}
+
+export function getTrashAudiosPath(): string {
+  return path.join(getTrashPath(), "audios");
 }
 
 export function getSettingsPath(): string {

@@ -156,6 +156,13 @@ function registerIpcHandlers(getMainWindow) {
     electron_1.ipcMain.handle("images:getPath", () => {
         return (0, paths_1.getImagesPath)();
     });
+    // Audio storage
+    electron_1.ipcMain.handle("audios:save", async (_event, audioData, filename) => {
+        return (0, storage_1.saveAudio)(audioData, filename);
+    });
+    electron_1.ipcMain.handle("audios:getPath", () => {
+        return (0, paths_1.getAudiosPath)();
+    });
     electron_1.ipcMain.handle("storage:getPath", () => {
         return (0, paths_1.getVaultyDataPath)();
     });
@@ -207,6 +214,12 @@ function registerIpcHandlers(getMainWindow) {
             if (fs_1.default.existsSync(oldImagesPath)) {
                 fs_1.default.cpSync(oldImagesPath, newImagesPath, { recursive: true });
             }
+            // For audios folder
+            const oldAudiosPath = path_1.default.join(oldPath, "audios");
+            const newAudiosPath = path_1.default.join(newPath, "audios");
+            if (fs_1.default.existsSync(oldAudiosPath)) {
+                fs_1.default.cpSync(oldAudiosPath, newAudiosPath, { recursive: true });
+            }
             // For trash folder
             const oldTrashPath = path_1.default.join(oldPath, "trash");
             const newTrashPath = path_1.default.join(newPath, "trash");
@@ -226,6 +239,8 @@ function registerIpcHandlers(getMainWindow) {
                 fs_1.default.unlinkSync(oldPagesPath);
             if (fs_1.default.existsSync(oldImagesPath))
                 fs_1.default.rmSync(oldImagesPath, { recursive: true, force: true });
+            if (fs_1.default.existsSync(oldAudiosPath))
+                fs_1.default.rmSync(oldAudiosPath, { recursive: true, force: true });
             if (fs_1.default.existsSync(oldTrashPath))
                 fs_1.default.rmSync(oldTrashPath, { recursive: true, force: true });
             return { success: true, path: newPath };

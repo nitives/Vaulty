@@ -13,6 +13,7 @@ import {
   loadItems,
   saveItems,
   saveImage,
+  saveAudio,
   StoredItem,
   moveToTrash,
   loadTrash,
@@ -34,7 +35,12 @@ import {
   applyTransparency,
   AppSettings,
 } from "./settings";
-import { getVaultyDataPath, getImagesPath, getTrashPath } from "./paths";
+import {
+  getVaultyDataPath,
+  getImagesPath,
+  getAudiosPath,
+  getTrashPath,
+} from "./paths";
 import { getWindowIcon } from "./icon";
 
 export function registerIpcHandlers(
@@ -217,6 +223,18 @@ export function registerIpcHandlers(
     return getImagesPath();
   });
 
+  // Audio storage
+  ipcMain.handle(
+    "audios:save",
+    async (_event, audioData: string, filename: string) => {
+      return saveAudio(audioData, filename);
+    },
+  );
+
+  ipcMain.handle("audios:getPath", () => {
+    return getAudiosPath();
+  });
+
   ipcMain.handle("storage:getPath", () => {
     return getVaultyDataPath();
   });
@@ -279,6 +297,13 @@ export function registerIpcHandlers(
         fs.cpSync(oldImagesPath, newImagesPath, { recursive: true });
       }
 
+      // For audios folder
+      const oldAudiosPath = path.join(oldPath, "audios");
+      const newAudiosPath = path.join(newPath, "audios");
+      if (fs.existsSync(oldAudiosPath)) {
+        fs.cpSync(oldAudiosPath, newAudiosPath, { recursive: true });
+      }
+
       // For trash folder
       const oldTrashPath = path.join(oldPath, "trash");
       const newTrashPath = path.join(newPath, "trash");
@@ -297,6 +322,8 @@ export function registerIpcHandlers(
       if (fs.existsSync(oldPagesPath)) fs.unlinkSync(oldPagesPath);
       if (fs.existsSync(oldImagesPath))
         fs.rmSync(oldImagesPath, { recursive: true, force: true });
+      if (fs.existsSync(oldAudiosPath))
+        fs.rmSync(oldAudiosPath, { recursive: true, force: true });
       if (fs.existsSync(oldTrashPath))
         fs.rmSync(oldTrashPath, { recursive: true, force: true });
 

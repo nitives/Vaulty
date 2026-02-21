@@ -60,7 +60,22 @@ function getImageUrl(imageUrl: string): string {
   if (imageUrl.startsWith("vaulty-image://")) {
     return imageUrl;
   }
-  // File path - extract just the filename and use custom protocol
+  // Already a relative path like "images/file.jpg" or "audios/file.mp3"
+  if (imageUrl.startsWith("images/") || imageUrl.startsWith("audios/")) {
+    return `vaulty-image://${imageUrl}`;
+  }
+  // Absolute path (legacy) — extract the relative portion after the vaulty data dir
+  // e.g. "C:\Users\...\vaulty\images\file.jpg" → "images/file.jpg"
+  const normalised = imageUrl.replace(/\\/g, "/");
+  const imagesIdx = normalised.lastIndexOf("/images/");
+  if (imagesIdx !== -1) {
+    return `vaulty-image://${normalised.slice(imagesIdx + 1)}`;
+  }
+  const audiosIdx = normalised.lastIndexOf("/audios/");
+  if (audiosIdx !== -1) {
+    return `vaulty-image://${normalised.slice(audiosIdx + 1)}`;
+  }
+  // Fallback: extract filename and assume images/
   const filename = imageUrl.split(/[\\/]/).pop() || imageUrl;
   return `vaulty-image://images/${filename}`;
 }

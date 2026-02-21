@@ -11,6 +11,7 @@ exports.saveFolders = saveFolders;
 exports.loadPages = loadPages;
 exports.savePages = savePages;
 exports.saveImage = saveImage;
+exports.saveAudio = saveAudio;
 exports.loadTrash = loadTrash;
 exports.saveTrash = saveTrash;
 exports.moveToTrash = moveToTrash;
@@ -26,19 +27,27 @@ const paths_1 = require("./paths");
 function ensureDataDirectories() {
     const dataPath = (0, paths_1.getVaultyDataPath)();
     const imagesPath = (0, paths_1.getImagesPath)();
+    const audiosPath = (0, paths_1.getAudiosPath)();
     const trashPath = (0, paths_1.getTrashPath)();
     const trashImagesPath = (0, paths_1.getTrashImagesPath)();
+    const trashAudiosPath = (0, paths_1.getTrashAudiosPath)();
     if (!fs_1.default.existsSync(dataPath)) {
         fs_1.default.mkdirSync(dataPath, { recursive: true });
     }
     if (!fs_1.default.existsSync(imagesPath)) {
         fs_1.default.mkdirSync(imagesPath, { recursive: true });
     }
+    if (!fs_1.default.existsSync(audiosPath)) {
+        fs_1.default.mkdirSync(audiosPath, { recursive: true });
+    }
     if (!fs_1.default.existsSync(trashPath)) {
         fs_1.default.mkdirSync(trashPath, { recursive: true });
     }
     if (!fs_1.default.existsSync(trashImagesPath)) {
         fs_1.default.mkdirSync(trashImagesPath, { recursive: true });
+    }
+    if (!fs_1.default.existsSync(trashAudiosPath)) {
+        fs_1.default.mkdirSync(trashAudiosPath, { recursive: true });
     }
 }
 function loadItems() {
@@ -152,6 +161,22 @@ function saveImage(imageData, filename) {
         return { success: false, error: String(err) };
     }
 }
+function saveAudio(audioData, filename) {
+    try {
+        ensureDataDirectories();
+        const audiosPath = (0, paths_1.getAudiosPath)();
+        const filePath = path_1.default.join(audiosPath, filename);
+        // Strip out standard data-URI prefixes mapping audio types (audio/mp3, audio/mpeg...)
+        const base64Data = audioData.replace(/^data:audio\/\w+;base64,/, "");
+        fs_1.default.writeFileSync(filePath, base64Data, "base64");
+        const size = fs_1.default.statSync(filePath).size;
+        return { success: true, path: filePath, size };
+    }
+    catch (err) {
+        console.error("Failed to save audio:", err);
+        return { success: false, error: String(err) };
+    }
+}
 // Trash functions
 const TRASH_RETENTION_DAYS = 60;
 function loadTrash() {
@@ -184,14 +209,22 @@ function moveToTrash(item) {
         item,
         deletedAt: new Date().toISOString(),
     };
-    // Move image to trash folder if exists
     if (item.imageUrl) {
         const filename = item.imageUrl.split(/[\\/]/).pop();
         if (filename) {
-            const srcPath = path_1.default.join((0, paths_1.getImagesPath)(), filename);
-            const destPath = path_1.default.join((0, paths_1.getTrashImagesPath)(), filename);
-            if (fs_1.default.existsSync(srcPath)) {
-                fs_1.default.renameSync(srcPath, destPath);
+            if (item.type === "audio") {
+                const srcPath = path_1.default.join((0, paths_1.getAudiosPath)(), filename);
+                const destPath = path_1.default.join((0, paths_1.getTrashAudiosPath)(), filename);
+                if (fs_1.default.existsSync(srcPath)) {
+                    fs_1.default.renameSync(srcPath, destPath);
+                }
+            }
+            else {
+                const srcPath = path_1.default.join((0, paths_1.getImagesPath)(), filename);
+                const destPath = path_1.default.join((0, paths_1.getTrashImagesPath)(), filename);
+                if (fs_1.default.existsSync(srcPath)) {
+                    fs_1.default.renameSync(srcPath, destPath);
+                }
             }
         }
     }
@@ -206,14 +239,22 @@ function restoreFromTrash(id) {
     const trashedItem = trash[index];
     trash.splice(index, 1);
     saveTrash(trash);
-    // Move image back from trash folder if exists
     if (trashedItem.item.imageUrl) {
         const filename = trashedItem.item.imageUrl.split(/[\\/]/).pop();
         if (filename) {
-            const srcPath = path_1.default.join((0, paths_1.getTrashImagesPath)(), filename);
-            const destPath = path_1.default.join((0, paths_1.getImagesPath)(), filename);
-            if (fs_1.default.existsSync(srcPath)) {
-                fs_1.default.renameSync(srcPath, destPath);
+            if (trashedItem.item.type === "audio") {
+                const srcPath = path_1.default.join((0, paths_1.getTrashAudiosPath)(), filename);
+                const destPath = path_1.default.join((0, paths_1.getAudiosPath)(), filename);
+                if (fs_1.default.existsSync(srcPath)) {
+                    fs_1.default.renameSync(srcPath, destPath);
+                }
+            }
+            else {
+                const srcPath = path_1.default.join((0, paths_1.getTrashImagesPath)(), filename);
+                const destPath = path_1.default.join((0, paths_1.getImagesPath)(), filename);
+                if (fs_1.default.existsSync(srcPath)) {
+                    fs_1.default.renameSync(srcPath, destPath);
+                }
             }
         }
     }
@@ -229,13 +270,20 @@ function permanentlyDeleteFromTrash(id) {
     if (index === -1)
         return;
     const trashedItem = trash[index];
-    // Delete image file if exists
     if (trashedItem.item.imageUrl) {
         const filename = trashedItem.item.imageUrl.split(/[\\/]/).pop();
         if (filename) {
-            const filePath = path_1.default.join((0, paths_1.getTrashImagesPath)(), filename);
-            if (fs_1.default.existsSync(filePath)) {
-                fs_1.default.unlinkSync(filePath);
+            if (trashedItem.item.type === "audio") {
+                const filePath = path_1.default.join((0, paths_1.getTrashAudiosPath)(), filename);
+                if (fs_1.default.existsSync(filePath)) {
+                    fs_1.default.unlinkSync(filePath);
+                }
+            }
+            else {
+                const filePath = path_1.default.join((0, paths_1.getTrashImagesPath)(), filename);
+                if (fs_1.default.existsSync(filePath)) {
+                    fs_1.default.unlinkSync(filePath);
+                }
             }
         }
     }
@@ -244,14 +292,21 @@ function permanentlyDeleteFromTrash(id) {
 }
 function emptyTrash() {
     const trash = loadTrash();
-    // Delete all images in trash
     for (const trashedItem of trash) {
         if (trashedItem.item.imageUrl) {
             const filename = trashedItem.item.imageUrl.split(/[\\/]/).pop();
             if (filename) {
-                const filePath = path_1.default.join((0, paths_1.getTrashImagesPath)(), filename);
-                if (fs_1.default.existsSync(filePath)) {
-                    fs_1.default.unlinkSync(filePath);
+                if (trashedItem.item.type === "audio") {
+                    const filePath = path_1.default.join((0, paths_1.getTrashAudiosPath)(), filename);
+                    if (fs_1.default.existsSync(filePath)) {
+                        fs_1.default.unlinkSync(filePath);
+                    }
+                }
+                else {
+                    const filePath = path_1.default.join((0, paths_1.getTrashImagesPath)(), filename);
+                    if (fs_1.default.existsSync(filePath)) {
+                        fs_1.default.unlinkSync(filePath);
+                    }
                 }
             }
         }
@@ -267,13 +322,20 @@ function cleanupOldTrash() {
         const deletedAt = new Date(trashedItem.deletedAt).getTime();
         const age = now - deletedAt;
         if (age > retentionMs) {
-            // Delete image file if exists
             if (trashedItem.item.imageUrl) {
                 const filename = trashedItem.item.imageUrl.split(/[\\/]/).pop();
                 if (filename) {
-                    const filePath = path_1.default.join((0, paths_1.getTrashImagesPath)(), filename);
-                    if (fs_1.default.existsSync(filePath)) {
-                        fs_1.default.unlinkSync(filePath);
+                    if (trashedItem.item.type === "audio") {
+                        const filePath = path_1.default.join((0, paths_1.getTrashAudiosPath)(), filename);
+                        if (fs_1.default.existsSync(filePath)) {
+                            fs_1.default.unlinkSync(filePath);
+                        }
+                    }
+                    else {
+                        const filePath = path_1.default.join((0, paths_1.getTrashImagesPath)(), filename);
+                        if (fs_1.default.existsSync(filePath)) {
+                            fs_1.default.unlinkSync(filePath);
+                        }
                     }
                 }
             }
@@ -306,12 +368,28 @@ function clearAllData() {
                 fs_1.default.unlinkSync(path_1.default.join(imagesPath, file));
             }
         }
+        // Delete all audios
+        const audiosPath = (0, paths_1.getAudiosPath)();
+        if (fs_1.default.existsSync(audiosPath)) {
+            const files = fs_1.default.readdirSync(audiosPath);
+            for (const file of files) {
+                fs_1.default.unlinkSync(path_1.default.join(audiosPath, file));
+            }
+        }
         // Delete all trash images
         const trashImagesPath = (0, paths_1.getTrashImagesPath)();
         if (fs_1.default.existsSync(trashImagesPath)) {
             const files = fs_1.default.readdirSync(trashImagesPath);
             for (const file of files) {
                 fs_1.default.unlinkSync(path_1.default.join(trashImagesPath, file));
+            }
+        }
+        // Delete all trash audios
+        const trashAudiosPath = (0, paths_1.getTrashAudiosPath)();
+        if (fs_1.default.existsSync(trashAudiosPath)) {
+            const files = fs_1.default.readdirSync(trashAudiosPath);
+            for (const file of files) {
+                fs_1.default.unlinkSync(path_1.default.join(trashAudiosPath, file));
             }
         }
     }

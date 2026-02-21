@@ -8,9 +8,11 @@ exports.getItemsFilePath = getItemsFilePath;
 exports.getFoldersFilePath = getFoldersFilePath;
 exports.getPagesFilePath = getPagesFilePath;
 exports.getImagesPath = getImagesPath;
+exports.getAudiosPath = getAudiosPath;
 exports.getTrashPath = getTrashPath;
 exports.getTrashFilePath = getTrashFilePath;
 exports.getTrashImagesPath = getTrashImagesPath;
+exports.getTrashAudiosPath = getTrashAudiosPath;
 exports.getSettingsPath = getSettingsPath;
 exports.getWebAppPath = getWebAppPath;
 const electron_1 = require("electron");
@@ -45,6 +47,9 @@ function getPagesFilePath() {
 function getImagesPath() {
     return path_1.default.join(getVaultyDataPath(), "images");
 }
+function getAudiosPath() {
+    return path_1.default.join(getVaultyDataPath(), "audios");
+}
 function getTrashPath() {
     return path_1.default.join(getVaultyDataPath(), "trash");
 }
@@ -53,6 +58,9 @@ function getTrashFilePath() {
 }
 function getTrashImagesPath() {
     return path_1.default.join(getTrashPath(), "images");
+}
+function getTrashAudiosPath() {
+    return path_1.default.join(getTrashPath(), "audios");
 }
 function getSettingsPath() {
     return path_1.default.join(electron_1.app.getPath("userData"), "settings.json");

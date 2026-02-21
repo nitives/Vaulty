@@ -82,6 +82,7 @@ export function registerProtocolHandler(): void {
               "Content-Length": String(chunkSize),
               "Content-Range": `bytes ${start}-${end}/${fileSize}`,
               "Accept-Ranges": "bytes",
+              "Access-Control-Allow-Origin": "*",
             },
           });
         }
@@ -94,6 +95,7 @@ export function registerProtocolHandler(): void {
           "Content-Type": mimeType,
           "Content-Length": String(fileSize),
           "Accept-Ranges": "bytes",
+          "Access-Control-Allow-Origin": "*",
         },
       });
     } catch (err) {

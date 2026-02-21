@@ -3,7 +3,7 @@ import { contextBridge, ipcRenderer } from "electron";
 // Stored item type (dates as ISO strings for serialization)
 interface StoredItem {
   id: string;
-  type: "note" | "image" | "link" | "reminder";
+  type: "note" | "image" | "link" | "reminder" | "audio" | "video";
   content: string;
   tags: string[];
   createdAt: string;
@@ -109,6 +109,10 @@ contextBridge.exposeInMainWorld("electronAPI", {
   saveImage: (imageData: string, filename: string) =>
     ipcRenderer.invoke("images:save", imageData, filename),
   getImagesPath: () => ipcRenderer.invoke("images:getPath"),
+  // Audio storage
+  saveAudio: (audioData: string, filename: string) =>
+    ipcRenderer.invoke("audios:save", audioData, filename),
+  getAudiosPath: () => ipcRenderer.invoke("audios:getPath"),
   // Storage path
   getStoragePath: () => ipcRenderer.invoke("storage:getPath"),
   changeStoragePath: () => ipcRenderer.invoke("storage:changePath"),
@@ -177,6 +181,17 @@ declare global {
         error?: string;
       }>;
       getImagesPath: () => Promise<string>;
+      // Audio storage
+      saveAudio: (
+        audioData: string,
+        filename: string,
+      ) => Promise<{
+        success: boolean;
+        path?: string;
+        size?: number;
+        error?: string;
+      }>;
+      getAudiosPath: () => Promise<string>;
       // Storage path
       getStoragePath: () => Promise<string>;
       changeStoragePath: () => Promise<{
