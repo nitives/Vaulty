@@ -14,7 +14,7 @@ import {
   sfTrash,
   sfChevronDown,
 } from "@bradleyhodges/sfsymbols";
-import { useEffect, useState, useMemo, useRef } from "react";
+import { useEffect, useState, useMemo, useRef, useCallback } from "react";
 import { ContextMenu } from "../ui/ContextMenu";
 import {
   loadItems,
@@ -30,6 +30,20 @@ import { generateId } from "@/lib/utils";
 import { useSettings } from "@/lib/settings";
 import { SidebarFolder } from "./SidebarFolder";
 import { SidebarPage } from "./SidebarPage";
+import {
+  DndContext,
+  closestCenter,
+  DragEndEvent,
+  DragOverEvent,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  verticalListSortingStrategy,
+  arrayMove,
+} from "@dnd-kit/sortable";
 
 interface SidebarProps {
   activeFilter: string;
@@ -275,6 +289,95 @@ export function Sidebar({
     }
   };
 
+  // -- DnD setup --
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: 5 },
+    }),
+  );
+
+  // Build sortable IDs: root pages + folders interleaved
+  const rootPages = pages.filter((p) => !p.folderId);
+  const sortableIds = useMemo(() => {
+    const ids: string[] = [];
+    rootPages.forEach((p) => ids.push(`page:${p.id}`));
+    folders.forEach((f) => ids.push(`folder:${f.id}`));
+    return ids;
+  }, [rootPages, folders]);
+
+  const handleDragEnd = useCallback(
+    async (event: DragEndEvent) => {
+      const { active, over } = event;
+      if (!over || active.id === over.id) return;
+
+      const activeData = active.data.current;
+      const overData = over.data.current;
+
+      // 1) Page dropped onto a folder drop zone → move page into that folder
+      if (activeData?.type === "page" && overData?.type === "folder-drop") {
+        const targetFolderId = overData.folderId as string;
+        const newPages = pages.map((p) =>
+          p.id === activeData.page.id ? { ...p, folderId: targetFolderId } : p,
+        );
+        setPages(newPages);
+        await savePages(newPages);
+        return;
+      }
+
+      // 2) Folder reordering
+      if (activeData?.type === "folder" && overData?.type === "folder") {
+        const oldIndex = folders.findIndex(
+          (f) => f.id === activeData.folder.id,
+        );
+        const newIndex = folders.findIndex((f) => f.id === overData.folder.id);
+        if (oldIndex !== -1 && newIndex !== -1 && oldIndex !== newIndex) {
+          const newFolders = arrayMove(folders, oldIndex, newIndex);
+          setFolders(newFolders);
+          await saveFolders(newFolders);
+        }
+        return;
+      }
+
+      // 3) Page reordering (same container)
+      if (activeData?.type === "page" && overData?.type === "page") {
+        const activePage = activeData.page as Page;
+        const overPage = overData.page as Page;
+
+        // Same folder or both root
+        if (activePage.folderId === overPage.folderId) {
+          const containerPages = pages.filter(
+            (p) => p.folderId === activePage.folderId,
+          );
+          const oldIndex = containerPages.findIndex(
+            (p) => p.id === activePage.id,
+          );
+          const newIndex = containerPages.findIndex(
+            (p) => p.id === overPage.id,
+          );
+          if (oldIndex !== -1 && newIndex !== -1 && oldIndex !== newIndex) {
+            const reordered = arrayMove(containerPages, oldIndex, newIndex);
+            // Replace just the container segment in the full pages array
+            const otherPages = pages.filter(
+              (p) => p.folderId !== activePage.folderId,
+            );
+            const newPages = [...otherPages, ...reordered];
+            setPages(newPages);
+            await savePages(newPages);
+          }
+        } else {
+          // Cross-folder: move page to the target page's folder
+          const newPages = pages.map((p) =>
+            p.id === activePage.id ? { ...p, folderId: overPage.folderId } : p,
+          );
+          setPages(newPages);
+          await savePages(newPages);
+        }
+        return;
+      }
+    },
+    [folders, pages],
+  );
+
   return (
     <motion.aside
       id="vaulty-sidebar"
@@ -365,101 +468,116 @@ export function Sidebar({
             </div>
           </div>
 
-          <div className="space-y-0.5">
-            {/* Inline create folder */}
-            {isCreatingFolder && (
-              <div>
-                <div className="flex items-center group">
-                  <div className="flex flex-1 items-center gap-2 rounded-lg px-3 py-1.5 text-sm text-neutral-700 dark:text-neutral-200">
-                    <span className="w-4 flex justify-center opacity-70">
-                      <SFIcon icon={sfFolder} size={14} />
-                    </span>
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
+          >
+            <SortableContext
+              items={sortableIds}
+              strategy={verticalListSortingStrategy}
+            >
+              <div className="space-y-0.5">
+                {/* Inline create folder */}
+                {isCreatingFolder && (
+                  <div>
+                    <div className="flex items-center group">
+                      <div className="flex flex-1 items-center gap-2 rounded-lg px-3 py-1.5 text-sm text-neutral-700 dark:text-neutral-200">
+                        <span className="w-4 flex justify-center opacity-70">
+                          <SFIcon icon={sfFolder} size={14} />
+                        </span>
+                        <input
+                          ref={folderInputRef}
+                          value={newFolderName}
+                          onChange={(e) => setNewFolderName(e.target.value)}
+                          onBlur={commitCreateFolder}
+                          onKeyDown={handleFolderInputKeyDown}
+                          className="flex-1 w-full min-w-0 bg-transparent outline-none selection:bg-[var(--accent-600)] selection:text-white rounded-sm placeholder-neutral-400"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Inline create page at root */}
+                {isCreatingPage === "root" && (
+                  <div className="flex w-full items-center gap-2 rounded-lg px-3 py-1.5 text-sm text-neutral-700 dark:text-neutral-200">
+                    <SFIcon
+                      icon={sfTag}
+                      size={12}
+                      className="opacity-70 mx-0.5"
+                    />
                     <input
-                      ref={folderInputRef}
-                      value={newFolderName}
-                      onChange={(e) => setNewFolderName(e.target.value)}
-                      onBlur={commitCreateFolder}
-                      onKeyDown={handleFolderInputKeyDown}
+                      ref={pageInputRef}
+                      value={newPageName}
+                      onChange={(e) => setNewPageName(e.target.value)}
+                      onBlur={commitCreatePage}
+                      onKeyDown={handlePageInputKeyDown}
                       className="flex-1 w-full min-w-0 bg-transparent outline-none selection:bg-[var(--accent-600)] selection:text-white rounded-sm placeholder-neutral-400"
                     />
                   </div>
-                </div>
+                )}
+
+                {/* Pages without a folder */}
+                {rootPages.map((page) => (
+                  <SidebarPage
+                    key={page.id}
+                    page={page}
+                    activeFilter={activeFilter}
+                    onFilterChange={onFilterChange}
+                    onContextMenu={handleContextMenu}
+                    isRenaming={
+                      renamingTarget?.id === page.id &&
+                      renamingTarget?.type === "page"
+                    }
+                    renameValue={renameValue}
+                    onRenameChange={setRenameValue}
+                    onRenameCommit={handleRenameCommit}
+                    onRenameCancel={handleRenameCancel}
+                    onStartRename={handleStartRename}
+                  />
+                ))}
+
+                {/* Folders containing pages */}
+                {folders.map((folder) => {
+                  const folderPages = pages.filter(
+                    (p) => p.folderId === folder.id,
+                  );
+                  const isExpanded = expandedFolders.has(folder.id);
+
+                  return (
+                    <SidebarFolder
+                      key={folder.id}
+                      folder={folder}
+                      pages={folderPages}
+                      isExpanded={isExpanded}
+                      activeFilter={activeFilter}
+                      isCreatingPage={isCreatingPage === folder.id}
+                      newPageName={newPageName}
+                      pageInputRef={pageInputRef}
+                      onToggle={toggleFolder}
+                      onContextMenu={handleContextMenu}
+                      onStartCreatePage={startCreatePage}
+                      onFilterChange={onFilterChange}
+                      onCommitCreatePage={commitCreatePage}
+                      onPageInputKeyDown={handlePageInputKeyDown}
+                      setNewPageName={setNewPageName}
+                      isRenaming={
+                        renamingTarget?.id === folder.id &&
+                        renamingTarget?.type === "folder"
+                      }
+                      renameValue={renameValue}
+                      onRenameChange={setRenameValue}
+                      onRenameCommit={handleRenameCommit}
+                      onRenameCancel={handleRenameCancel}
+                      renamingTarget={renamingTarget}
+                      onStartRename={handleStartRename}
+                    />
+                  );
+                })}
               </div>
-            )}
-
-            {/* Inline create page at root */}
-            {isCreatingPage === "root" && (
-              <div className="flex w-full items-center gap-2 rounded-lg px-3 py-1.5 text-sm text-neutral-700 dark:text-neutral-200">
-                <SFIcon icon={sfTag} size={12} className="opacity-70 mx-0.5" />
-                <input
-                  ref={pageInputRef}
-                  value={newPageName}
-                  onChange={(e) => setNewPageName(e.target.value)}
-                  onBlur={commitCreatePage}
-                  onKeyDown={handlePageInputKeyDown}
-                  className="flex-1 w-full min-w-0 bg-transparent outline-none selection:bg-[var(--accent-600)] selection:text-white rounded-sm placeholder-neutral-400"
-                />
-              </div>
-            )}
-
-            {/* Pages without a folder */}
-            {pages
-              .filter((p) => !p.folderId)
-              .map((page) => (
-                <SidebarPage
-                  key={page.id}
-                  page={page}
-                  activeFilter={activeFilter}
-                  onFilterChange={onFilterChange}
-                  onContextMenu={handleContextMenu}
-                  isRenaming={
-                    renamingTarget?.id === page.id &&
-                    renamingTarget?.type === "page"
-                  }
-                  renameValue={renameValue}
-                  onRenameChange={setRenameValue}
-                  onRenameCommit={handleRenameCommit}
-                  onRenameCancel={handleRenameCancel}
-                  onStartRename={handleStartRename}
-                />
-              ))}
-
-            {/* Folders containing pages */}
-            {folders.map((folder) => {
-              const folderPages = pages.filter((p) => p.folderId === folder.id);
-              const isExpanded = expandedFolders.has(folder.id);
-
-              return (
-                <SidebarFolder
-                  key={folder.id}
-                  folder={folder}
-                  pages={folderPages}
-                  isExpanded={isExpanded}
-                  activeFilter={activeFilter}
-                  isCreatingPage={isCreatingPage === folder.id}
-                  newPageName={newPageName}
-                  pageInputRef={pageInputRef}
-                  onToggle={toggleFolder}
-                  onContextMenu={handleContextMenu}
-                  onStartCreatePage={startCreatePage}
-                  onFilterChange={onFilterChange}
-                  onCommitCreatePage={commitCreatePage}
-                  onPageInputKeyDown={handlePageInputKeyDown}
-                  setNewPageName={setNewPageName}
-                  isRenaming={
-                    renamingTarget?.id === folder.id &&
-                    renamingTarget?.type === "folder"
-                  }
-                  renameValue={renameValue}
-                  onRenameChange={setRenameValue}
-                  onRenameCommit={handleRenameCommit}
-                  onRenameCancel={handleRenameCancel}
-                  renamingTarget={renamingTarget}
-                  onStartRename={handleStartRename}
-                />
-              );
-            })}
-          </div>
+            </SortableContext>
+          </DndContext>
         </div>
 
         {/* Footer */}
@@ -471,28 +589,29 @@ export function Sidebar({
               size={16}
               className="text-black/50 dark:text-white/30"
             />
-            <span className="text-xs text-neutral-900 dark:text-white/25">
+            <span className="text-xs text-black/45 dark:text-white/25">
               {numberOfItems !== undefined
                 ? `${numberOfItems} ${numberOfItems > 1 ? "items" : "item"}`
                 : `-- items`}
             </span>
           </p>
           {/* Size Section */}
-          {totalSize && (
-            <p
-              title="Total size of all items"
-              className="flex items-center gap-2 mt-1"
-            >
-              <SFIcon
-                icon={sfExternaldrive}
-                size={16}
-                className="text-black/50 dark:text-white/30"
-              />
-              <span className="text-xs text-neutral-900 dark:text-white/25">
-                {totalSize}
-              </span>
-            </p>
-          )}
+
+          <p
+            title="Total size of all items"
+            className="flex items-center gap-2 mt-1"
+          >
+            <SFIcon
+              icon={sfExternaldrive}
+              size={16}
+              className="text-black/50 dark:text-white/30"
+            />
+            <span className="text-xs text-black/45 dark:text-white/25">
+              {totalSize !== undefined && totalSize !== null
+                ? `${totalSize}`
+                : `-- MB`}
+            </span>
+          </p>
         </div>
       </div>
 

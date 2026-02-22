@@ -1,8 +1,8 @@
 import { Page } from "@/lib/storage";
-import SFIcon from "@bradleyhodges/sfsymbols-react";
-import { sfTag } from "@bradleyhodges/sfsymbols";
 import clsx from "clsx";
 import React, { useRef, useEffect } from "react";
+import { useSortable } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 interface SidebarPageProps {
   page: Page;
@@ -33,6 +33,23 @@ export function SidebarPage({
 }: SidebarPageProps) {
   const inputRef = useRef<HTMLInputElement>(null);
 
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({
+    id: `page:${page.id}`,
+    data: { type: "page", page },
+  });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
   useEffect(() => {
     if (isRenaming) {
       inputRef.current?.focus();
@@ -40,25 +57,29 @@ export function SidebarPage({
     }
   }, [isRenaming]);
 
+  const isActive = activeFilter === `page:${page.id}`;
+
   return (
     <button
+      ref={setNodeRef}
+      style={style}
+      {...attributes}
+      {...listeners}
       onClick={() => {
         if (!isRenaming) onFilterChange(`page:${page.id}`);
       }}
       onContextMenu={(e) => onContextMenu(e, page.id, "page")}
       className={clsx(
-        "transition-colors rounded-lg text-sm flex flex-1 relative w-full items-center",
-        isNested ? "px-0 py-0" : "px-30 py-1.5",
-        isNested
-          ? activeFilter === `page:${page.id}`
-            ? "text-black/90 dark:text-white/90 bg-black/10 dark:bg-white/5"
-            : "text-black/75 hover:text-black/90 dark:text-white/75 dark:hover:text-white/90 hover:bg-black/5 dark:hover:bg-white/5"
-          : activeFilter === `page:${page.id}`
-            ? "bg-[var(--accent-100)] text-[var(--accent-900)] dark:bg-[var(--accent-900)] dark:text-[var(--accent-100)] font-medium"
-            : "text-neutral-600 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-800",
+        "transition-colors duration-[250ms] hover:duration-0",
+        "rounded-lg text-sm flex w-full items-center",
+        "px-2 py-1",
+        "touch-none", // prevent scroll interference during drag
+        isDragging && "opacity-50 z-50",
+        isActive
+          ? "text-black/90 dark:text-white/90 bg-black/10 dark:bg-white/5"
+          : "text-black/50 dark:text-white/50 hover:text-black/75 dark:hover:text-white/75 hover:bg-black/5 dark:hover:bg-white/5",
       )}
     >
-      <span className="w-[2px] h-[28px] mx-[15px] flex justify-center bg-black/10 dark:bg-white/10" />
       {isRenaming ? (
         <input
           ref={inputRef}
@@ -75,11 +96,11 @@ export function SidebarPage({
             }
           }}
           onClick={(e) => e.stopPropagation()}
-          className="flex-1 w-full min-w-0 bg-transparent outline-none selection:bg-[var(--accent-600)] selection:text-white rounded-sm placeholder-neutral-400 px-2 pl-0 py-1"
+          className="flex-1 w-full min-w-0 bg-transparent outline-none selection:bg-[var(--accent-600)] selection:text-white rounded-sm placeholder-neutral-400"
         />
       ) : (
         <span
-          className="px-2 pl-0 py-1 truncate text-left"
+          className="truncate text-left"
           onDoubleClick={(e) => {
             e.stopPropagation();
             onStartRename?.(page.id, "page", page.name);
