@@ -1,19 +1,14 @@
 "use client";
 
 import clsx from "clsx";
-import {
-  useState,
-  useRef,
-  useCallback,
-  useEffect,
-  KeyboardEvent,
-  DragEvent,
-} from "react";
+import { useState, useRef, useCallback, useEffect, KeyboardEvent } from "react";
+import { motion, AnimatePresence } from "motion/react";
 import SFIcon from "@bradleyhodges/sfsymbols-react";
-import { sfXmark } from "@bradleyhodges/sfsymbols";
+import { sfPlus, sfXmark } from "@bradleyhodges/sfsymbols";
 // @ts-expect-error - ignoring type errors for pre-built bundle
 import jsmediatags from "jsmediatags/dist/jsmediatags.min.js";
 import { AudioPreview } from "../items/AudioCard";
+import { useSettings } from "@/lib/settings";
 
 interface InputBarProps {
   onSubmit: (
@@ -27,6 +22,7 @@ interface InputBarProps {
 }
 
 export function InputBar({ onSubmit }: InputBarProps) {
+  const { settings } = useSettings();
   const [content, setContent] = useState("");
   const [tags, setTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState("");
@@ -40,21 +36,87 @@ export function InputBar({ onSubmit }: InputBarProps) {
   > | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const tagInputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [mounted, setMounted] = useState(false);
+
+  // Wait for hydration before computing layout to avoid SSR mismatch
+  useEffect(() => setMounted(true), []);
+
+  // Determine if we should show compact layout
+  // Compact mode is true when the setting is on AND content is single-line
+  const isMultiLine = content.includes("\n") || content.length > 100;
+  const isCompact =
+    mounted &&
+    settings.compactMode &&
+    !isMultiLine &&
+    !imagePreview &&
+    !showTagInput;
 
   // Auto-resize textarea based on content
   useEffect(() => {
     const textarea = inputRef.current;
     if (!textarea) return;
-    // Reset height to auto to get the correct scrollHeight
     textarea.style.height = "auto";
-    // Set to scrollHeight, but keep minimum of 1 row (~24px)
-    const minHeight = 24;
-    textarea.style.height = `${Math.max(textarea.scrollHeight, minHeight)}px`;
-  }, [content]);
+    const minHeight = isCompact ? 20 : 28;
+    const maxHeight = 600;
+    textarea.style.height = `${Math.min(Math.max(textarea.scrollHeight, minHeight), maxHeight)}px`;
+    textarea.style.overflowY =
+      textarea.scrollHeight > maxHeight ? "auto" : "hidden";
+  }, [content, isCompact]);
 
-  // Convert image file to data URL and attempt ID3 parsing for audio
+  // Global window drag-drop
+  useEffect(() => {
+    const handleWindowDragOver = (e: globalThis.DragEvent) => {
+      e.preventDefault();
+      setIsDragging(true);
+    };
+
+    const handleWindowDragLeave = (e: globalThis.DragEvent) => {
+      if (
+        e.clientX <= 0 ||
+        e.clientY <= 0 ||
+        e.clientX >= window.innerWidth ||
+        e.clientY >= window.innerHeight
+      ) {
+        setIsDragging(false);
+      }
+    };
+
+    const handleWindowDrop = (e: globalThis.DragEvent) => {
+      e.preventDefault();
+      setIsDragging(false);
+
+      const files = Array.from(e.dataTransfer?.files ?? []);
+      const mediaFile = files.find(
+        (f) =>
+          f.type.startsWith("image/") ||
+          f.type.startsWith("audio/") ||
+          f.type.startsWith("video/"),
+      );
+
+      if (mediaFile) {
+        handleMediaFile(mediaFile);
+        return;
+      }
+
+      const text = e.dataTransfer?.getData("text/plain");
+      if (text) {
+        setContent(text);
+      }
+    };
+
+    window.addEventListener("dragover", handleWindowDragOver);
+    window.addEventListener("dragleave", handleWindowDragLeave);
+    window.addEventListener("drop", handleWindowDrop);
+
+    return () => {
+      window.removeEventListener("dragover", handleWindowDragOver);
+      window.removeEventListener("dragleave", handleWindowDragLeave);
+      window.removeEventListener("drop", handleWindowDrop);
+    };
+  }, []);
+
   const handleMediaFile = useCallback((file: File) => {
-    // Attempt ID3 parsing if audio
     if (file.type.startsWith("audio/")) {
       jsmediatags.read(file, {
         onSuccess: function (tag: any) {
@@ -74,7 +136,7 @@ export function InputBar({ onSubmit }: InputBarProps) {
             artist: tags.artist,
             album: tags.album,
             year: tags.year,
-            image: base64String, // the base64 cover art
+            image: base64String,
           });
         },
         onError: function (error: any) {
@@ -94,7 +156,6 @@ export function InputBar({ onSubmit }: InputBarProps) {
     reader.readAsDataURL(file);
   }, []);
 
-  // Handle paste events (for images)
   const handlePaste = useCallback(
     (e: React.ClipboardEvent) => {
       const items = e.clipboardData?.items;
@@ -121,7 +182,6 @@ export function InputBar({ onSubmit }: InputBarProps) {
   const handleSubmit = useCallback(() => {
     if (!content.trim() && !imagePreview) return;
 
-    // Detect type based on content
     let type: "note" | "image" | "link" | "audio" | "video" = "note";
     if (imagePreview) {
       if (imagePreview.startsWith("data:video/")) type = "video";
@@ -153,10 +213,8 @@ export function InputBar({ onSubmit }: InputBarProps) {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       if (e.ctrlKey || e.metaKey) {
-        // Ctrl/Cmd + Enter: submit
         handleSubmit();
       } else if (content.trim()) {
-        // Enter: show tag input or submit if tags already added
         if (showTagInput || tags.length > 0) {
           handleSubmit();
         } else {
@@ -175,19 +233,16 @@ export function InputBar({ onSubmit }: InputBarProps) {
     if (e.key === "Enter") {
       e.preventDefault();
       if (tagInput.trim()) {
-        // Add tag
         const newTag = tagInput.trim().toLowerCase();
         if (!tags.includes(newTag)) {
           setTags([...tags, newTag]);
         }
         setTagInput("");
       } else {
-        // Submit if no tag input
         handleSubmit();
       }
     }
     if (e.key === "Backspace" && !tagInput && tags.length > 0) {
-      // Remove last tag
       setTags(tags.slice(0, -1));
     }
     if (e.key === "Escape") {
@@ -201,189 +256,273 @@ export function InputBar({ onSubmit }: InputBarProps) {
     setTags(tags.filter((t) => t !== tagToRemove));
   };
 
-  const handleDragOver = (e: DragEvent) => {
-    e.preventDefault();
-    setIsDragging(true);
+  const openFilePicker = () => {
+    fileInputRef.current?.click();
   };
 
-  const handleDragLeave = (e: DragEvent) => {
-    e.preventDefault();
-    setIsDragging(false);
-  };
-
-  const handleDrop = (e: DragEvent) => {
-    e.preventDefault();
-    setIsDragging(false);
-
-    // Handle dropped files
-    const files = Array.from(e.dataTransfer.files);
-    const mediaFile = files.find(
-      (f) =>
-        f.type.startsWith("image/") ||
-        f.type.startsWith("audio/") ||
-        f.type.startsWith("video/"),
-    );
-
-    if (mediaFile) {
-      handleMediaFile(mediaFile);
-      return;
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      handleMediaFile(file);
     }
+    e.target.value = "";
+  };
 
-    // Handle dropped text
-    const text = e.dataTransfer.getData("text/plain");
-    if (text) {
-      setContent(text);
+  const clearMedia = () => {
+    setImagePreview(null);
+    setImageName(null);
+    setAudioMetadata(null);
+    if (!content.trim()) {
+      setShowTagInput(false);
+      setTags([]);
+      setTagInput("");
     }
   };
+
+  const hasContent = content.trim() || imagePreview;
+
+  // Add button
+  const addButton = (
+    <button
+      onClick={openFilePicker}
+      className={clsx(
+        "cursor-pointer shrink-0",
+        "flex items-center justify-center",
+        "transition-colors",
+        "text-black/30 hover:text-black/60",
+        "dark:text-white/15 dark:hover:text-white/30",
+      )}
+      title="Add image or file"
+      aria-label="Add image or file"
+    >
+      <SFIcon icon={sfPlus} size={16} weight={1.5} />
+    </button>
+  );
+
+  // Save button
+  const saveButton = (
+    <button
+      onClick={handleSubmit}
+      disabled={!hasContent}
+      className={clsx(
+        "shrink-0 cursor-pointer",
+        "rounded-full px-4 py-1.5",
+        "text-sm font-medium text-white",
+        "transition-colors",
+        "bg-[var(--accent-600)] hover:bg-[var(--accent-700)]",
+        "disabled:opacity-50 disabled:hover:bg-[var(--accent-600)]",
+      )}
+    >
+      Save
+    </button>
+  );
+
+  // Tag row content (shared between layouts)
+  const showTags =
+    (showTagInput || tags.length > 0) && (content.trim() || imagePreview);
 
   return (
-    <div
-      className={clsx(
-        "rounded-[24px] select-none border p-4 shadow-sm transition-all",
-        "bg-white dark:bg-neutral-900/95 transparent:dark:bg-neutral-900/95 backdrop-blur-[24px] backdrop-saturate-150",
-        `${
-          isDragging
-            ? " bg-[var(--accent-50)] dark:bg-[var(--accent-950)]"
-            : "border-black/10 dark:border-white/10"
-        }`,
-      )}
-      onDragOver={handleDragOver}
-      onDragLeave={handleDragLeave}
-      onDrop={handleDrop}
-    >
-      {/* Image Preview */}
-      {imagePreview && (
-        <div className="group/img relative mb-3 inline-block">
-          {imagePreview.startsWith("data:image/") ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={imagePreview}
-              alt="Preview"
-              className="max-h-32 rounded-lg object-cover"
-            />
-          ) : imagePreview.startsWith("data:video/") ? (
-            <video
-              src={imagePreview}
-              className="max-h-32 rounded-lg object-cover bg-black"
-              muted
-            />
-          ) : audioMetadata ? (
-            <AudioPreview
-              metadata={audioMetadata}
-              filename={imageName || "Audio File"}
-            />
-          ) : (
-            <div className="h-16 px-4 py-2 flex items-center justify-center rounded-lg bg-neutral-100 dark:bg-neutral-800 text-sm font-medium">
-              Audio File
-            </div>
-          )}
-          <button
-            onClick={() => {
-              setImagePreview(null);
-              setImageName(null);
-              if (!content.trim()) {
-                setShowTagInput(false);
-                setTags([]);
-                setTagInput("");
-              }
-            }}
-            className={clsx(
-              "cursor-pointer",
-              "absolute top-2 right-2 transition-all",
-              "opacity-0 group-hover/img:opacity-100",
-              "flex items-center justify-center",
-              "rounded-full p-1 size-5",
-              "backdrop-blur-xl backdrop-saturate-150",
-              "bg-black/10 hover:bg-black/25 dark:bg-white/10  dark:hover:bg-white/25",
-              "text-black/25 hover:text-black/50 dark:text-white/25 dark:hover:text-white/50",
-            )}
-            aria-label="Remove image"
+    <>
+      {/* Global drop overlay with animated dashed border */}
+      {isDragging && (
+        <div className="fixed inset-0 z-50 size-full opacity-50 pointer-events-none">
+          <svg
+            className="absolute inset-0"
+            style={{ width: "calc(100% - 0px)", height: "calc(100% - 0px)" }}
           >
-            <SFIcon icon={sfXmark} size={8} weight={2} />
-          </button>
+            <rect
+              x="1.5"
+              y="1.5"
+              width="calc(100% - 3px)"
+              height="calc(100% - 3px)"
+              rx="6"
+              ry="6"
+              fill="none"
+              stroke="var(--accent-500)"
+              strokeWidth="3"
+              strokeDasharray="12 8"
+              className="animate-[march_0.4s_linear_infinite]"
+            />
+          </svg>
+          <style>{`
+            @keyframes march {
+              to { stroke-dashoffset: -20; }
+            }
+          `}</style>
         </div>
       )}
 
-      {/* Main Input */}
-      <textarea
-        ref={inputRef}
-        value={content}
-        onChange={(e) => setContent(e.target.value)}
-        onKeyDown={handleKeyDown}
-        onPaste={handlePaste}
-        placeholder="Drop a file, paste a link, or type a quick note…"
-        className={clsx(
-          "caret-[var(--accent-500)]",
-          "w-full resize-none overflow-hidden",
-          "bg-transparent !outline-none text-base",
-          "text-neutral-900 placeholder-neutral-400 dark:text-white dark:placeholder-white/25",
-        )}
-        rows={1}
-        style={{ minHeight: 28 }}
+      {/* Hidden file input */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*,video/*,audio/*"
+        onChange={handleFileChange}
+        className="hidden"
       />
 
-      {/* Tags Row */}
-      {(showTagInput || tags.length > 0) &&
-        (content.trim() || imagePreview) && (
-          <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-neutral-100 pt-3 dark:border-neutral-800">
-            {/* Existing Tags */}
+      {/* Tag input pill — separate element above the main input bar */}
+      <AnimatePresence>
+        {showTags && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 10 }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
+            className={clsx(
+              "mb-2 flex flex-wrap items-center gap-2",
+              "rounded-full border p-2.5",
+              "bg-white dark:bg-neutral-900/95",
+              "transparent:dark:bg-neutral-900/95",
+              "backdrop-blur-[24px] backdrop-saturate-150",
+              "border-black/10 dark:border-white/10",
+              "shadow-sm select-none",
+            )}
+          >
             {tags.map((tag) => (
-              <span
+              <motion.span
                 key={tag}
-                className="inline-flex items-center gap-1 rounded-full bg-[var(--accent-100)] px-2.5 py-0.5 text-sm font-medium text-[var(--accent-800)] dark:bg-[var(--accent-900)] dark:text-[var(--accent-200)]"
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.8 }}
+                className="inline-flex items-center gap-1 rounded-full bg-[var(--accent-100)] px-2.5 py-0.5 pr-1 text-sm font-medium text-[var(--accent-800)] dark:bg-[var(--accent-900)] dark:text-[var(--accent-200)]"
               >
                 #{tag}
                 <button
                   onClick={() => removeTag(tag)}
-                  className="ml-0.5 rounded-full p-0.5 hover:bg-[var(--accent-200)] dark:hover:bg-[var(--accent-800)]"
+                  className="ml-0.5 size-4 cursor-pointer flex items-center justify-center rounded-full p-0.5 hover:bg-[var(--accent-200)] dark:hover:bg-[var(--accent-800)]"
                 >
-                  <svg
-                    className="h-3 w-3"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M6 18L18 6M6 6l12 12"
-                    />
-                  </svg>
+                  <SFIcon icon={sfXmark} size={7} weight={2} />
                 </button>
-              </span>
+              </motion.span>
             ))}
-
-            {/* Tag Input */}
             <input
               ref={tagInputRef}
               type="text"
               value={tagInput}
               onChange={(e) => setTagInput(e.target.value)}
               onKeyDown={handleTagKeyDown}
-              placeholder="Add tag…"
-              className="flex-1 bg-transparent text-sm text-neutral-900 placeholder-neutral-400 outline-none dark:text-neutral-100 dark:placeholder-neutral-500"
+              placeholder="Enter tags"
+              className="flex-1 rounded-full pl-1 bg-transparent text-sm text-neutral-900 placeholder-neutral-400 outline-none dark:text-neutral-100 dark:placeholder-neutral-500"
             />
-          </div>
+          </motion.div>
         )}
+      </AnimatePresence>
 
-      {/* Footer with hints */}
-      <div className="flex items-center justify-between text-xs text-neutral-400 dark:text-neutral-500">
-        <span className="h-8 flex items-center">
-          {isDragging
-            ? "Drop to add…"
-            : showTagInput
-              ? "Enter to add tag, Enter again to save"
-              : "Enter for tags, Ctrl+Enter to save quickly"}
-        </span>
-        <button
-          onClick={handleSubmit}
-          disabled={!content.trim() && !imagePreview}
-          className="rounded-full bg-[var(--accent-600)] px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-[var(--accent-700)] disabled:opacity-50 disabled:hover:bg-[var(--accent-600)]"
+      {/* Main input container */}
+      <motion.div
+        layout
+        transition={{ duration: 0.25, ease: [0.25, 0.1, 0.25, 1] }}
+        className={clsx(
+          "select-none border shadow-sm",
+          "bg-white dark:bg-neutral-900/95",
+          "transparent:dark:bg-neutral-900/95",
+          "backdrop-blur-[24px] backdrop-saturate-150",
+          isDragging
+            ? "border-[var(--accent-500)] bg-[var(--accent-50)] dark:bg-[var(--accent-950)]"
+            : "border-black/10 dark:border-white/10",
+        )}
+        style={{
+          borderRadius: isCompact ? 9999 : 25,
+          padding: isCompact ? "8px 8px 8px 16px" : 16,
+        }}
+        suppressHydrationWarning
+      >
+        {/* Image/Audio Preview */}
+        <AnimatePresence>
+          {imagePreview && !isCompact && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              className="group/img relative mb-3 inline-block overflow-hidden"
+            >
+              {imagePreview.startsWith("data:image/") ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={imagePreview}
+                  alt="Preview"
+                  className="max-h-32 rounded-lg object-cover"
+                />
+              ) : imagePreview.startsWith("data:video/") ? (
+                <video
+                  src={imagePreview}
+                  className="max-h-32 rounded-lg object-cover bg-black"
+                  muted
+                />
+              ) : audioMetadata ? (
+                <AudioPreview
+                  metadata={audioMetadata}
+                  filename={imageName || "Audio File"}
+                />
+              ) : (
+                <div className="h-16 px-4 py-2 flex items-center justify-center rounded-lg bg-neutral-100 dark:bg-neutral-800 text-sm font-medium">
+                  Audio File
+                </div>
+              )}
+              <button
+                onClick={clearMedia}
+                className={clsx(
+                  "cursor-pointer",
+                  "absolute top-2 right-2 transition-all",
+                  "opacity-0 group-hover/img:opacity-100",
+                  "flex items-center justify-center",
+                  "rounded-full p-1 size-5",
+                  "backdrop-blur-xl backdrop-saturate-150",
+                  "bg-black/10 hover:bg-black/25 dark:bg-white/10 dark:hover:bg-white/25",
+                  "text-black/25 hover:text-black/50 dark:text-white/25 dark:hover:text-white/50",
+                )}
+                aria-label="Remove media"
+              >
+                <SFIcon icon={sfXmark} size={8} weight={2} />
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Input row */}
+        <motion.div
+          layout="position"
+          className={clsx(
+            "flex",
+            isCompact ? "items-center gap-3" : "flex-col",
+          )}
         >
-          Save
-        </button>
-      </div>
-    </div>
+          {/* In compact mode: [+] before textarea */}
+          {isCompact && addButton}
+
+          {/* Textarea */}
+          <textarea
+            ref={inputRef}
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+            onKeyDown={handleKeyDown}
+            onPaste={handlePaste}
+            placeholder="Drop an image, paste a link, or type a quick note…"
+            className={clsx(
+              "caret-[var(--accent-500)]",
+              "resize-none",
+              "bg-transparent !outline-none",
+              "text-neutral-900 placeholder-neutral-400",
+              "dark:text-white dark:placeholder-white/25",
+              isCompact ? "flex-1 text-sm" : "w-full text-base",
+            )}
+            rows={1}
+            style={{ minHeight: isCompact ? 20 : 28 }}
+          />
+
+          {/* In compact mode: [Save] after textarea */}
+          {isCompact && saveButton}
+
+          {/* Regular mode: bottom bar */}
+          {!isCompact && (
+            <div className="mt-2 flex items-center justify-between">
+              {addButton}
+              {saveButton}
+            </div>
+          )}
+        </motion.div>
+      </motion.div>
+    </>
   );
 }

@@ -246,13 +246,13 @@ export default function Home() {
             className={clsx(
               "z-10 transition-all duration-300",
               settings.inputBarPosition === "top"
-                ? "shrink-0 border-b border-[var(--edge-border-color-light)] dark:border-[var(--edge-border-color-dark)] px-6 py-4 bg-white dark:bg-neutral-900 transparent:bg-white/50 transparent:dark:bg-neutral-900/50 transparent:backdrop-blur-sm"
-                : "pointer-events-none absolute bottom-0 left-0 right-0 px-6 py-4 pt-8",
+                ? "shrink-0 px-6 py-4"
+                : "pointer-events-none absolute bottom-0 left-0 right-0 px-6 py-4 pt-8 compact:pt-4",
             )}
           >
             <div
               className={clsx(
-                "mx-auto transition-all duration-300",
+                "transition-all duration-300",
                 settings.inputBarPosition === "top"
                   ? "max-w-4xl"
                   : "pointer-events-auto",
@@ -298,7 +298,7 @@ export default function Home() {
           <div
             ref={scrollRef}
             onScroll={handleScroll}
-            className="content-area flex-1 overflow-y-auto px-6 py-6 flex"
+            className="content-area compact:pb-[5rem]! flex-1 overflow-y-auto px-6 py-6 flex"
           >
             <div>
               {/* Active Tag Filter Badge */}

@@ -61,7 +61,7 @@ const filters = [
   // { id: "reminders", label: "Reminders" },
 ];
 
-const EXPANDED_WIDTH = 224; // 56 * 4 (Tailwind w-56)
+const EXPANDED_WIDTH = 224;
 const COLLAPSED_WIDTH = 0;
 
 export function Sidebar({
