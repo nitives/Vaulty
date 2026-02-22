@@ -118,6 +118,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
   changeStoragePath: () => ipcRenderer.invoke("storage:changePath"),
   clearAllData: () => ipcRenderer.invoke("storage:clearAll"),
   openTrashFolder: () => ipcRenderer.invoke("storage:openTrash"),
+  openVaultFolder: () => ipcRenderer.invoke("storage:openVault"),
   // Trash
   loadTrash: () => ipcRenderer.invoke("trash:load"),
   restoreFromTrash: (id: string) => ipcRenderer.invoke("trash:restore", id),
@@ -202,6 +203,7 @@ declare global {
       }>;
       clearAllData: () => Promise<{ success: boolean }>;
       openTrashFolder: () => Promise<{ success: boolean; error?: string }>;
+      openVaultFolder: () => Promise<{ success: boolean; error?: string }>;
       // Trash
       loadTrash: () => Promise<TrashedItem[]>;
       restoreFromTrash: (

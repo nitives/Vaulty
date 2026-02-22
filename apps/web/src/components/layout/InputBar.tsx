@@ -11,9 +11,9 @@ import {
 } from "react";
 import SFIcon from "@bradleyhodges/sfsymbols-react";
 import { sfXmark } from "@bradleyhodges/sfsymbols";
-import { AudioPreview } from "./items/AudioCard";
 // @ts-expect-error - ignoring type errors for pre-built bundle
 import jsmediatags from "jsmediatags/dist/jsmediatags.min.js";
+import { AudioPreview } from "../items/AudioCard";
 
 interface InputBarProps {
   onSubmit: (

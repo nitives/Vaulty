@@ -7,14 +7,14 @@ import {
   sfFolder,
 } from "@bradleyhodges/sfsymbols";
 import SFIcon from "@bradleyhodges/sfsymbols-react";
-import { DropdownMenu } from "./DropdownMenu";
+import { DropdownMenu } from "../ui/DropdownMenu";
 import { renderMarkdown } from "@/lib/markdown";
 import { useSettings } from "@/lib/settings";
 import { useState } from "react";
 import clsx from "clsx";
 import { buttonStyles } from "@/styles/Button";
-import { Lightbox } from "./Lightbox";
-import { AudioCard } from "./items/AudioCard";
+import { Lightbox } from "../modals/Lightbox";
+import { AudioCard } from "./AudioCard";
 
 export interface Item {
   id: string;

@@ -174,6 +174,10 @@ function registerIpcHandlers(getMainWindow) {
         const errorString = await electron_1.shell.openPath((0, paths_1.getTrashPath)());
         return { success: !errorString, error: errorString };
     });
+    electron_1.ipcMain.handle("storage:openVault", async () => {
+        const errorString = await electron_1.shell.openPath((0, paths_1.getVaultyDataPath)());
+        return { success: !errorString, error: errorString };
+    });
     electron_1.ipcMain.handle("storage:changePath", async () => {
         const win = getMainWindow();
         if (!win)

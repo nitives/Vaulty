@@ -52,6 +52,7 @@ electron_1.contextBridge.exposeInMainWorld("electronAPI", {
     changeStoragePath: () => electron_1.ipcRenderer.invoke("storage:changePath"),
     clearAllData: () => electron_1.ipcRenderer.invoke("storage:clearAll"),
     openTrashFolder: () => electron_1.ipcRenderer.invoke("storage:openTrash"),
+    openVaultFolder: () => electron_1.ipcRenderer.invoke("storage:openVault"),
     // Trash
     loadTrash: () => electron_1.ipcRenderer.invoke("trash:load"),
     restoreFromTrash: (id) => electron_1.ipcRenderer.invoke("trash:restore", id),

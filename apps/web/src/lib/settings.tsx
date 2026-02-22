@@ -120,18 +120,16 @@ function saveToLocalStorage(settings: AppSettings): void {
 
 // -- Electron bridge helpers --
 
+import { getElectronAPI as getElectronAPIBase } from "@/lib/electron";
+
 function getElectronAPI() {
-  if (typeof window !== "undefined") {
-    return (window as Window & { electronAPI?: Record<string, unknown> })
-      .electronAPI as
-      | {
-          getSettings: () => Promise<AppSettings>;
-          setSettings: (patch: Partial<AppSettings>) => Promise<AppSettings>;
-          setNativeTheme: (theme: "system" | "light" | "dark") => Promise<void>;
-        }
-      | undefined;
-  }
-  return undefined;
+  const api = getElectronAPIBase();
+  if (!api) return undefined;
+  return api as unknown as {
+    getSettings: () => Promise<AppSettings>;
+    setSettings: (patch: Partial<AppSettings>) => Promise<AppSettings>;
+    setNativeTheme: (theme: "system" | "light" | "dark") => Promise<void>;
+  };
 }
 
 // -- Theme helpers --

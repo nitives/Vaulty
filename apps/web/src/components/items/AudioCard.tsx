@@ -3,7 +3,8 @@ import clsx from "clsx";
 import SFIcon from "@bradleyhodges/sfsymbols-react";
 import { sfPlayFill, sfPauseFill, sfXmark } from "@bradleyhodges/sfsymbols";
 import { useColor } from "color-thief-react";
-import { Item } from "../ItemCard";
+import { Item } from "./ItemCard";
+
 
 // Fallback background colors if no cover art is present
 const FALLBACK_GRADIENTS = [

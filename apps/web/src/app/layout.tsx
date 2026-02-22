@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
-import { VaultyMotionConfig } from "@/components/VaultyMotionConfig";
+import { VaultyMotionConfig } from "@/components/layout/VaultyMotionConfig";
 import { SettingsProvider } from "@/lib/settings";
 
 const SFPro = localFont({

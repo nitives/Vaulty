@@ -11,16 +11,9 @@ import {
   sfMagnifyingglass,
 } from "@bradleyhodges/sfsymbols";
 import { useSettings } from "@/lib/settings";
-import { SidebarIcon } from "./SidebarIcon";
-import { Spinner } from "./Spinner";
-
-// Get electronAPI safely
-function getElectronAPI() {
-  if (typeof window !== "undefined") {
-    return window.electronAPI;
-  }
-  return undefined;
-}
+import { getElectronAPI } from "@/lib/electron";
+import { SidebarIcon } from "../sidebar/SidebarIcon";
+import { Spinner } from "../ui/Spinner";
 
 // Subscribe to nothing - we just use this to detect if we're in the browser
 function subscribe() {

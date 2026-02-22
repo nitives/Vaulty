@@ -249,6 +249,11 @@ export function registerIpcHandlers(
     return { success: !errorString, error: errorString };
   });
 
+  ipcMain.handle("storage:openVault", async () => {
+    const errorString = await shell.openPath(getVaultyDataPath());
+    return { success: !errorString, error: errorString };
+  });
+
   ipcMain.handle("storage:changePath", async () => {
     const win = getMainWindow();
     if (!win) return { success: false, error: "No window" };

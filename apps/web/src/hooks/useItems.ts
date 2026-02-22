@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo, useEffect } from "react";
-import { Item } from "@/components/ItemCard";
+import { Item } from "@/components";
 import { generateId } from "@/lib/utils";
 import { parseSearchQuery } from "@/lib/search";
 import { useSettings } from "@/lib/settings";

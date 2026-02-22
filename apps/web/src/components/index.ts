@@ -1,18 +1,25 @@
-export { Sidebar } from "./Sidebar";
-export { InputBar } from "./InputBar";
-export { ItemCard, type Item } from "./ItemCard";
-export { ItemList } from "./ItemList";
-export { SearchBar } from "./SearchBar";
-export { FloatingSearchBar } from "./FloatingSearchBar";
-export { Titlebar } from "./Titlebar";
-export { Icon, type IconName } from "./Icon";
-export { SidebarIcon } from "./SidebarIcon";
-export { SettingsModal } from "./SettingsModal";
-export { Toggle } from "./Toggle";
-export { Select } from "./Select";
-export { DropdownMenu, type DropdownMenuItem } from "./DropdownMenu";
-export { AccentColorPicker } from "./AccentColorPicker";
-export * from "./ConfirmModal";
-export * from "./MoveModal";
-export { Button, type ButtonProps } from "./Button";
-export { VaultyMotionConfig } from "./VaultyMotionConfig";
+// -- Sidebar --
+export { Sidebar } from "./sidebar/Sidebar";
+export { SidebarIcon } from "./sidebar/SidebarIcon";
+
+// -- Items --
+export { ItemCard, type Item } from "./items/ItemCard";
+export { ItemList } from "./items/ItemList";
+
+// -- Layout --
+export { InputBar } from "./layout/InputBar";
+export { FloatingSearchBar } from "./layout/FloatingSearchBar";
+export { Titlebar } from "./layout/Titlebar";
+export { VaultyMotionConfig } from "./layout/VaultyMotionConfig";
+
+// -- Modals --
+export { SettingsModal } from "./modals/SettingsModal";
+export * from "./modals/ConfirmModal";
+export * from "./modals/MoveModal";
+
+// -- UI --
+export { Toggle } from "./ui/Toggle";
+export { Select } from "./ui/Select";
+export { DropdownMenu, type DropdownMenuItem } from "./ui/DropdownMenu";
+export { AccentColorPicker } from "./ui/AccentColorPicker";
+export { Button, type ButtonProps } from "./ui/Button";

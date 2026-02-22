@@ -15,7 +15,7 @@ import {
   sfChevronDown,
 } from "@bradleyhodges/sfsymbols";
 import { useEffect, useState, useMemo, useRef } from "react";
-import { ContextMenu } from "./ContextMenu";
+import { ContextMenu } from "../ui/ContextMenu";
 import {
   loadItems,
   loadFolders,
@@ -25,7 +25,7 @@ import {
   Folder,
   Page,
 } from "@/lib/storage";
-import { Item } from "./ItemCard";
+import { Item } from "../items/ItemCard";
 import { generateId } from "@/lib/utils";
 import { useSettings } from "@/lib/settings";
 import { SidebarFolder } from "./SidebarFolder";
@@ -292,215 +292,208 @@ export function Sidebar({
       transition={{ duration: 0.33, ease: [0.308, 0.003, 0.142, 1] }}
       style={{ width: isCollapsed ? COLLAPSED_WIDTH : EXPANDED_WIDTH }}
     >
-      {/* Filters */}
-      <nav className="space-y-1 p-2">
-        <AnimatePresence initial={false}>
-          {filters.map((filter) => (
-            <motion.button
-              key={filter.id}
-              onClick={() => onFilterChange(filter.id)}
-              className={clsx(
-                "flex w-full items-center gap-3 rounded-lg px-3 py-2 compact:py-1 text-sm transition-colors duration-[250ms] hover:duration-0",
-                activeFilter === filter.id
-                  ? `text-black/90 dark:text-white/90
+      {/* Inner wrapper: fixed width so content clips instead of squishing */}
+      <div
+        className="flex flex-col flex-1 overflow-hidden"
+        style={{ minWidth: EXPANDED_WIDTH }}
+      >
+        {/* Filters */}
+        <nav className="space-y-1 p-2">
+          <AnimatePresence initial={false}>
+            {filters.map((filter) => (
+              <motion.button
+                key={filter.id}
+                onClick={() => onFilterChange(filter.id)}
+                className={clsx(
+                  "flex w-full items-center gap-3 rounded-lg px-3 py-2 compact:py-1 text-sm transition-colors duration-[250ms] hover:duration-0",
+                  activeFilter === filter.id
+                    ? `text-black/90 dark:text-white/90
                        bg-black/10 dark:bg-white/5`
-                  : `text-black/75 hover:text-black/90 dark:text-white/75 dark:hover:text-white/90
+                    : `text-black/75 hover:text-black/90 dark:text-white/75 dark:hover:text-white/90
                       hover:bg-black/5 dark:hover:bg-white/5`,
-              )}
-              initial={{ opacity: 0, x: -12 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -12 }}
-              transition={{ duration: 0.15, ease: "easeOut" }}
-              suppressHydrationWarning
-            >
-              {/* <span className="text-base">{filter.icon}</span> */}
-              {filter.label}
-            </motion.button>
-          ))}
-        </AnimatePresence>
-      </nav>
+                )}
+                initial={{ opacity: 0, x: -12 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -12 }}
+                transition={{ duration: 0.15, ease: "easeOut" }}
+                suppressHydrationWarning
+              >
+                {/* <span className="text-base">{filter.icon}</span> */}
+                {filter.label}
+              </motion.button>
+            ))}
+          </AnimatePresence>
+        </nav>
 
-      {/* Folders & Pages Tree */}
-      <div className="flex-1 overflow-y-auto px-2 pb-4">
-        <div className="flex items-center justify-between px-3 py-2">
-          <h3
-            className={clsx(
-              "select-none",
-              "text-xs font-semibold uppercase tracking-wider",
-              "text-black/35 dark:text-white/25",
+        {/* Folders & Pages Tree */}
+        <div className="flex-1 overflow-y-auto px-2 pb-4">
+          <div className="flex items-center justify-between px-3 py-2">
+            <h3
+              className={clsx(
+                "select-none",
+                "text-xs font-semibold uppercase tracking-wider",
+                "text-black/35 dark:text-white/25",
+              )}
+            >
+              Folders
+            </h3>
+            <div className="flex gap-2.5">
+              <button
+                onClick={startCreateFolder}
+                className={clsx(
+                  "cursor-pointer",
+                  "transition-colors",
+                  "text-black/35 hover:text-black/75",
+                  "dark:text-white/25 dark:hover:text-white/35",
+                )}
+                title="New Folder"
+              >
+                <SFIcon icon={sfFolder} size={14} />
+              </button>
+              <button
+                onClick={() => startCreatePage(null)}
+                className={clsx(
+                  "cursor-pointer",
+                  "transition-colors",
+                  "text-black/35 hover:text-black/75",
+                  "dark:text-white/25 dark:hover:text-white/35",
+                )}
+                title="New Page"
+              >
+                <SFIcon icon={sfTextPage} size={13} />
+              </button>
+            </div>
+          </div>
+
+          <div className="space-y-0.5">
+            {/* Inline create folder */}
+            {isCreatingFolder && (
+              <div>
+                <div className="flex items-center group">
+                  <div className="flex flex-1 items-center gap-2 rounded-lg px-3 py-1.5 text-sm text-neutral-700 dark:text-neutral-200">
+                    <span className="w-4 flex justify-center opacity-70">
+                      <SFIcon icon={sfFolder} size={14} />
+                    </span>
+                    <input
+                      ref={folderInputRef}
+                      value={newFolderName}
+                      onChange={(e) => setNewFolderName(e.target.value)}
+                      onBlur={commitCreateFolder}
+                      onKeyDown={handleFolderInputKeyDown}
+                      className="flex-1 w-full min-w-0 bg-transparent outline-none selection:bg-[var(--accent-600)] selection:text-white rounded-sm placeholder-neutral-400"
+                    />
+                  </div>
+                </div>
+              </div>
             )}
-          >
-            Folders
-          </h3>
-          <div className="flex gap-2.5">
-            <button
-              onClick={startCreateFolder}
-              className={clsx(
-                "cursor-pointer",
-                "transition-colors",
-                "text-black/35 hover:text-black/75",
-                "dark:text-white/25 dark:hover:text-white/35",
-              )}
-              title="New Folder"
-            >
-              <SFIcon icon={sfFolder} size={14} />
-            </button>
-            <button
-              onClick={() => startCreatePage(null)}
-              className={clsx(
-                "cursor-pointer",
-                "transition-colors",
-                "text-black/35 hover:text-black/75",
-                "dark:text-white/25 dark:hover:text-white/35",
-              )}
-              title="New Page"
-            >
-              <SFIcon icon={sfTextPage} size={13} />
-            </button>
+
+            {/* Inline create page at root */}
+            {isCreatingPage === "root" && (
+              <div className="flex w-full items-center gap-2 rounded-lg px-3 py-1.5 text-sm text-neutral-700 dark:text-neutral-200">
+                <SFIcon icon={sfTag} size={12} className="opacity-70 mx-0.5" />
+                <input
+                  ref={pageInputRef}
+                  value={newPageName}
+                  onChange={(e) => setNewPageName(e.target.value)}
+                  onBlur={commitCreatePage}
+                  onKeyDown={handlePageInputKeyDown}
+                  className="flex-1 w-full min-w-0 bg-transparent outline-none selection:bg-[var(--accent-600)] selection:text-white rounded-sm placeholder-neutral-400"
+                />
+              </div>
+            )}
+
+            {/* Pages without a folder */}
+            {pages
+              .filter((p) => !p.folderId)
+              .map((page) => (
+                <SidebarPage
+                  key={page.id}
+                  page={page}
+                  activeFilter={activeFilter}
+                  onFilterChange={onFilterChange}
+                  onContextMenu={handleContextMenu}
+                  isRenaming={
+                    renamingTarget?.id === page.id &&
+                    renamingTarget?.type === "page"
+                  }
+                  renameValue={renameValue}
+                  onRenameChange={setRenameValue}
+                  onRenameCommit={handleRenameCommit}
+                  onRenameCancel={handleRenameCancel}
+                  onStartRename={handleStartRename}
+                />
+              ))}
+
+            {/* Folders containing pages */}
+            {folders.map((folder) => {
+              const folderPages = pages.filter((p) => p.folderId === folder.id);
+              const isExpanded = expandedFolders.has(folder.id);
+
+              return (
+                <SidebarFolder
+                  key={folder.id}
+                  folder={folder}
+                  pages={folderPages}
+                  isExpanded={isExpanded}
+                  activeFilter={activeFilter}
+                  isCreatingPage={isCreatingPage === folder.id}
+                  newPageName={newPageName}
+                  pageInputRef={pageInputRef}
+                  onToggle={toggleFolder}
+                  onContextMenu={handleContextMenu}
+                  onStartCreatePage={startCreatePage}
+                  onFilterChange={onFilterChange}
+                  onCommitCreatePage={commitCreatePage}
+                  onPageInputKeyDown={handlePageInputKeyDown}
+                  setNewPageName={setNewPageName}
+                  isRenaming={
+                    renamingTarget?.id === folder.id &&
+                    renamingTarget?.type === "folder"
+                  }
+                  renameValue={renameValue}
+                  onRenameChange={setRenameValue}
+                  onRenameCommit={handleRenameCommit}
+                  onRenameCancel={handleRenameCancel}
+                  renamingTarget={renamingTarget}
+                  onStartRename={handleStartRename}
+                />
+              );
+            })}
           </div>
         </div>
 
-        <div className="space-y-0.5">
-          {/* Inline create folder */}
-          {isCreatingFolder && (
-            <div>
-              <div className="flex items-center group">
-                <div className="flex flex-1 items-center gap-2 rounded-lg px-3 py-1.5 text-sm text-neutral-700 dark:text-neutral-200">
-                  <span className="w-4 flex justify-center opacity-70">
-                    <SFIcon icon={sfFolder} size={14} />
-                  </span>
-                  <input
-                    ref={folderInputRef}
-                    value={newFolderName}
-                    onChange={(e) => setNewFolderName(e.target.value)}
-                    onBlur={commitCreateFolder}
-                    onKeyDown={handleFolderInputKeyDown}
-                    className="flex-1 w-full min-w-0 bg-transparent outline-none selection:bg-[var(--accent-600)] selection:text-white rounded-sm placeholder-neutral-400"
-                  />
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Inline create page at root */}
-          {isCreatingPage === "root" && (
-            <div className="flex w-full items-center gap-2 rounded-lg px-3 py-1.5 text-sm text-neutral-700 dark:text-neutral-200">
-              <SFIcon icon={sfTag} size={12} className="opacity-70 mx-0.5" />
-              <input
-                ref={pageInputRef}
-                value={newPageName}
-                onChange={(e) => setNewPageName(e.target.value)}
-                onBlur={commitCreatePage}
-                onKeyDown={handlePageInputKeyDown}
-                className="flex-1 w-full min-w-0 bg-transparent outline-none selection:bg-[var(--accent-600)] selection:text-white rounded-sm placeholder-neutral-400"
-              />
-            </div>
-          )}
-
-          {/* Pages without a folder */}
-          {pages
-            .filter((p) => !p.folderId)
-            .map((page) => (
-              <SidebarPage
-                key={page.id}
-                page={page}
-                activeFilter={activeFilter}
-                onFilterChange={onFilterChange}
-                onContextMenu={handleContextMenu}
-                isRenaming={
-                  renamingTarget?.id === page.id &&
-                  renamingTarget?.type === "page"
-                }
-                renameValue={renameValue}
-                onRenameChange={setRenameValue}
-                onRenameCommit={handleRenameCommit}
-                onRenameCancel={handleRenameCancel}
-                onStartRename={handleStartRename}
-              />
-            ))}
-
-          {/* Folders containing pages */}
-          {folders.map((folder) => {
-            const folderPages = pages.filter((p) => p.folderId === folder.id);
-            const isExpanded = expandedFolders.has(folder.id);
-
-            return (
-              <SidebarFolder
-                key={folder.id}
-                folder={folder}
-                pages={folderPages}
-                isExpanded={isExpanded}
-                activeFilter={activeFilter}
-                isCreatingPage={isCreatingPage === folder.id}
-                newPageName={newPageName}
-                pageInputRef={pageInputRef}
-                onToggle={toggleFolder}
-                onContextMenu={handleContextMenu}
-                onStartCreatePage={startCreatePage}
-                onFilterChange={onFilterChange}
-                onCommitCreatePage={commitCreatePage}
-                onPageInputKeyDown={handlePageInputKeyDown}
-                setNewPageName={setNewPageName}
-                isRenaming={
-                  renamingTarget?.id === folder.id &&
-                  renamingTarget?.type === "folder"
-                }
-                renameValue={renameValue}
-                onRenameChange={setRenameValue}
-                onRenameCommit={handleRenameCommit}
-                onRenameCancel={handleRenameCancel}
-                renamingTarget={renamingTarget}
-                onStartRename={handleStartRename}
-              />
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Footer */}
-      <div className="p-2 *:select-none">
-        {/* Tags Section */}
-        <p title="Number of items" className="flex items-center gap-2">
-          <SFIcon
-            icon={sfTag}
-            size={16}
-            className="text-black/50 dark:text-white/30"
-          />
-          <span className="text-xs text-neutral-900 dark:text-white/25">
-            {numberOfItems !== undefined
-              ? `${numberOfItems} ${numberOfItems > 1 ? "items" : "item"}`
-              : `-- items`}
-          </span>
-        </p>
-        {/* Size Section */}
-        {totalSize && (
-          <p
-            title="Total size of all items"
-            className="flex items-center gap-2 mt-1"
-          >
+        {/* Footer */}
+        <div className="p-2 *:select-none">
+          {/* Tags Section */}
+          <p title="Number of items" className="flex items-center gap-2">
             <SFIcon
-              icon={sfExternaldrive}
+              icon={sfTag}
               size={16}
               className="text-black/50 dark:text-white/30"
             />
             <span className="text-xs text-neutral-900 dark:text-white/25">
-              {totalSize}
+              {numberOfItems !== undefined
+                ? `${numberOfItems} ${numberOfItems > 1 ? "items" : "item"}`
+                : `-- items`}
             </span>
           </p>
-        )}
-        {/* <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
-          Recent Tags
-        </h3>
-        <div className="flex flex-wrap gap-1.5">
-          {["minecraft", "genshin", "sample", "todo"].map((tag) => (
-            <button
-              key={tag}
-              className="rounded-full bg-neutral-200 px-2.5 py-0.5 text-xs font-medium text-neutral-700 hover:bg-neutral-300 dark:bg-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-700"
+          {/* Size Section */}
+          {totalSize && (
+            <p
+              title="Total size of all items"
+              className="flex items-center gap-2 mt-1"
             >
-              {tag}
-            </button>
-          ))}
-        </div> */}
+              <SFIcon
+                icon={sfExternaldrive}
+                size={16}
+                className="text-black/50 dark:text-white/30"
+              />
+              <span className="text-xs text-neutral-900 dark:text-white/25">
+                {totalSize}
+              </span>
+            </p>
+          )}
+        </div>
       </div>
 
       <ContextMenu

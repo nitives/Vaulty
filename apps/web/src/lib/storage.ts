@@ -1,4 +1,5 @@
 import { Item } from "@/components";
+import { getElectronAPI } from "@/lib/electron";
 
 // Stored item type (dates serialized as ISO strings)
 export interface StoredItem {
@@ -96,14 +97,6 @@ export function pageToStored(page: Page): StoredPage {
 
 export function storedToPage(stored: StoredPage): Page {
   return { ...stored, createdAt: new Date(stored.createdAt) };
-}
-
-// Get Electron API if available (type-safe narrowing)
-function getElectronAPI() {
-  if (typeof window !== "undefined" && window.electronAPI) {
-    return window.electronAPI;
-  }
-  return null;
 }
 
 // Load all items from storage

@@ -6,12 +6,11 @@ import {
   type AccentColor,
   type AppIconTheme,
 } from "@/lib/settings";
-import { Icon, type IconName } from "./Icon";
-import { Toggle } from "./Toggle";
-import { Select } from "./Select";
-import { AccentColorPicker } from "./AccentColorPicker";
-import { Slider } from "./Slider";
-import { Button } from "./Button";
+import { Toggle } from "../ui/Toggle";
+import { Select } from "../ui/Select";
+import { AccentColorPicker } from "../ui/AccentColorPicker";
+import { Slider } from "../ui/Slider";
+import { Button } from "../ui/Button";
 import SFIcon from "@bradleyhodges/sfsymbols-react";
 import {
   sfBookClosed,
@@ -436,21 +435,15 @@ function StorageSection() {
     }
   };
 
-  const handleClearData = async () => {
+  const handleOpenVault = async () => {
     try {
-      if (clearConfirmText !== "Clear all my data") return;
-
-      const result = await window.electronAPI?.clearAllData();
-      if (result?.success) {
-        alert("All data has been permanently deleted.");
-        setShowClearConfirm(false);
-        setClearConfirmText("");
-        // Reload to safely reflect empty state natively
-        window.location.reload();
+      const result = await window.electronAPI?.openVaultFolder();
+      if (result && !result.success) {
+        alert(`Failed to open vault: ${result.error}`);
       }
     } catch (e) {
       console.error(e);
-      alert("Failed to clear data.");
+      alert("An error occurred trying to open the vault folder.");
     }
   };
 
@@ -471,6 +464,13 @@ function StorageSection() {
             onClick={handleChangeLocation}
           >
             Change location...
+          </Button>
+          <Button
+            variant="base"
+            className="text-xs px-3 py-1.5"
+            onClick={handleOpenVault}
+          >
+            Open vault folder
           </Button>
           <Button
             variant="base"
