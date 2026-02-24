@@ -21,6 +21,13 @@ interface InputBarProps {
   ) => void | Promise<void>;
 }
 
+interface MediaItem {
+  id: string;
+  dataUrl: string;
+  name: string;
+  audioMetadata?: Record<string, any>;
+}
+
 export function InputBar({ onSubmit }: InputBarProps) {
   const { settings } = useSettings();
   const [content, setContent] = useState("");
@@ -28,12 +35,7 @@ export function InputBar({ onSubmit }: InputBarProps) {
   const [tagInput, setTagInput] = useState("");
   const [isDragging, setIsDragging] = useState(false);
   const [showTagInput, setShowTagInput] = useState(false);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [imageName, setImageName] = useState<string | null>(null);
-  const [audioMetadata, setAudioMetadata] = useState<Record<
-    string,
-    any
-  > | null>(null);
+  const [mediaItems, setMediaItems] = useState<MediaItem[]>([]);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const tagInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -43,13 +45,13 @@ export function InputBar({ onSubmit }: InputBarProps) {
   useEffect(() => setMounted(true), []);
 
   // Determine if we should show compact layout
-  // Compact mode is true when the setting is on AND content is single-line
   const isMultiLine = content.includes("\n") || content.length > 100;
+  const hasMedia = mediaItems.length > 0;
   const isCompact =
     mounted &&
     settings.compactMode &&
     !isMultiLine &&
-    !imagePreview &&
+    !hasMedia &&
     !showTagInput;
 
   // Auto-resize textarea based on content
@@ -87,15 +89,15 @@ export function InputBar({ onSubmit }: InputBarProps) {
       setIsDragging(false);
 
       const files = Array.from(e.dataTransfer?.files ?? []);
-      const mediaFile = files.find(
+      const mediaFiles = files.filter(
         (f) =>
           f.type.startsWith("image/") ||
           f.type.startsWith("audio/") ||
           f.type.startsWith("video/"),
       );
 
-      if (mediaFile) {
-        handleMediaFile(mediaFile);
+      if (mediaFiles.length > 0) {
+        mediaFiles.forEach((f) => handleMediaFile(f));
         return;
       }
 
@@ -117,27 +119,39 @@ export function InputBar({ onSubmit }: InputBarProps) {
   }, []);
 
   const handleMediaFile = useCallback((file: File) => {
+    const itemId = crypto.randomUUID();
+
+    // Attempt ID3 parsing for audio
     if (file.type.startsWith("audio/")) {
       jsmediatags.read(file, {
         onSuccess: function (tag: any) {
-          const tags = tag.tags;
+          const t = tag.tags;
           let base64String: string | undefined;
 
-          if (tags.picture) {
+          if (t.picture) {
             let base64 = "";
-            for (let i = 0; i < tags.picture.data.length; i++) {
-              base64 += String.fromCharCode(tags.picture.data[i]);
+            for (let i = 0; i < t.picture.data.length; i++) {
+              base64 += String.fromCharCode(t.picture.data[i]);
             }
-            base64String = `data:${tags.picture.format};base64,${btoa(base64)}`;
+            base64String = `data:${t.picture.format};base64,${btoa(base64)}`;
           }
 
-          setAudioMetadata({
-            title: tags.title || file.name,
-            artist: tags.artist,
-            album: tags.album,
-            year: tags.year,
-            image: base64String,
-          });
+          setMediaItems((prev) =>
+            prev.map((item) =>
+              item.id === itemId
+                ? {
+                    ...item,
+                    audioMetadata: {
+                      title: t.title || file.name,
+                      artist: t.artist,
+                      album: t.album,
+                      year: t.year,
+                      image: base64String,
+                    },
+                  }
+                : item,
+            ),
+          );
         },
         onError: function (error: any) {
           console.error("Error reading audio metadata:", error);
@@ -148,8 +162,14 @@ export function InputBar({ onSubmit }: InputBarProps) {
     const reader = new FileReader();
     reader.onload = (e) => {
       const dataUrl = e.target?.result as string;
-      setImagePreview(dataUrl);
-      setImageName(file.name || file.type.split("/")[0]);
+      setMediaItems((prev) => [
+        ...prev,
+        {
+          id: itemId,
+          dataUrl,
+          name: file.name || file.type.split("/")[0],
+        },
+      ]);
       setShowTagInput(true);
       setTimeout(() => tagInputRef.current?.focus(), 0);
     };
@@ -180,41 +200,44 @@ export function InputBar({ onSubmit }: InputBarProps) {
   );
 
   const handleSubmit = useCallback(() => {
-    if (!content.trim() && !imagePreview) return;
+    if (!content.trim() && mediaItems.length === 0) return;
 
-    let type: "note" | "image" | "link" | "audio" | "video" = "note";
-    if (imagePreview) {
-      if (imagePreview.startsWith("data:video/")) type = "video";
-      else if (imagePreview.startsWith("data:audio/")) type = "audio";
-      else type = "image";
-    } else if (content.match(/^https?:\/\//)) {
-      type = "link";
+    if (mediaItems.length > 0) {
+      // Submit each media item with the same tags
+      for (const item of mediaItems) {
+        let type: "note" | "image" | "link" | "audio" | "video" = "image";
+        if (item.dataUrl.startsWith("data:video/")) type = "video";
+        else if (item.dataUrl.startsWith("data:audio/")) type = "audio";
+
+        onSubmit(
+          content.trim(),
+          tags,
+          type,
+          item.dataUrl,
+          item.name,
+          item.audioMetadata,
+        );
+      }
+    } else {
+      // Text-only or link submission
+      const type = content.match(/^https?:\/\//) ? "link" : "note";
+      onSubmit(content.trim(), tags, type);
     }
 
-    onSubmit(
-      content.trim(),
-      tags,
-      type,
-      imagePreview ?? undefined,
-      imageName ?? undefined,
-      audioMetadata ?? undefined,
-    );
     setContent("");
     setTags([]);
     setTagInput("");
     setShowTagInput(false);
-    setImagePreview(null);
-    setImageName(null);
-    setAudioMetadata(null);
+    setMediaItems([]);
     inputRef.current?.focus();
-  }, [content, tags, imagePreview, imageName, audioMetadata, onSubmit]);
+  }, [content, tags, mediaItems, onSubmit]);
 
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       if (e.ctrlKey || e.metaKey) {
         handleSubmit();
-      } else if (content.trim()) {
+      } else if (content.trim() || mediaItems.length > 0) {
         if (showTagInput || tags.length > 0) {
           handleSubmit();
         } else {
@@ -261,25 +284,24 @@ export function InputBar({ onSubmit }: InputBarProps) {
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      handleMediaFile(file);
-    }
+    const files = Array.from(e.target.files ?? []);
+    files.forEach((file) => handleMediaFile(file));
     e.target.value = "";
   };
 
-  const clearMedia = () => {
-    setImagePreview(null);
-    setImageName(null);
-    setAudioMetadata(null);
-    if (!content.trim()) {
-      setShowTagInput(false);
-      setTags([]);
-      setTagInput("");
-    }
+  const removeMediaItem = (id: string) => {
+    setMediaItems((prev) => {
+      const next = prev.filter((item) => item.id !== id);
+      if (next.length === 0 && !content.trim()) {
+        setShowTagInput(false);
+        setTags([]);
+        setTagInput("");
+      }
+      return next;
+    });
   };
 
-  const hasContent = content.trim() || imagePreview;
+  const hasContent = content.trim() || hasMedia;
 
   // Add button
   const addButton = (
@@ -317,9 +339,9 @@ export function InputBar({ onSubmit }: InputBarProps) {
     </button>
   );
 
-  // Tag row content (shared between layouts)
+  // Tag row content
   const showTags =
-    (showTagInput || tags.length > 0) && (content.trim() || imagePreview);
+    (showTagInput || tags.length > 0) && (content.trim() || hasMedia);
 
   return (
     <>
@@ -352,11 +374,12 @@ export function InputBar({ onSubmit }: InputBarProps) {
         </div>
       )}
 
-      {/* Hidden file input */}
+      {/* Hidden file input — multiple allowed */}
       <input
         ref={fileInputRef}
         type="file"
         accept="image/*,video/*,audio/*"
+        multiple
         onChange={handleFileChange}
         className="hidden"
       />
@@ -428,54 +451,60 @@ export function InputBar({ onSubmit }: InputBarProps) {
         }}
         suppressHydrationWarning
       >
-        {/* Image/Audio Preview */}
+        {/* Media Previews — horizontal scrollable strip */}
         <AnimatePresence>
-          {imagePreview && !isCompact && (
+          {hasMedia && !isCompact && (
             <motion.div
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: "auto" }}
               exit={{ opacity: 0, height: 0 }}
-              className="group/img relative mb-3 inline-block overflow-hidden"
+              className="mb-3 overflow-hidden"
             >
-              {imagePreview.startsWith("data:image/") ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={imagePreview}
-                  alt="Preview"
-                  className="max-h-32 rounded-lg object-cover"
-                />
-              ) : imagePreview.startsWith("data:video/") ? (
-                <video
-                  src={imagePreview}
-                  className="max-h-32 rounded-lg object-cover bg-black"
-                  muted
-                />
-              ) : audioMetadata ? (
-                <AudioPreview
-                  metadata={audioMetadata}
-                  filename={imageName || "Audio File"}
-                />
-              ) : (
-                <div className="h-16 px-4 py-2 flex items-center justify-center rounded-lg bg-neutral-100 dark:bg-neutral-800 text-sm font-medium">
-                  Audio File
-                </div>
-              )}
-              <button
-                onClick={clearMedia}
-                className={clsx(
-                  "cursor-pointer",
-                  "absolute top-2 right-2 transition-all",
-                  "opacity-0 group-hover/img:opacity-100",
-                  "flex items-center justify-center",
-                  "rounded-full p-1 size-5",
-                  "backdrop-blur-xl backdrop-saturate-150",
-                  "bg-black/10 hover:bg-black/25 dark:bg-white/10 dark:hover:bg-white/25",
-                  "text-black/25 hover:text-black/50 dark:text-white/25 dark:hover:text-white/50",
-                )}
-                aria-label="Remove media"
-              >
-                <SFIcon icon={sfXmark} size={8} weight={2} />
-              </button>
+              <div className="flex gap-2 overflow-x-auto pb-1">
+                {mediaItems.map((item) => (
+                  <div key={item.id} className="group/img relative shrink-0">
+                    {item.dataUrl.startsWith("data:image/") ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={item.dataUrl}
+                        alt={item.name}
+                        className="h-24 rounded-lg object-cover"
+                      />
+                    ) : item.dataUrl.startsWith("data:video/") ? (
+                      <video
+                        src={item.dataUrl}
+                        className="h-24 rounded-lg object-cover bg-black"
+                        muted
+                      />
+                    ) : item.audioMetadata ? (
+                      <AudioPreview
+                        metadata={item.audioMetadata}
+                        filename={item.name || "Audio File"}
+                      />
+                    ) : (
+                      <div className="h-24 px-4 py-2 flex items-center justify-center rounded-lg bg-neutral-100 dark:bg-neutral-800 text-sm font-medium">
+                        {item.name}
+                      </div>
+                    )}
+                    <button
+                      onClick={() => removeMediaItem(item.id)}
+                      className={clsx(
+                        "cursor-pointer",
+                        "absolute top-1.5 right-1.5 transition-all",
+                        "opacity-0 group-hover/img:opacity-100",
+                        "flex items-center justify-center",
+                        "rounded-full p-1 size-5",
+                        "backdrop-blur-xl backdrop-saturate-150",
+                        "bg-black/10 hover:bg-black/25 dark:bg-white/10 dark:hover:bg-white/25",
+                        "text-black/25 hover:text-black/50 dark:text-white/25 dark:hover:text-white/50",
+                      )}
+                      aria-label={`Remove ${item.name}`}
+                    >
+                      <SFIcon icon={sfXmark} size={8} weight={2} />
+                    </button>
+                  </div>
+                ))}
+              </div>
             </motion.div>
           )}
         </AnimatePresence>

@@ -277,8 +277,8 @@ export default function Home() {
                   "border border-neutral-200 dark:border-neutral-700",
                   "hover:bg-[var(--accent-50)] dark:hover:bg-[var(--accent-950)] transition-colors",
                   settings.inputBarPosition === "bottom"
-                    ? "bottom-24"
-                    : "top-24",
+                    ? "compact:bottom-18 bottom-24"
+                    : "compact:top-18 top-24",
                 )}
                 aria-label="Scroll to latest"
               >

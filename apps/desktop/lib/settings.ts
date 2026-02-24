@@ -11,11 +11,20 @@ export interface AppSettings {
   backgroundMaterial?: BackgroundMaterial;
   theme?: "system" | "light" | "dark";
   iconTheme?: AppIconTheme;
+  accentColor?: string;
   compactMode?: boolean;
   startCollapsed?: boolean;
   confirmBeforeDelete?: boolean;
-  vaultyDataPath?: string;
+  inputBarPosition?: "top" | "bottom";
+  backgroundTintOpacityLight?: number;
+  backgroundTintOpacityDark?: number;
+  reduceMotion?: boolean;
+  hideNotesWhenFilteringBySize?: boolean;
+  showImageSize?: boolean;
   showImageFileName?: boolean;
+  useFlorence?: boolean;
+  sidebarTransparent?: boolean;
+  vaultyDataPath?: string;
 }
 
 export function loadSettings(): AppSettings {

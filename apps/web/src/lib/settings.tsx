@@ -261,10 +261,10 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
       const next = { ...prev, ...normalizedPatch };
       // Persist to localStorage for fast reload
       saveToLocalStorage(next);
-      // Persist to Electron asynchronously
+      // Persist full settings to Electron so the file always has every field
       const api = getElectronAPI();
       if (api?.setSettings) {
-        api.setSettings(normalizedPatch);
+        api.setSettings(next);
       }
       return next;
     });
