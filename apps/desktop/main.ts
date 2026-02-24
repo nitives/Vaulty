@@ -1,4 +1,12 @@
-import { app, BrowserWindow, ipcMain, nativeTheme, shell } from "electron";
+import {
+  app,
+  BrowserWindow,
+  ipcMain,
+  nativeTheme,
+  shell,
+  Tray,
+  Menu,
+} from "electron";
 import path from "path";
 import { spawn, ChildProcess } from "child_process";
 import fs from "fs";
@@ -12,6 +20,7 @@ import {
   registerProtocolHandler,
 } from "./lib/protocol";
 import { registerIpcHandlers } from "./lib/ipc";
+import { startLocalApi } from "./lib/api";
 import {
   canCheckForUpdates,
   checkForUpdates,
@@ -29,6 +38,9 @@ let nextServer: ChildProcess | null = null;
 const DEV_SERVER_URL = "http://localhost:3000";
 const PROD_SERVER_PORT = 3000;
 let startupUpdateCheckRan = false;
+
+let tray: Tray | null = null;
+let isQuitting = false;
 
 function createWindow(): void {
   const settings = loadSettings();
@@ -73,7 +85,11 @@ function createWindow(): void {
 
   // Graceful window show to avoid white flash
   mainWindow.once("ready-to-show", () => {
-    mainWindow?.show();
+    if (settings.startMinimized && !isDev) {
+      // Don't show if we are meant to start minimized
+    } else {
+      mainWindow?.show();
+    }
   });
 
   // Handle external links - open in default browser
@@ -84,8 +100,65 @@ function createWindow(): void {
     return { action: "deny" };
   });
 
+  mainWindow.on("close", (event) => {
+    if (!isQuitting) {
+      const currentSettings = loadSettings();
+      if (currentSettings.closeToTray !== false) {
+        event.preventDefault();
+        mainWindow?.hide();
+      }
+    }
+  });
+
   mainWindow.on("closed", () => {
     mainWindow = null;
+  });
+}
+
+function createTray(): void {
+  const settings = loadSettings();
+  const iconPath = path.join(
+    __dirname,
+    "..",
+    "icons",
+    "ico",
+    "icon-rounded.ico",
+  );
+
+  if (!fs.existsSync(iconPath)) return;
+
+  tray = new Tray(iconPath);
+
+  const contextMenu = Menu.buildFromTemplate([
+    {
+      label: "Open Vaulty",
+      click: () => {
+        if (!mainWindow) {
+          createWindow();
+        } else {
+          mainWindow.show();
+        }
+      },
+    },
+    { type: "separator" },
+    {
+      label: "Quit",
+      click: () => {
+        isQuitting = true;
+        app.quit();
+      },
+    },
+  ]);
+
+  tray.setToolTip("Vaulty");
+  tray.setContextMenu(contextMenu);
+
+  tray.on("click", () => {
+    if (mainWindow) {
+      mainWindow.isVisible() ? mainWindow.hide() : mainWindow.show();
+    } else {
+      createWindow();
+    }
   });
 }
 
@@ -94,12 +167,7 @@ async function startNextServer(): Promise<void> {
 
   return new Promise((resolve, reject) => {
     const webAppPath = getWebAppPath(isDev);
-    let serverPath = path.join(
-      webAppPath,
-      ".next",
-      "standalone",
-      "server.js",
-    );
+    let serverPath = path.join(webAppPath, ".next", "standalone", "server.js");
     const nestedServerPath = path.join(
       webAppPath,
       ".next",
@@ -229,7 +297,9 @@ app.whenReady().then(async () => {
   registerUpdateIpcHandlers();
 
   createWindow();
+  createTray();
   setupAutoUpdates(() => mainWindow);
+  startLocalApi(() => mainWindow);
   await startNextServer();
   await loadApp();
 
@@ -254,6 +324,7 @@ app.on("activate", async () => {
 });
 
 app.on("before-quit", () => {
+  isQuitting = true;
   if (nextServer) {
     nextServer.kill();
     nextServer = null;

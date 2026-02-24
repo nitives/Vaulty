@@ -277,6 +277,37 @@ function BehaviorSection() {
         />
       </SettingsRow>
       <SettingsRow
+        label="Open Vaulty on Startup"
+        description="Launch Vaulty automatically when your computer starts"
+      >
+        <Toggle
+          checked={settings.openOnStartup ?? false}
+          onChange={(v) => {
+            update({ openOnStartup: v });
+            window.electronAPI?.changeStartupSettings?.(v);
+          }}
+        />
+      </SettingsRow>
+      <SettingsRow
+        label="Start minimized"
+        description="Launch the app in the background when it starts. (Requires 'Open on Startup')"
+      >
+        <Toggle
+          checked={settings.startMinimized ?? false}
+          disabled={!(settings.openOnStartup ?? false)}
+          onChange={(v) => update({ startMinimized: v })}
+        />
+      </SettingsRow>
+      <SettingsRow
+        label="Close button minimizes to tray"
+        description="Keep Vaulty running in the background when closing the window"
+      >
+        <Toggle
+          checked={settings.closeToTray ?? true}
+          onChange={(v) => update({ closeToTray: v })}
+        />
+      </SettingsRow>
+      <SettingsRow
         label="Confirm before deleting"
         description="Show confirmation dialog when deleting items"
       >

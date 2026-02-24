@@ -100,6 +100,13 @@ export function registerIpcHandlers(
     return updated;
   });
 
+  ipcMain.handle("settings:startup", (_event, openOnStartup: boolean) => {
+    app.setLoginItemSettings({
+      openAtLogin: openOnStartup,
+      path: app.getPath("exe"),
+    });
+  });
+
   // Theme
   ipcMain.handle("theme:set", (_event, theme: "system" | "light" | "dark") => {
     nativeTheme.themeSource = theme;

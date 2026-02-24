@@ -45,6 +45,9 @@ export interface AppSettings {
   showImageFileName?: boolean;
   useFlorence?: boolean;
   sidebarTransparent?: boolean;
+  openOnStartup?: boolean;
+  startMinimized?: boolean;
+  closeToTray?: boolean;
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -66,6 +69,9 @@ export const DEFAULT_SETTINGS: AppSettings = {
   showImageFileName: false,
   useFlorence: false,
   sidebarTransparent: false,
+  openOnStartup: false,
+  startMinimized: false,
+  closeToTray: true,
 };
 
 // -- localStorage helpers (for fast sync access on page load) --

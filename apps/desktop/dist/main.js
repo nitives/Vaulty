@@ -13,6 +13,7 @@ const storage_1 = require("./lib/storage");
 const icon_1 = require("./lib/icon");
 const protocol_1 = require("./lib/protocol");
 const ipc_1 = require("./lib/ipc");
+const api_1 = require("./lib/api");
 const updates_1 = require("./lib/updates");
 const isDev = !electron_1.app.isPackaged;
 let mainWindow = null;
@@ -182,6 +183,7 @@ electron_1.app.whenReady().then(async () => {
     registerUpdateIpcHandlers();
     createWindow();
     (0, updates_1.setupAutoUpdates)(() => mainWindow);
+    (0, api_1.startLocalApi)(() => mainWindow);
     await startNextServer();
     await loadApp();
     if (!startupUpdateCheckRan) {

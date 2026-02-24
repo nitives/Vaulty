@@ -27,16 +27,27 @@ chrome.runtime.onInstalled.addListener(() => {
 });
 
 async function saveToVaulty(data) {
-  try {
-    const response = await fetch(LOCAL_API, {
+  const tryFetch = async (url) => {
+    return await fetch(url, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
       body: JSON.stringify(data),
     });
+  };
 
-    if (response.ok) {
+  try {
+    let response;
+    try {
+      response = await tryFetch(LOCAL_API);
+    } catch (e) {
+      // Fallback for dev server if port 41234 is busy or it's running on 41235
+      const DEV_API = "http://127.0.0.1:41235/save";
+      response = await tryFetch(DEV_API);
+    }
+
+    if (response && response.ok) {
       chrome.notifications.create({
         type: "basic",
         iconUrl: "icon128.png",
@@ -89,11 +100,10 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
       content: info.linkUrl,
     });
   } else if (info.menuItemId === "vaulty-save-image") {
-    // Send the image URL to Vaulty. The Vaulty app will download it.
     saveToVaulty({
       type: "image",
       imageUrlToDownload: info.srcUrl,
-      content: info.pageUrl || "", // Optional context
+      content: info.pageUrl || "",
     });
   }
 });

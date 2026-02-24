@@ -1,8 +1,9 @@
 import http from "http";
+import path from "path";
 import { app, BrowserWindow } from "electron";
-import { loadItems, saveItems, StoredItem } from "./storage";
+import { loadItems, saveItems, StoredItem, saveImage } from "./storage";
 
-export const LOCAL_API_PORT = 41234;
+export const LOCAL_API_PORT = app.isPackaged ? 41234 : 41235;
 
 export function startLocalApi(
   getMainWindow: () => BrowserWindow | null,
@@ -25,7 +26,7 @@ export function startLocalApi(
         body += chunk.toString();
       });
 
-      req.on("end", () => {
+      req.on("end", async () => {
         try {
           const data = JSON.parse(body);
 
@@ -40,6 +41,37 @@ export function startLocalApi(
             tags,
             createdAt: new Date().toISOString(),
           };
+
+          if (type === "image" && data.imageUrlToDownload) {
+            try {
+              const fetchOptions: RequestInit = {
+                method: "GET",
+              };
+              if (content) {
+                fetchOptions.headers = { Referer: content };
+              }
+              const imgRes = await fetch(data.imageUrlToDownload, fetchOptions);
+              if (imgRes.ok) {
+                const arrayBuffer = await imgRes.arrayBuffer();
+                const buffer = Buffer.from(arrayBuffer);
+                const base64Data = buffer.toString("base64");
+
+                const urlObj = new URL(data.imageUrlToDownload);
+                let ext = path.extname(urlObj.pathname);
+                if (!ext) ext = ".png";
+
+                const filename = `${newItem.id}${ext}`;
+                const saveResult = saveImage(base64Data, filename);
+
+                if (saveResult.success) {
+                  newItem.imageUrl = saveResult.path;
+                  newItem.size = saveResult.size;
+                }
+              }
+            } catch (err) {
+              console.error("Failed to download image from extension:", err);
+            }
+          }
 
           const items = loadItems();
           items.unshift(newItem);

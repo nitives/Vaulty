@@ -83,6 +83,8 @@ contextBridge.exposeInMainWorld("electronAPI", {
   getSettings: () => ipcRenderer.invoke("settings:get"),
   setSettings: (patch: Record<string, unknown>) =>
     ipcRenderer.invoke("settings:set", patch),
+  changeStartupSettings: (openOnStartup: boolean) =>
+    ipcRenderer.invoke("settings:startup", openOnStartup),
   // Theme sync (sets nativeTheme.themeSource in main process)
   setNativeTheme: (theme: string) => ipcRenderer.invoke("theme:set", theme),
   // Accent color (Windows only)
@@ -151,6 +153,7 @@ declare global {
       setSettings: (
         patch: Record<string, unknown>,
       ) => Promise<Record<string, unknown>>;
+      changeStartupSettings?: (openOnStartup: boolean) => Promise<void>;
       setNativeTheme: (theme: string) => Promise<void>;
       getWindowsAccentColor: () => Promise<string | null>;
       onAccentColorChanged?: (callback: (color: string) => void) => () => void;

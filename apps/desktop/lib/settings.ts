@@ -25,6 +25,9 @@ export interface AppSettings {
   useFlorence?: boolean;
   sidebarTransparent?: boolean;
   vaultyDataPath?: string;
+  openOnStartup?: boolean;
+  startMinimized?: boolean;
+  closeToTray?: boolean;
 }
 
 export function loadSettings(): AppSettings {

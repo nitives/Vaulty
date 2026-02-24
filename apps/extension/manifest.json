@@ -5,7 +5,8 @@
   "description": "Quickly save links, text, and images to Vaulty.",
   "permissions": ["contextMenus", "activeTab", "notifications"],
   "background": {
-    "service_worker": "background.js"
+    "service_worker": "background.js",
+    "scripts": ["background.js"]
   },
   "action": {
     "default_title": "Save to Vaulty"
@@ -14,5 +15,11 @@
     "16": "icon16.png",
     "48": "icon48.png",
     "128": "icon128.png"
+  },
+  "host_permissions": ["http://127.0.0.1:41234/*", "http://127.0.0.1:41235/*"],
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "quicksave@vaulty.nitives.com"
+    }
   }
 }

@@ -6,8 +6,10 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.LOCAL_API_PORT = void 0;
 exports.startLocalApi = startLocalApi;
 const http_1 = __importDefault(require("http"));
+const path_1 = __importDefault(require("path"));
+const electron_1 = require("electron");
 const storage_1 = require("./storage");
-exports.LOCAL_API_PORT = 41234;
+exports.LOCAL_API_PORT = electron_1.app.isPackaged ? 41234 : 41235;
 function startLocalApi(getMainWindow) {
     const server = http_1.default.createServer((req, res) => {
         // Add CORS headers so extensions can talk to it
@@ -24,7 +26,7 @@ function startLocalApi(getMainWindow) {
             req.on("data", (chunk) => {
                 body += chunk.toString();
             });
-            req.on("end", () => {
+            req.on("end", async () => {
                 try {
                     const data = JSON.parse(body);
                     const type = data.type || "note";
@@ -37,6 +39,35 @@ function startLocalApi(getMainWindow) {
                         tags,
                         createdAt: new Date().toISOString(),
                     };
+                    if (type === "image" && data.imageUrlToDownload) {
+                        try {
+                            const fetchOptions = {
+                                method: "GET",
+                            };
+                            if (content) {
+                                fetchOptions.headers = { Referer: content };
+                            }
+                            const imgRes = await fetch(data.imageUrlToDownload, fetchOptions);
+                            if (imgRes.ok) {
+                                const arrayBuffer = await imgRes.arrayBuffer();
+                                const buffer = Buffer.from(arrayBuffer);
+                                const base64Data = buffer.toString("base64");
+                                const urlObj = new URL(data.imageUrlToDownload);
+                                let ext = path_1.default.extname(urlObj.pathname);
+                                if (!ext)
+                                    ext = ".png";
+                                const filename = `${newItem.id}${ext}`;
+                                const saveResult = (0, storage_1.saveImage)(base64Data, filename);
+                                if (saveResult.success) {
+                                    newItem.imageUrl = saveResult.path;
+                                    newItem.size = saveResult.size;
+                                }
+                            }
+                        }
+                        catch (err) {
+                            console.error("Failed to download image from extension:", err);
+                        }
+                    }
                     const items = (0, storage_1.loadItems)();
                     items.unshift(newItem);
                     (0, storage_1.saveItems)(items);

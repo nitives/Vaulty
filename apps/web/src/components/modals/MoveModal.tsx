@@ -56,10 +56,18 @@ export function MoveModal({ isOpen, onClose, onMove }: MoveModalProps) {
             aria-modal="true"
             aria-labelledby="move-modal-title"
             className={clsx(
-              "w-full max-w-sm overflow-hidden rounded-xl border p-6 shadow-xl flex flex-col max-h-[80vh]",
-              "bg-white/80 dark:bg-neutral-900/80 backdrop-blur-[24px]",
+              // "w-full max-w-sm overflow-hidden rounded-xl border p-6 shadow-xl flex flex-col max-h-[80vh]",
+              // "bg-white/80 dark:bg-neutral-900/80 backdrop-blur-[24px]",
+              // "border-neutral-200 dark:border-neutral-700",
+              // "transparent:bg-white/60 transparent:dark:bg-neutral-900/60",
+
+              "relative flex max-h-[80vh] w-full max-w-sm overflow-hidden rounded-xl window-b",
+              "p-6 shadow-xl flex flex-col",
+              "bg-white/75 dark:bg-neutral-900/85",
+              "transparent:bg-neutral-100/95 transparent:dark:bg-neutral-900/95",
               "border-neutral-200 dark:border-neutral-700",
-              "transparent:bg-white/60 transparent:dark:bg-neutral-900/60",
+              "transparent:border-white/25 transparent:dark:border-white/10",
+              "backdrop-blur-[24px]",
             )}
             onClick={(e) => e.stopPropagation()}
             initial={{ opacity: 0, scale: 0.95 }}
