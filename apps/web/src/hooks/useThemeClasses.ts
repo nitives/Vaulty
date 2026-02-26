@@ -49,35 +49,74 @@ export function useThemeClasses(settings: AppSettings) {
 
   // Sync accent color attribute with settings
   useEffect(() => {
-    document.documentElement.setAttribute(
-      "data-accent",
-      settings.accentColor ?? "blue",
-    );
+    const root = document.documentElement;
+    root.setAttribute("data-accent", settings.accentColor ?? "blue");
 
-    // If multicolor is selected, fetch and apply Windows accent color
+    // Multicolor maps to Windows accent color in real time.
     if (
-      settings.accentColor === "multicolor" &&
-      window.electronAPI?.getWindowsAccentColor
+      settings.accentColor !== "multicolor" ||
+      !window.electronAPI?.getWindowsAccentColor
     ) {
-      const applyWindowsColor = (color: string | null) => {
-        if (color) {
-          // Set the base color - CSS uses oklch to derive all shades
-          document.documentElement.style.setProperty(
-            "--windows-accent-base",
-            color,
-          );
-        }
-      };
-
-      // 1. Fetch current color immediately on mount
-      window.electronAPI.getWindowsAccentColor().then(applyWindowsColor);
-
-      // 2. Listen for live system changes if supported
-      if (window.electronAPI.onAccentColorChanged) {
-        const unsubscribe =
-          window.electronAPI.onAccentColorChanged(applyWindowsColor);
-        return () => unsubscribe();
-      }
+      root.style.removeProperty("--windows-accent-base");
+      return;
     }
+
+    let disposed = false;
+
+    const normalizeWindowsAccent = (color: string | null): string | null => {
+      if (!color) return null;
+      const hex = color.trim().replace(/^#/, "");
+      if (!/^[\da-fA-F]+$/.test(hex)) return null;
+      if (hex.length === 6) return `#${hex.toLowerCase()}`;
+      // Electron returns RGBA for system accent values; drop alpha for CSS base.
+      if (hex.length === 8) return `#${hex.slice(0, 6).toLowerCase()}`;
+      return null;
+    };
+
+    const applyWindowsColor = (rawColor: string | null) => {
+      const color = normalizeWindowsAccent(rawColor);
+      if (!color || disposed) return;
+      root.style.setProperty("--windows-accent-base", color);
+    };
+
+    const refreshWindowsColor = async () => {
+      try {
+        const color = await window.electronAPI.getWindowsAccentColor();
+        applyWindowsColor(color);
+      } catch {
+        // Ignore bridge failures; CSS fallback color remains in use.
+      }
+    };
+
+    // Initial sync when entering multicolor mode.
+    void refreshWindowsColor();
+
+    // Re-sync when app regains focus or returns to visible state.
+    const onFocus = () => void refreshWindowsColor();
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        void refreshWindowsColor();
+      }
+    };
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVisibilityChange);
+
+    // Defensive refresh in case system event is missed.
+    const pollId = window.setInterval(() => {
+      void refreshWindowsColor();
+    }, 60_000);
+
+    let unsubscribe: (() => void) | undefined;
+    if (window.electronAPI.onAccentColorChanged) {
+      unsubscribe = window.electronAPI.onAccentColorChanged(applyWindowsColor);
+    }
+
+    return () => {
+      disposed = true;
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+      window.clearInterval(pollId);
+      unsubscribe?.();
+    };
   }, [settings.accentColor]);
 }

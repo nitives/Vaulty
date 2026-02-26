@@ -127,7 +127,7 @@ export function ItemCard({
   };
 
   return (
-    <article className="group relative flex gap-3 rounded-lg px-2 py-2 transition-colors hover:bg-black/5 dark:hover:bg-white/5">
+    <article className="group relative flex gap-3 rounded-xl px-2 py-2 transition-colors hover:bg-black/5 dark:hover:bg-white/5">
       {/* Avatar/Type Badge */}
 
       {/* Content */}
@@ -237,7 +237,7 @@ export function ItemCard({
             <img
               src={getImageUrl(item.imageUrl)}
               alt="Saved image"
-              className="rounded-lg object-cover cursor-pointer transition-opacity hover:opacity-90"
+              className="rounded-sm object-cover cursor-pointer transition-opacity hover:opacity-90"
               style={{ maxHeight: "300px", maxWidth: "100%" }}
               onClick={() => setIsLightboxOpen(true)}
             />
@@ -298,7 +298,9 @@ export function ItemCard({
               <button
                 key={tag}
                 onClick={() => onTagClick?.(tag)}
-                className="rounded-full px-1.5 py-0.5 text-xs text-neutral-500 transition-colors hover:bg-white/15 hover:text-neutral-700 dark:text-neutral-400 dark:hover:bg-neutral-700 dark:hover:text-neutral-200"
+                className={clsx(
+                  "rounded-full cursor-pointer px-1.5 py-0.5 text-xs text-neutral-500 transition-colors hover:bg-white/15 hover:text-neutral-700 dark:text-neutral-400 dark:hover:bg-neutral-700 dark:hover:text-neutral-200",
+                )}
               >
                 #{tag}
               </button>

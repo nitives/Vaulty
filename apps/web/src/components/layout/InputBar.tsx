@@ -1,7 +1,14 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 import clsx from "clsx";
-import { useState, useRef, useCallback, useEffect, KeyboardEvent } from "react";
+import {
+  useState,
+  useRef,
+  useCallback,
+  useEffect,
+  useSyncExternalStore,
+  KeyboardEvent,
+} from "react";
 import { motion, AnimatePresence } from "motion/react";
 import SFIcon from "@bradleyhodges/sfsymbols-react";
 import { sfAppleTerminal, sfBold, sfChevronLeftForwardslashChevronRight, sfItalic, sfPlus, sfStrikethrough, sfTextQuote, sfXmark } from "@bradleyhodges/sfsymbols";
@@ -50,7 +57,7 @@ function getSelectionAnchorPosition(
   mirror.style.visibility = "hidden";
   mirror.style.pointerEvents = "none";
   mirror.style.whiteSpace = "pre-wrap";
-  mirror.style.overflowWrap = "break-word";
+  mirror.style.setProperty("overflow-wrap", "break-word");
   mirror.style.wordBreak = "break-word";
   mirror.style.overflow = "hidden";
   mirror.style.boxSizing = style.boxSizing;
@@ -67,7 +74,10 @@ function getSelectionAnchorPosition(
   mirror.style.lineHeight = style.lineHeight;
   mirror.style.textTransform = style.textTransform;
   mirror.style.textIndent = style.textIndent;
-  mirror.style.tabSize = style.tabSize;
+  mirror.style.setProperty(
+    "tab-size",
+    style.getPropertyValue("tab-size") || "8",
+  );
   mirror.style.direction = style.direction;
 
   const beforeText = textarea.value.slice(0, start);
@@ -120,16 +130,17 @@ export function InputBar({ onSubmit }: InputBarProps) {
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const tagInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [mounted, setMounted] = useState(false);
+  const mounted = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
+  );
   const [selectionToolbar, setSelectionToolbar] =
     useState<SelectionToolbarState>({
       visible: false,
       top: 0,
       left: 0,
     });
-
-  // Wait for hydration before computing layout to avoid SSR mismatch
-  useEffect(() => setMounted(true), []);
 
   // Determine if we should show compact layout
   const isMultiLine = content.includes("\n") || content.length > 100;
@@ -152,58 +163,6 @@ export function InputBar({ onSubmit }: InputBarProps) {
     textarea.style.overflowY =
       textarea.scrollHeight > maxHeight ? "auto" : "hidden";
   }, [content, isCompact]);
-
-  // Global window drag-drop
-  useEffect(() => {
-    const handleWindowDragOver = (e: globalThis.DragEvent) => {
-      e.preventDefault();
-      setIsDragging(true);
-    };
-
-    const handleWindowDragLeave = (e: globalThis.DragEvent) => {
-      if (
-        e.clientX <= 0 ||
-        e.clientY <= 0 ||
-        e.clientX >= window.innerWidth ||
-        e.clientY >= window.innerHeight
-      ) {
-        setIsDragging(false);
-      }
-    };
-
-    const handleWindowDrop = (e: globalThis.DragEvent) => {
-      e.preventDefault();
-      setIsDragging(false);
-
-      const files = Array.from(e.dataTransfer?.files ?? []);
-      const mediaFiles = files.filter(
-        (f) =>
-          f.type.startsWith("image/") ||
-          f.type.startsWith("audio/") ||
-          f.type.startsWith("video/"),
-      );
-
-      if (mediaFiles.length > 0) {
-        mediaFiles.forEach((f) => handleMediaFile(f));
-        return;
-      }
-
-      const text = e.dataTransfer?.getData("text/plain");
-      if (text) {
-        setContent(text);
-      }
-    };
-
-    window.addEventListener("dragover", handleWindowDragOver);
-    window.addEventListener("dragleave", handleWindowDragLeave);
-    window.addEventListener("drop", handleWindowDrop);
-
-    return () => {
-      window.removeEventListener("dragover", handleWindowDragOver);
-      window.removeEventListener("dragleave", handleWindowDragLeave);
-      window.removeEventListener("drop", handleWindowDrop);
-    };
-  }, []);
 
   const handleMediaFile = useCallback((file: File) => {
     const itemId = crypto.randomUUID();
@@ -262,6 +221,58 @@ export function InputBar({ onSubmit }: InputBarProps) {
     };
     reader.readAsDataURL(file);
   }, []);
+
+  // Global window drag-drop
+  useEffect(() => {
+    const handleWindowDragOver = (e: globalThis.DragEvent) => {
+      e.preventDefault();
+      setIsDragging(true);
+    };
+
+    const handleWindowDragLeave = (e: globalThis.DragEvent) => {
+      if (
+        e.clientX <= 0 ||
+        e.clientY <= 0 ||
+        e.clientX >= window.innerWidth ||
+        e.clientY >= window.innerHeight
+      ) {
+        setIsDragging(false);
+      }
+    };
+
+    const handleWindowDrop = (e: globalThis.DragEvent) => {
+      e.preventDefault();
+      setIsDragging(false);
+
+      const files = Array.from(e.dataTransfer?.files ?? []);
+      const mediaFiles = files.filter(
+        (f) =>
+          f.type.startsWith("image/") ||
+          f.type.startsWith("audio/") ||
+          f.type.startsWith("video/"),
+      );
+
+      if (mediaFiles.length > 0) {
+        mediaFiles.forEach((f) => handleMediaFile(f));
+        return;
+      }
+
+      const text = e.dataTransfer?.getData("text/plain");
+      if (text) {
+        setContent(text);
+      }
+    };
+
+    window.addEventListener("dragover", handleWindowDragOver);
+    window.addEventListener("dragleave", handleWindowDragLeave);
+    window.addEventListener("drop", handleWindowDrop);
+
+    return () => {
+      window.removeEventListener("dragover", handleWindowDragOver);
+      window.removeEventListener("dragleave", handleWindowDragLeave);
+      window.removeEventListener("drop", handleWindowDrop);
+    };
+  }, [handleMediaFile]);
 
   const handlePaste = useCallback(
     (e: React.ClipboardEvent) => {

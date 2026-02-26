@@ -47,6 +47,25 @@ import {
 } from "./paths";
 import { getWindowIcon } from "./icon";
 
+function normalizeAccentColor(color: string | null | undefined): string | null {
+  if (!color) return null;
+  const hex = color.trim().replace(/^#/, "");
+  if (!/^[\da-fA-F]+$/.test(hex)) return null;
+  if (hex.length === 6) return `#${hex.toLowerCase()}`;
+  // Electron system colors use RGBA; strip alpha for CSS use.
+  if (hex.length === 8) return `#${hex.slice(0, 6).toLowerCase()}`;
+  return null;
+}
+
+function getCurrentWindowsAccentColor(): string | null {
+  if (process.platform !== "win32") return null;
+  try {
+    return normalizeAccentColor(systemPreferences.getAccentColor());
+  } catch {
+    return null;
+  }
+}
+
 export function registerIpcHandlers(
   getMainWindow: () => BrowserWindow | null,
 ): void {
@@ -118,24 +137,15 @@ export function registerIpcHandlers(
 
   // Windows accent color
   ipcMain.handle("accent:getWindowsColor", () => {
-    if (process.platform === "win32") {
-      try {
-        // Get the Windows accent color (returns RRGGBBAA format)
-        const accentColor = systemPreferences.getAccentColor();
-        // getAccentColor returns RRGGBBAA, covert to RRGGBB
-        return `#${accentColor.slice(0, 6)}`;
-      } catch {
-        return null;
-      }
-    }
-    return null;
+    return getCurrentWindowsAccentColor();
   });
 
   if (process.platform === "win32") {
-    systemPreferences.on("accent-color-changed", (_event, newColor) => {
+    systemPreferences.on("accent-color-changed", () => {
       const win = getMainWindow();
-      if (win && !win.isDestroyed()) {
-        win.webContents.send("accent:changed", `#${newColor.slice(0, 6)}`);
+      const currentColor = getCurrentWindowsAccentColor();
+      if (win && !win.isDestroyed() && currentColor) {
+        win.webContents.send("accent:changed", currentColor);
       }
     });
   }
