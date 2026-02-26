@@ -164,7 +164,7 @@ export function SidebarFolder({
         >
           {/* Folder icon */}
           <span className="w-5 flex justify-center text-black/30 dark:text-white/30 shrink-0">
-            <SFIcon icon={sfFolder} size={16} />
+            <SFIcon icon={sfFolder} weight={0.5} size={16} />
           </span>
 
           {/* Folder name */}

@@ -14,6 +14,7 @@ import { Button } from "../ui/Button";
 import SFIcon from "@bradleyhodges/sfsymbols-react";
 import {
   sfBookClosed,
+  sfFlask,
   sfInfoCircle,
   sfInternaldrive,
   sfPaintbrush,
@@ -31,7 +32,13 @@ interface SettingsModalProps {
 
 // -- Sidebar sections --
 
-type SectionId = "appearance" | "behavior" | "storage" | "guide" | "about";
+type SectionId =
+  | "appearance"
+  | "behavior"
+  | "storage"
+  | "guide"
+  | "experiments"
+  | "about";
 
 interface SectionDef {
   id: SectionId;
@@ -44,6 +51,7 @@ const sections: SectionDef[] = [
   { id: "behavior", label: "Behavior", icon: sfSliderHorizontal3 },
   { id: "storage", label: "Storage", icon: sfInternaldrive },
   { id: "guide", label: "Guide", icon: sfBookClosed },
+  { id: "experiments", label: "Experiments", icon: sfFlask },
   { id: "about", label: "About", icon: sfInfoCircle },
 ];
 
@@ -53,11 +61,54 @@ interface SettingsRowProps {
   label: string;
   description?: string;
   children: React.ReactNode;
+  toggleOnRowClick?: boolean;
 }
 
-function SettingsRow({ label, description, children }: SettingsRowProps) {
+function SettingsRow({
+  label,
+  description,
+  children,
+  toggleOnRowClick = false,
+}: SettingsRowProps) {
+  const { settings } = useSettings();
+  const isRowToggleEnabled =
+    toggleOnRowClick && Boolean(settings.experiments?.["entire-row-clickable"]);
+
+  const toggleFromRow = (container: HTMLElement) => {
+    const toggleButton = container.querySelector<HTMLButtonElement>(
+      'button[role="switch"]:not(:disabled)',
+    );
+    toggleButton?.click();
+  };
+
   return (
-    <div className="flex items-center justify-between gap-4 rounded-lg bg-neutral-100 px-4 py-3 dark:bg-neutral-800">
+    <div
+      className={clsx(
+        "flex items-center justify-between gap-4 rounded-lg bg-neutral-100 px-4 py-3 dark:bg-neutral-800",
+        isRowToggleEnabled &&
+          "cursor-pointer hover:bg-neutral-200/70 dark:hover:bg-neutral-700/70",
+      )}
+      onClick={(e) => {
+        if (!isRowToggleEnabled) return;
+        const target = e.target as HTMLElement;
+        if (
+          target.closest(
+            "button, a, input, select, textarea, [contenteditable='true'], [data-no-row-toggle='true']",
+          )
+        ) {
+          return;
+        }
+        toggleFromRow(e.currentTarget);
+      }}
+      onKeyDown={(e) => {
+        if (!isRowToggleEnabled) return;
+        if (e.key !== "Enter" && e.key !== " ") return;
+        e.preventDefault();
+        toggleFromRow(e.currentTarget);
+      }}
+      role={isRowToggleEnabled ? "button" : undefined}
+      tabIndex={isRowToggleEnabled ? 0 : undefined}
+    >
       <div className="flex-1">
         <p className="text-sm font-medium text-neutral-900 dark:text-neutral-100">
           {label}
@@ -127,7 +178,11 @@ function AppearanceSection() {
           ]}
         />
       </SettingsRow>
-      <SettingsRow label="Compact mode" description="Reduce spacing in the UI">
+      <SettingsRow
+        label="Compact mode"
+        description="Reduce spacing in the UI"
+        toggleOnRowClick
+      >
         <Toggle
           checked={settings.compactMode ?? false}
           onChange={(v) => update({ compactMode: v })}
@@ -136,6 +191,7 @@ function AppearanceSection() {
       <SettingsRow
         label="Transparent titlebar"
         description="Make the titlebar background transparent (Requires window transparency to be visible)"
+        toggleOnRowClick
       >
         <Toggle
           checked={settings.titlebarTransparent ?? false}
@@ -145,6 +201,7 @@ function AppearanceSection() {
       <SettingsRow
         label="Transparent sidebar"
         description="Make the sidebar background transparent (Requires window transparency to be visible)"
+        toggleOnRowClick
       >
         <Toggle
           checked={settings.sidebarTransparent ?? false}
@@ -154,6 +211,7 @@ function AppearanceSection() {
       <SettingsRow
         label="Window transparency"
         description="Enable transparent blur background"
+        toggleOnRowClick
       >
         <Toggle
           checked={settings.transparency ?? false}
@@ -270,6 +328,7 @@ function BehaviorSection() {
       <SettingsRow
         label="Start with sidebar collapsed"
         description="Sidebar will be collapsed on app launch"
+        toggleOnRowClick
       >
         <Toggle
           checked={settings.startCollapsed ?? false}
@@ -279,6 +338,7 @@ function BehaviorSection() {
       <SettingsRow
         label="Open Vaulty on Startup"
         description="Launch Vaulty automatically when your computer starts"
+        toggleOnRowClick
       >
         <Toggle
           checked={settings.openOnStartup ?? false}
@@ -291,6 +351,7 @@ function BehaviorSection() {
       <SettingsRow
         label="Start minimized"
         description="Launch the app in the background when it starts. (Requires 'Open on Startup')"
+        toggleOnRowClick
       >
         <Toggle
           checked={settings.startMinimized ?? false}
@@ -301,6 +362,7 @@ function BehaviorSection() {
       <SettingsRow
         label="Close button minimizes to tray"
         description="Keep Vaulty running in the background when closing the window"
+        toggleOnRowClick
       >
         <Toggle
           checked={settings.closeToTray ?? true}
@@ -310,6 +372,7 @@ function BehaviorSection() {
       <SettingsRow
         label="Confirm before deleting"
         description="Show confirmation dialog when deleting items"
+        toggleOnRowClick
       >
         <Toggle
           checked={settings.confirmBeforeDelete ?? true}
@@ -319,6 +382,7 @@ function BehaviorSection() {
       <SettingsRow
         label="Persist input bar state"
         description="Keep your draft text, tags, and media when switching sidebar filters or pages"
+        toggleOnRowClick
       >
         <Toggle
           checked={settings.persistInputBarStateOnSwitch ?? true}
@@ -328,6 +392,7 @@ function BehaviorSection() {
       <SettingsRow
         label="Reduce motion"
         description="Disables most animations and transitions"
+        toggleOnRowClick
       >
         <div className="flex items-center gap-3">
           {needsRestartForMotion && (
@@ -353,6 +418,7 @@ function BehaviorSection() {
       <SettingsRow
         label="Show Image Size"
         description="Display the file size of an image below the timestamp"
+        toggleOnRowClick
       >
         <Toggle
           checked={settings.showImageSize ?? false}
@@ -362,6 +428,7 @@ function BehaviorSection() {
       <SettingsRow
         label="Show Image File Name"
         description="Display the file name of an image below the image"
+        toggleOnRowClick
       >
         <Toggle
           checked={settings.showImageFileName ?? false}
@@ -371,6 +438,7 @@ function BehaviorSection() {
       <SettingsRow
         label="Hide Notes During Size Filter"
         description="Hide text notes and links when using the size: search operator"
+        toggleOnRowClick
       >
         <Toggle
           checked={settings.hideNotesWhenFilteringBySize ?? false}
@@ -969,11 +1037,35 @@ function GuideSection() {
   );
 }
 
+function ExperimentsSection() {
+  const { settings, update } = useSettings();
+  const experiments = settings.experiments ?? {};
+  return (
+    <div className="space-y-2">
+      <SettingsRow
+        label="Entire settings row clickable"
+        description="Allow clicking anywhere on a settings row to toggle, instead of just the switch or control"
+        toggleOnRowClick
+      >
+        <Toggle
+          checked={Boolean(experiments["entire-row-clickable"])}
+          onChange={(v) =>
+            update({
+              experiments: { ...experiments, "entire-row-clickable": v },
+            })
+          }
+        />
+      </SettingsRow>
+    </div>
+  );
+}
+
 const sectionContent: Record<SectionId, React.FC> = {
   appearance: AppearanceSection,
   behavior: BehaviorSection,
   storage: StorageSection,
   guide: GuideSection,
+  experiments: ExperimentsSection,
   about: AboutSection,
 };
 

@@ -49,6 +49,7 @@ export interface AppSettings {
   openOnStartup?: boolean;
   startMinimized?: boolean;
   closeToTray?: boolean;
+  experiments?: Record<string, unknown>;
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
