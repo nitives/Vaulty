@@ -1,10 +1,10 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
-
 import clsx from "clsx";
 import { useState, useRef, useCallback, useEffect, KeyboardEvent } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import SFIcon from "@bradleyhodges/sfsymbols-react";
-import { sfPlus, sfXmark } from "@bradleyhodges/sfsymbols";
+import { sfAppleTerminal, sfBold, sfChevronLeftForwardslashChevronRight, sfItalic, sfPlus, sfStrikethrough, sfTextQuote, sfXmark } from "@bradleyhodges/sfsymbols";
 // @ts-expect-error - ignoring type errors for pre-built bundle
 import jsmediatags from "jsmediatags/dist/jsmediatags.min.js";
 import { AudioPreview } from "../items/AudioCard";
@@ -28,6 +28,87 @@ interface MediaItem {
   audioMetadata?: Record<string, any>;
 }
 
+interface SelectionToolbarState {
+  visible: boolean;
+  top: number;
+  left: number;
+}
+
+const TOOLBAR_VERTICAL_OFFSET = 40;
+
+function getSelectionAnchorPosition(
+  textarea: HTMLTextAreaElement,
+  start: number,
+  end: number,
+): { left: number; top: number } {
+  const style = window.getComputedStyle(textarea);
+  const mirror = document.createElement("div");
+
+  mirror.style.position = "fixed";
+  mirror.style.left = "-9999px";
+  mirror.style.top = "0";
+  mirror.style.visibility = "hidden";
+  mirror.style.pointerEvents = "none";
+  mirror.style.whiteSpace = "pre-wrap";
+  mirror.style.overflowWrap = "break-word";
+  mirror.style.wordBreak = "break-word";
+  mirror.style.overflow = "hidden";
+  mirror.style.boxSizing = style.boxSizing;
+  mirror.style.width = `${textarea.offsetWidth}px`;
+  mirror.style.padding = style.padding;
+  mirror.style.border = style.border;
+  mirror.style.borderRadius = style.borderRadius;
+  mirror.style.font = style.font;
+  mirror.style.fontFamily = style.fontFamily;
+  mirror.style.fontSize = style.fontSize;
+  mirror.style.fontWeight = style.fontWeight;
+  mirror.style.fontStyle = style.fontStyle;
+  mirror.style.letterSpacing = style.letterSpacing;
+  mirror.style.lineHeight = style.lineHeight;
+  mirror.style.textTransform = style.textTransform;
+  mirror.style.textIndent = style.textIndent;
+  mirror.style.tabSize = style.tabSize;
+  mirror.style.direction = style.direction;
+
+  const beforeText = textarea.value.slice(0, start);
+  const selectedText = textarea.value.slice(start, end);
+
+  const startMarker = document.createElement("span");
+  startMarker.textContent = "\u200b";
+
+  const endMarker = document.createElement("span");
+  endMarker.textContent = "\u200b";
+
+  mirror.textContent = beforeText;
+  mirror.appendChild(startMarker);
+  mirror.appendChild(document.createTextNode(selectedText));
+  mirror.appendChild(endMarker);
+  document.body.appendChild(mirror);
+
+  const startRect = startMarker.getBoundingClientRect();
+  const endRect = endMarker.getBoundingClientRect();
+  const mirrorRect = mirror.getBoundingClientRect();
+  const textareaRect = textarea.getBoundingClientRect();
+
+  document.body.removeChild(mirror);
+
+  const localStartX = startRect.left - mirrorRect.left;
+  const localEndX = endRect.left - mirrorRect.left;
+  const localStartTop = startRect.top - mirrorRect.top;
+  const localEndTop = endRect.top - mirrorRect.top;
+  const isSingleLine = Math.abs(localStartTop - localEndTop) < 1;
+
+  const anchorLocalX = isSingleLine
+    ? (localStartX + localEndX) / 2
+    : localStartX;
+  const anchorLocalTop = Math.min(localStartTop, localEndTop);
+
+  return {
+    left: textareaRect.left + anchorLocalX - textarea.scrollLeft,
+    top: textareaRect.top + anchorLocalTop - textarea.scrollTop,
+  };
+}
+
 export function InputBar({ onSubmit }: InputBarProps) {
   const { settings } = useSettings();
   const [content, setContent] = useState("");
@@ -40,6 +121,12 @@ export function InputBar({ onSubmit }: InputBarProps) {
   const tagInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [mounted, setMounted] = useState(false);
+  const [selectionToolbar, setSelectionToolbar] =
+    useState<SelectionToolbarState>({
+      visible: false,
+      top: 0,
+      left: 0,
+    });
 
   // Wait for hydration before computing layout to avoid SSR mismatch
   useEffect(() => setMounted(true), []);
@@ -303,6 +390,106 @@ export function InputBar({ onSubmit }: InputBarProps) {
 
   const hasContent = content.trim() || hasMedia;
 
+  const hideSelectionToolbar = useCallback(() => {
+    setSelectionToolbar((prev) =>
+      prev.visible ? { ...prev, visible: false } : prev,
+    );
+  }, []);
+
+  const updateSelectionToolbar = useCallback(() => {
+    const textarea = inputRef.current;
+    if (!textarea) {
+      return;
+    }
+
+    const start = textarea.selectionStart ?? 0;
+    const end = textarea.selectionEnd ?? 0;
+    if (!textarea.matches(":focus") || start === end) {
+      hideSelectionToolbar();
+      return;
+    }
+
+    const position = getSelectionAnchorPosition(textarea, start, end);
+    const left = Math.max(60, Math.min(window.innerWidth - 60, position.left));
+    const top = Math.max(56, position.top - TOOLBAR_VERTICAL_OFFSET);
+
+    setSelectionToolbar({ visible: true, left, top });
+  }, [hideSelectionToolbar]);
+
+  useEffect(() => {
+    if (!selectionToolbar.visible) {
+      return;
+    }
+
+    const handleViewportChange = () => updateSelectionToolbar();
+    window.addEventListener("resize", handleViewportChange);
+    window.addEventListener("scroll", handleViewportChange, true);
+
+    return () => {
+      window.removeEventListener("resize", handleViewportChange);
+      window.removeEventListener("scroll", handleViewportChange, true);
+    };
+  }, [selectionToolbar.visible, updateSelectionToolbar]);
+
+  const replaceSelection = useCallback(
+    (transform: (selected: string) => string) => {
+      const textarea = inputRef.current;
+      if (!textarea) return;
+
+      const start = textarea.selectionStart ?? 0;
+      const end = textarea.selectionEnd ?? 0;
+      if (start === end) return;
+
+      const selected = content.slice(start, end);
+      const replacement = transform(selected);
+      const nextValue =
+        content.slice(0, start) + replacement + content.slice(end);
+
+      setContent(nextValue);
+
+      requestAnimationFrame(() => {
+        const target = inputRef.current;
+        if (!target) return;
+        target.focus();
+        target.setSelectionRange(start, start + replacement.length);
+        updateSelectionToolbar();
+      });
+    },
+    [content, updateSelectionToolbar],
+  );
+
+  const wrapSelection = useCallback(
+    (prefix: string, suffix = prefix) => {
+      replaceSelection((selected) => {
+        const isWrapped =
+          selected.startsWith(prefix) &&
+          selected.endsWith(suffix) &&
+          selected.length >= prefix.length + suffix.length;
+
+        if (isWrapped) {
+          return selected.slice(prefix.length, selected.length - suffix.length);
+        }
+        return `${prefix}${selected}${suffix}`;
+      });
+    },
+    [replaceSelection],
+  );
+
+  const toggleLinePrefix = useCallback(
+    (prefix: string) => {
+      replaceSelection((selected) => {
+        const lines = selected.split("\n");
+        const allPrefixed = lines.every((line) => line.startsWith(prefix));
+        return lines
+          .map((line) =>
+            allPrefixed ? line.slice(prefix.length) : `${prefix}${line}`,
+          )
+          .join("\n");
+      });
+    },
+    [replaceSelection],
+  );
+
   // Add button
   const addButton = (
     <button
@@ -527,6 +714,11 @@ export function InputBar({ onSubmit }: InputBarProps) {
             onChange={(e) => setContent(e.target.value)}
             onKeyDown={handleKeyDown}
             onPaste={handlePaste}
+            onSelect={updateSelectionToolbar}
+            onKeyUp={updateSelectionToolbar}
+            onMouseUp={updateSelectionToolbar}
+            onScroll={updateSelectionToolbar}
+            onBlur={hideSelectionToolbar}
             placeholder="Drop an image, paste a link, or type a quick note…"
             className={clsx(
               "caret-[var(--accent-500)]",
@@ -552,6 +744,103 @@ export function InputBar({ onSubmit }: InputBarProps) {
           )}
         </motion.div>
       </motion.div>
+
+      <AnimatePresence>
+        {selectionToolbar.visible && (
+          <motion.div
+            initial={{ opacity: 0, y: 6, scale: 0.96 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 6, scale: 0.96 }}
+            transition={{ duration: 0.14, ease: "easeOut" }}
+            className={clsx(
+              "fixed z-[70]",
+              "rounded-xl border",
+              "bg-white/25 dark:bg-black/25 text-black dark:text-white shadow-xl backdrop-blur-3xl backdrop-saturate-150",
+              "border-black/10 dark:border-white/10",
+            )}
+            style={{
+              left: selectionToolbar.left,
+              top: selectionToolbar.top,
+              transform: "translate(-50%, -100%)",
+            }}
+            onMouseDown={(e) => e.preventDefault()}
+          >
+            <div className="flex items-center gap-0.5 p-1">
+              <button
+                type="button"
+                onClick={() => wrapSelection("**")}
+                className={clsx(
+                  "rounded-[6px] aspect-square",
+                  "min-w-6.5 h-full",
+                  "grid place-items-center",
+                  "text-sm font-bold",
+                  "hover:bg-black/15 dark:hover:bg-white/15",
+                )}
+                title="Bold"
+              >
+                <SFIcon size={12} icon={sfBold} />
+              </button>
+              <button
+                type="button"
+                onClick={() => wrapSelection("*")}
+                className={clsx(
+                  "rounded-[6px] aspect-square",
+                  "min-w-6.5 h-full",
+                  "grid place-items-center",
+                  "text-sm font-bold",
+                  "hover:bg-black/15 dark:hover:bg-white/15",
+                )}
+                title="Italic"
+              >
+                <SFIcon size={12} icon={sfItalic} />
+              </button>
+              <button
+                type="button"
+                onClick={() => wrapSelection("~~")}
+                className={clsx(
+                  "rounded-[6px] aspect-square",
+                  "min-w-6.5 h-full",
+                  "grid place-items-center",
+                  "text-sm font-bold",
+                  "hover:bg-black/15 dark:hover:bg-white/15",
+                )}
+                title="Strikethrough"
+              >
+                <SFIcon weight={0.5} size={14} icon={sfStrikethrough} />
+              </button>
+              <button
+                type="button"
+                onClick={() => wrapSelection("`")}
+                className={clsx(
+                 "rounded-[6px] aspect-square",
+                  "min-w-6.5 h-full",
+                  "grid place-items-center",
+                  "text-sm font-bold",
+                  "hover:bg-black/15 dark:hover:bg-white/15",
+                )}
+                title="Inline code"
+              >
+                 <SFIcon weight={0.5} size={16} icon={sfChevronLeftForwardslashChevronRight} />
+                 {/* <SFIcon size={12} icon={sfAppleTerminal} /> */}
+              </button>
+              <button
+                type="button"
+                onClick={() => toggleLinePrefix("> ")}
+                 className={clsx(
+                 "rounded-[6px] aspect-square",
+                  "min-w-6.5 h-full",
+                  "grid place-items-center",
+                  "text-sm font-bold",
+                  "hover:bg-black/15 dark:hover:bg-white/15",
+                )}
+                title="Quote"
+              >
+                <SFIcon weight={0.5} size={12} icon={sfTextQuote} />
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </>
   );
 }

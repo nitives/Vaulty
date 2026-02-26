@@ -1,0 +1,135 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Ventricle Pulse File",
+  "description": "Configuration file for data extraction pulses.",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "The display name of the Pulse feed."
+    },
+    "id": {
+      "type": "string",
+      "description": "A unique identifier for this Pulse."
+    },
+    "description": {
+      "type": "string",
+      "description": "A short explanation of what this Pulse tracks."
+    },
+    "heartbeat": {
+      "type": "string",
+      "pattern": "^\\d+[mhd]$",
+      "description": "How often the Ventricle should check this pulse (e.g., '5m', '1h', '2d')."
+    },
+    "anchor": {
+      "type": "object",
+      "description": "The element that determines if the content is new. If this hasn't changed, the flow skips.",
+      "properties": {
+        "url": {
+          "type": "string",
+          "description": "The URL to check for the anchor."
+        },
+        "select": {
+          "type": "string",
+          "description": "The CSS selector to find the anchor element."
+        },
+        "attribute": {
+          "type": "string",
+          "description": "The attribute to extract (e.g., 'innerText', 'href')."
+        }
+      },
+      "required": ["url", "select", "attribute"]
+    },
+    "flow": {
+      "type": "array",
+      "description": "The sequence of steps to extract the data if the anchor has changed.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "step": {
+            "type": "number",
+            "description": "The order of execution."
+          },
+          "action": {
+            "type": "string",
+            "enum": ["fetch"],
+            "description": "The action to perform."
+          },
+          "url": {
+            "type": "string",
+            "description": "The URL to fetch. Supports {{variables}} from previous steps."
+          },
+          "extract": {
+            "type": "object",
+            "description": "A map of variables to extract from this page.",
+            "additionalProperties": {
+              "type": "object",
+              "properties": {
+                "select": {
+                  "type": "string",
+                  "description": "The CSS selector. Required unless this is a template-only extract."
+                },
+                "attribute": {
+                  "type": "string",
+                  "description": "The attribute to extract (default: innerText)."
+                },
+                "prefix": {
+                  "type": "string",
+                  "description": "Optional string to prepend to the result (useful for relative URLs)."
+                },
+                "suffix": {
+                  "type": "string",
+                  "description": "Optional string to append to the result."
+                },
+                "required": {
+                  "type": "boolean",
+                  "description": "Whether extraction failure should stop this pulse step (default: true)."
+                },
+                "all": {
+                  "type": "boolean",
+                  "description": "Extract all matching nodes instead of only the first."
+                },
+                "joinWith": {
+                  "type": "string",
+                  "description": "Join string used when all=true (default: newline)."
+                },
+                "template": {
+                  "type": "string",
+                  "description": "Template for formatting output. Supports {{value}}, {{text}}, {{html}}, {{outerHtml}}, {{index}}, {{n}}, other extracted vars, and field vars."
+                },
+                "fields": {
+                  "type": "object",
+                  "description": "Optional nested selectors evaluated inside each matched node.",
+                  "additionalProperties": {
+                    "type": "object",
+                    "properties": {
+                      "select": {
+                        "type": "string",
+                        "description": "Nested selector within the selected node."
+                      },
+                      "attribute": {
+                        "type": "string",
+                        "description": "Attribute to extract from nested node (default: innerText)."
+                      },
+                      "required": {
+                        "type": "boolean",
+                        "description": "Whether this nested field is required (default: true)."
+                      }
+                    },
+                    "required": ["select"]
+                  }
+                }
+              },
+              "anyOf": [
+                { "required": ["select"] },
+                { "required": ["template"] }
+              ]
+            }
+          }
+        },
+        "required": ["step", "action", "url", "extract"]
+      }
+    }
+  },
+  "required": ["name", "id", "heartbeat", "anchor", "flow"]
+}

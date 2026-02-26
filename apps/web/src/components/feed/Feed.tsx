@@ -3,6 +3,8 @@
 import clsx from "clsx";
 import { formatTimeShort } from "@/lib/utils";
 import { FeedItem } from "@/hooks/useFeed";
+import { buttonStyles } from "@/styles/Button";
+import { renderMarkdown } from "@/lib/markdown";
 
 interface FeedProps {
   items: FeedItem[];
@@ -62,11 +64,7 @@ function renderPulseContent(content: string) {
     );
   }
 
-  return (
-    <p className="whitespace-pre-wrap break-words text-sm text-neutral-700 dark:text-neutral-300">
-      {content}
-    </p>
-  );
+  return <div className="break-words text-sm">{renderMarkdown(content)}</div>;
 }
 
 function formatExpiry(expiresAt?: Date): string | null {
@@ -124,7 +122,7 @@ export function Feed({ items, isLoading = false, onSeen }: FeedProps) {
             key={item.id}
             className={clsx(
               "rounded-xl border p-4",
-              "border-black/10 bg-white/75 dark:border-white/10 dark:bg-white/5",
+              "border-black/5 bg-black/5 dark:border-white/10 dark:bg-white/5",
             )}
           >
             <div className="mb-1 flex items-center justify-between gap-2">
@@ -140,7 +138,7 @@ export function Feed({ items, isLoading = false, onSeen }: FeedProps) {
               {item.title}
             </h3>
 
-            <div className="mt-3">{renderPulseContent(item.content)}</div>
+            <div className="mt-3 text-black dark:text-white">{renderPulseContent(item.content)}</div>
 
             <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
               <div className="flex flex-wrap items-center gap-3 text-xs text-neutral-500 dark:text-neutral-400">
@@ -150,7 +148,10 @@ export function Feed({ items, isLoading = false, onSeen }: FeedProps) {
                     href={item.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-[var(--accent-700)] hover:underline dark:text-[var(--accent-300)]"
+                    className={clsx(
+                      buttonStyles.underline,
+                      "text-[var(--accent-700)] dark:text-[var(--accent-300)]",
+                    )}
                   >
                     Open source
                   </a>
@@ -160,11 +161,7 @@ export function Feed({ items, isLoading = false, onSeen }: FeedProps) {
               <button
                 type="button"
                 onClick={() => onSeen(item.id)}
-                className={clsx(
-                  "rounded-md border px-3 py-1.5 text-xs font-medium transition-colors",
-                  "border-black/15 text-neutral-800 hover:bg-black/5",
-                  "dark:border-white/20 dark:text-neutral-200 dark:hover:bg-white/10",
-                )}
+                className={clsx(buttonStyles.base)}
               >
                 Seen
               </button>

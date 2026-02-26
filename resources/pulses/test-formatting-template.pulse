@@ -1,0 +1,40 @@
+name: "Vaulty Pulse Test (Formatting)"
+id: "vaulty-test-formatting"
+heartbeat: "10m"
+
+anchor:
+  url: "https://example.com/"
+  select: "h1"
+  attribute: "innerText"
+
+flow:
+  - step: 1
+    action: "fetch"
+    url: "https://example.com/"
+    extract:
+      title:
+        select: "h1"
+        attribute: "innerText"
+
+      subtitle:
+        select: "p"
+        attribute: "innerText"
+
+      links_markdown:
+        select: "a"
+        all: true
+        template: "- [{{text}}]({{href}})"
+        fields:
+          href:
+            select: "a"
+            attribute: "href"
+
+      content:
+        template: |
+          *{{title}}*
+
+          ## Snapshot
+          {{subtitle}}
+
+          ### Links
+          {{links_markdown}}

@@ -6,7 +6,11 @@ function renderInline(text: string) {
   // 1. `inline code`
   // 2. [Link Text](http://url.com)
   // 3. http://bare-url.com
-  const tokenRegex = /(`[^`]+`)|(\[[^\]]+\]\([^)]+\))|(https?:\/\/[^\s]+)/g;
+  // 4. **bold** or __bold__
+  // 5. *italic* or _italic_
+  // 6. ~~strikethrough~~
+  const tokenRegex =
+    /(`[^`]+`)|(\[[^\]]+\]\([^)]+\))|(https?:\/\/[^\s]+)|(\*\*[^*]+\*\*|__[^_]+__)|(\*[^*\n]+\*|_[^_\n]+_)|(~~[^~]+~~)/g;
   const parts = text.split(tokenRegex);
 
   return parts.map((part, index) => {
@@ -54,6 +58,39 @@ function renderInline(text: string) {
         >
           {part}
         </a>
+      );
+    }
+
+    // Bold
+    if (
+      (part.startsWith("**") && part.endsWith("**")) ||
+      (part.startsWith("__") && part.endsWith("__"))
+    ) {
+      return (
+        <strong key={index} className="font-semibold text-black dark:text-white">
+          {part.slice(2, -2)}
+        </strong>
+      );
+    }
+
+    // Italic
+    if (
+      (part.startsWith("*") && part.endsWith("*")) ||
+      (part.startsWith("_") && part.endsWith("_"))
+    ) {
+      return (
+        <em key={index} className="italic">
+          {part.slice(1, -1)}
+        </em>
+      );
+    }
+
+    // Strikethrough
+    if (part.startsWith("~~") && part.endsWith("~~")) {
+      return (
+        <s key={index} className="opacity-85">
+          {part.slice(2, -2)}
+        </s>
       );
     }
 

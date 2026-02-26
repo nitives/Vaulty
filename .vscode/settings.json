@@ -10,5 +10,11 @@
     "venv",
     "vercel"
   ],
-  "tailwindCSS.lint.suggestCanonicalClasses": "ignore"
+  "tailwindCSS.lint.suggestCanonicalClasses": "ignore",
+  "files.associations": {
+    "*.pulse": "yaml"
+  },
+  "yaml.schemas": {
+    "./pulse/schema.json": "*.pulse"
+  }
 }
