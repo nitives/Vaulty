@@ -28,6 +28,10 @@ import {
   savePages,
   StoredFolder,
   StoredPage,
+  loadPulses,
+  savePulses,
+  loadPulseItems,
+  savePulseItems,
 } from "./storage";
 import {
   loadSettings,
@@ -251,6 +255,26 @@ export function registerIpcHandlers(
     return { success: true };
   });
 
+  // Pulses
+  ipcMain.handle("pulses:load", () => {
+    return loadPulses();
+  });
+
+  ipcMain.handle("pulses:loadItems", () => {
+    return loadPulseItems();
+  });
+
+  ipcMain.handle("pulses:markItemSeen", (_event, id: string) => {
+    const items = loadPulseItems();
+    const item = items.find((i) => i.id === id);
+    if (item) {
+      item.isSeen = true;
+      savePulseItems(items);
+      return { success: true, item };
+    }
+    return { success: false, error: "Not found" };
+  });
+
   ipcMain.handle("storage:openTrash", async () => {
     const errorString = await shell.openPath(getTrashPath());
     return { success: !errorString, error: errorString };
@@ -301,6 +325,16 @@ export function registerIpcHandlers(
       if (fs.existsSync(oldPagesPath)) {
         fs.cpSync(oldPagesPath, newPagesPath);
       }
+      const oldPulsesPath = path.join(oldPath, "pulses.json");
+      const newPulsesPath = path.join(newPath, "pulses.json");
+      if (fs.existsSync(oldPulsesPath)) {
+        fs.cpSync(oldPulsesPath, newPulsesPath);
+      }
+      const oldPulseItemsPath = path.join(oldPath, "pulseItems.json");
+      const newPulseItemsPath = path.join(newPath, "pulseItems.json");
+      if (fs.existsSync(oldPulseItemsPath)) {
+        fs.cpSync(oldPulseItemsPath, newPulseItemsPath);
+      }
 
       // For images folder
       const oldImagesPath = path.join(oldPath, "images");
@@ -332,6 +366,8 @@ export function registerIpcHandlers(
       if (fs.existsSync(oldItemsPath)) fs.unlinkSync(oldItemsPath);
       if (fs.existsSync(oldFoldersPath)) fs.unlinkSync(oldFoldersPath);
       if (fs.existsSync(oldPagesPath)) fs.unlinkSync(oldPagesPath);
+      if (fs.existsSync(oldPulsesPath)) fs.unlinkSync(oldPulsesPath);
+      if (fs.existsSync(oldPulseItemsPath)) fs.unlinkSync(oldPulseItemsPath);
       if (fs.existsSync(oldImagesPath))
         fs.rmSync(oldImagesPath, { recursive: true, force: true });
       if (fs.existsSync(oldAudiosPath))

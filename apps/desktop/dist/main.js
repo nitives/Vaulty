@@ -14,6 +14,7 @@ const icon_1 = require("./lib/icon");
 const protocol_1 = require("./lib/protocol");
 const ipc_1 = require("./lib/ipc");
 const api_1 = require("./lib/api");
+const ventricle_1 = require("./lib/ventricle");
 const updates_1 = require("./lib/updates");
 const isDev = !electron_1.app.isPackaged;
 let mainWindow = null;
@@ -21,6 +22,8 @@ let nextServer = null;
 const DEV_SERVER_URL = "http://localhost:3000";
 const PROD_SERVER_PORT = 3000;
 let startupUpdateCheckRan = false;
+let tray = null;
+let isQuitting = false;
 function createWindow() {
     const settings = (0, settings_1.loadSettings)();
     mainWindow = new electron_1.BrowserWindow({
@@ -60,7 +63,12 @@ function createWindow() {
     mainWindow.webContents.on("did-finish-load", applySettings);
     // Graceful window show to avoid white flash
     mainWindow.once("ready-to-show", () => {
-        mainWindow?.show();
+        if (settings.startMinimized && !isDev) {
+            // Don't show if we are meant to start minimized
+        }
+        else {
+            mainWindow?.show();
+        }
     });
     // Handle external links - open in default browser
     mainWindow.webContents.setWindowOpenHandler(({ url }) => {
@@ -69,8 +77,55 @@ function createWindow() {
         }
         return { action: "deny" };
     });
+    mainWindow.on("close", (event) => {
+        if (!isQuitting) {
+            const currentSettings = (0, settings_1.loadSettings)();
+            if (currentSettings.closeToTray !== false) {
+                event.preventDefault();
+                mainWindow?.hide();
+            }
+        }
+    });
     mainWindow.on("closed", () => {
         mainWindow = null;
+    });
+}
+function createTray() {
+    const settings = (0, settings_1.loadSettings)();
+    const iconPath = path_1.default.join(__dirname, "..", "icons", "ico", "icon-rounded.ico");
+    if (!fs_1.default.existsSync(iconPath))
+        return;
+    tray = new electron_1.Tray(iconPath);
+    const contextMenu = electron_1.Menu.buildFromTemplate([
+        {
+            label: "Open Vaulty",
+            click: () => {
+                if (!mainWindow) {
+                    createWindow();
+                }
+                else {
+                    mainWindow.show();
+                }
+            },
+        },
+        { type: "separator" },
+        {
+            label: "Quit",
+            click: () => {
+                isQuitting = true;
+                electron_1.app.quit();
+            },
+        },
+    ]);
+    tray.setToolTip("Vaulty");
+    tray.setContextMenu(contextMenu);
+    tray.on("click", () => {
+        if (mainWindow) {
+            mainWindow.isVisible() ? mainWindow.hide() : mainWindow.show();
+        }
+        else {
+            createWindow();
+        }
     });
 }
 async function startNextServer() {
@@ -182,8 +237,21 @@ electron_1.app.whenReady().then(async () => {
     (0, ipc_1.registerIpcHandlers)(() => mainWindow);
     registerUpdateIpcHandlers();
     createWindow();
+    createTray();
     (0, updates_1.setupAutoUpdates)(() => mainWindow);
     (0, api_1.startLocalApi)(() => mainWindow);
+    try {
+        await (0, ventricle_1.initVentricle)({
+            onNewPulseItem: (item) => {
+                if (mainWindow && !mainWindow.isDestroyed()) {
+                    mainWindow.webContents.send("new-pulse-item", item);
+                }
+            },
+        });
+    }
+    catch (error) {
+        console.error("[Ventricle] Failed to initialize:", error);
+    }
     await startNextServer();
     await loadApp();
     if (!startupUpdateCheckRan) {
@@ -204,6 +272,8 @@ electron_1.app.on("activate", async () => {
     }
 });
 electron_1.app.on("before-quit", () => {
+    isQuitting = true;
+    (0, ventricle_1.stopVentricle)();
     if (nextServer) {
         nextServer.kill();
         nextServer = null;

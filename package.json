@@ -17,6 +17,7 @@
     "collect": "tsc -p scripts/tsconfig.collect.json && node scripts/.compiled/collect.js"
   },
   "devDependencies": {
+    "@types/uuid": "^10.0.0",
     "concurrently": "^9.0.0"
   },
   "dependencies": {

@@ -34,6 +34,29 @@ interface TrashedItem {
   deletedAt: string;
 }
 
+interface StoredPulse {
+  id: string;
+  name: string;
+  heartbeat: string;
+  lastChecked: string | null;
+  lastAnchorValue: string | null;
+  enabled: boolean;
+  addedAt: string;
+  filePath?: string;
+}
+
+interface StoredPulseItem {
+  id: string;
+  pulseId: string;
+  title: string;
+  content: string;
+  url?: string;
+  isSeen: boolean;
+  createdAt: string;
+  expiresAt?: string;
+  anchorValue?: string;
+}
+
 type UpdateState =
   | "idle"
   | "checking"
@@ -127,6 +150,19 @@ contextBridge.exposeInMainWorld("electronAPI", {
   deleteFromTrash: (id: string) => ipcRenderer.invoke("trash:delete", id),
   emptyTrash: () => ipcRenderer.invoke("trash:empty"),
   cleanupTrash: () => ipcRenderer.invoke("trash:cleanup"),
+  // Pulses
+  loadPulses: () => ipcRenderer.invoke("pulses:load"),
+  loadPulseItems: () => ipcRenderer.invoke("pulses:loadItems"),
+  markPulseItemSeen: (id: string) =>
+    ipcRenderer.invoke("pulses:markItemSeen", id),
+  onNewPulseItem: (callback: (item: StoredPulseItem) => void) => {
+    const listener = (
+      _event: Electron.IpcRendererEvent,
+      item: StoredPulseItem,
+    ) => callback(item);
+    ipcRenderer.on("new-pulse-item", listener);
+    return () => ipcRenderer.removeListener("new-pulse-item", listener);
+  },
   // Auto updates
   checkForUpdates: () => ipcRenderer.invoke("updates:check"),
   downloadUpdate: () => ipcRenderer.invoke("updates:download"),
@@ -215,6 +251,17 @@ declare global {
       deleteFromTrash: (id: string) => Promise<{ success: boolean }>;
       emptyTrash: () => Promise<{ success: boolean }>;
       cleanupTrash: () => Promise<{ success: boolean; deletedCount: number }>;
+      // Pulses
+      loadPulses: () => Promise<StoredPulse[]>;
+      loadPulseItems: () => Promise<StoredPulseItem[]>;
+      markPulseItemSeen: (
+        id: string,
+      ) => Promise<{
+        success: boolean;
+        item?: StoredPulseItem;
+        error?: string;
+      }>;
+      onNewPulseItem: (callback: (item: StoredPulseItem) => void) => () => void;
       // Auto updates
       checkForUpdates: () => Promise<
         | { ok: true; status: string; version?: string }

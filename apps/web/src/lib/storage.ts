@@ -36,6 +36,29 @@ export interface StoredPage {
   createdAt: string;
 }
 
+export interface StoredPulse {
+  id: string;
+  name: string;
+  heartbeat: string;
+  lastChecked: string | null;
+  lastAnchorValue: string | null;
+  enabled: boolean;
+  addedAt: string;
+  filePath?: string;
+}
+
+export interface StoredPulseItem {
+  id: string;
+  pulseId: string;
+  title: string;
+  content: string;
+  url?: string;
+  isSeen: boolean;
+  createdAt: string;
+  expiresAt?: string;
+  anchorValue?: string;
+}
+
 export interface Folder {
   id: string;
   name: string;
@@ -47,6 +70,29 @@ export interface Page {
   folderId: string | null;
   name: string;
   createdAt: Date;
+}
+
+export interface Pulse {
+  id: string;
+  name: string;
+  heartbeat: string;
+  lastChecked: Date | null;
+  lastAnchorValue: string | null;
+  enabled: boolean;
+  addedAt: Date;
+  filePath?: string;
+}
+
+export interface PulseItem {
+  id: string;
+  pulseId: string;
+  title: string;
+  content: string;
+  url?: string;
+  isSeen: boolean;
+  createdAt: Date;
+  expiresAt?: Date;
+  anchorValue?: string;
 }
 
 // Convert Item to StoredItem (serialize dates)
@@ -97,6 +143,22 @@ export function pageToStored(page: Page): StoredPage {
 
 export function storedToPage(stored: StoredPage): Page {
   return { ...stored, createdAt: new Date(stored.createdAt) };
+}
+
+export function storedToPulse(stored: StoredPulse): Pulse {
+  return {
+    ...stored,
+    lastChecked: stored.lastChecked ? new Date(stored.lastChecked) : null,
+    addedAt: new Date(stored.addedAt),
+  };
+}
+
+export function storedToPulseItem(stored: StoredPulseItem): PulseItem {
+  return {
+    ...stored,
+    createdAt: new Date(stored.createdAt),
+    expiresAt: stored.expiresAt ? new Date(stored.expiresAt) : undefined,
+  };
 }
 
 // Load all items from storage
@@ -280,6 +342,67 @@ export async function saveImage(
     console.error("Failed to save image:", err);
     return null;
   }
+}
+
+// Pulses
+export async function loadPulses(): Promise<Pulse[]> {
+  const api = getElectronAPI();
+  if (!api || typeof api.loadPulses !== "function") {
+    return [];
+  }
+
+  try {
+    const stored = (await api.loadPulses()) as StoredPulse[];
+    return stored.map(storedToPulse);
+  } catch (err) {
+    console.error("Failed to load pulses:", err);
+    return [];
+  }
+}
+
+export async function loadPulseItems(): Promise<PulseItem[]> {
+  const api = getElectronAPI();
+  if (!api || typeof api.loadPulseItems !== "function") {
+    return [];
+  }
+
+  try {
+    const stored = (await api.loadPulseItems()) as StoredPulseItem[];
+    return stored.map(storedToPulseItem);
+  } catch (err) {
+    console.error("Failed to load pulse items:", err);
+    return [];
+  }
+}
+
+export async function markPulseItemSeen(
+  id: string,
+): Promise<{ success: boolean }> {
+  const api = getElectronAPI();
+  if (!api || typeof api.markPulseItemSeen !== "function") {
+    return { success: false };
+  }
+
+  try {
+    const result = await api.markPulseItemSeen(id);
+    return { success: !!result?.success };
+  } catch (err) {
+    console.error("Failed to mark pulse item as seen:", err);
+    return { success: false };
+  }
+}
+
+export function onNewPulseItem(
+  callback: (item: PulseItem) => void,
+): () => void {
+  const api = getElectronAPI();
+  if (!api || typeof api.onNewPulseItem !== "function") {
+    return () => {};
+  }
+
+  return api.onNewPulseItem((storedItem: StoredPulseItem) => {
+    callback(storedToPulseItem(storedItem));
+  });
 }
 
 // Save an audio file and return the path and size

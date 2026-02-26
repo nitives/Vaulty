@@ -54,6 +54,12 @@ function registerIpcHandlers(getMainWindow) {
         }
         return updated;
     });
+    electron_1.ipcMain.handle("settings:startup", (_event, openOnStartup) => {
+        electron_1.app.setLoginItemSettings({
+            openAtLogin: openOnStartup,
+            path: electron_1.app.getPath("exe"),
+        });
+    });
     // Theme
     electron_1.ipcMain.handle("theme:set", (_event, theme) => {
         electron_1.nativeTheme.themeSource = theme;
@@ -170,6 +176,23 @@ function registerIpcHandlers(getMainWindow) {
         (0, storage_1.clearAllData)();
         return { success: true };
     });
+    // Pulses
+    electron_1.ipcMain.handle("pulses:load", () => {
+        return (0, storage_1.loadPulses)();
+    });
+    electron_1.ipcMain.handle("pulses:loadItems", () => {
+        return (0, storage_1.loadPulseItems)();
+    });
+    electron_1.ipcMain.handle("pulses:markItemSeen", (_event, id) => {
+        const items = (0, storage_1.loadPulseItems)();
+        const item = items.find((i) => i.id === id);
+        if (item) {
+            item.isSeen = true;
+            (0, storage_1.savePulseItems)(items);
+            return { success: true, item };
+        }
+        return { success: false, error: "Not found" };
+    });
     electron_1.ipcMain.handle("storage:openTrash", async () => {
         const errorString = await electron_1.shell.openPath((0, paths_1.getTrashPath)());
         return { success: !errorString, error: errorString };
@@ -212,6 +235,16 @@ function registerIpcHandlers(getMainWindow) {
             if (fs_1.default.existsSync(oldPagesPath)) {
                 fs_1.default.cpSync(oldPagesPath, newPagesPath);
             }
+            const oldPulsesPath = path_1.default.join(oldPath, "pulses.json");
+            const newPulsesPath = path_1.default.join(newPath, "pulses.json");
+            if (fs_1.default.existsSync(oldPulsesPath)) {
+                fs_1.default.cpSync(oldPulsesPath, newPulsesPath);
+            }
+            const oldPulseItemsPath = path_1.default.join(oldPath, "pulseItems.json");
+            const newPulseItemsPath = path_1.default.join(newPath, "pulseItems.json");
+            if (fs_1.default.existsSync(oldPulseItemsPath)) {
+                fs_1.default.cpSync(oldPulseItemsPath, newPulseItemsPath);
+            }
             // For images folder
             const oldImagesPath = path_1.default.join(oldPath, "images");
             const newImagesPath = path_1.default.join(newPath, "images");
@@ -241,6 +274,10 @@ function registerIpcHandlers(getMainWindow) {
                 fs_1.default.unlinkSync(oldFoldersPath);
             if (fs_1.default.existsSync(oldPagesPath))
                 fs_1.default.unlinkSync(oldPagesPath);
+            if (fs_1.default.existsSync(oldPulsesPath))
+                fs_1.default.unlinkSync(oldPulsesPath);
+            if (fs_1.default.existsSync(oldPulseItemsPath))
+                fs_1.default.unlinkSync(oldPulseItemsPath);
             if (fs_1.default.existsSync(oldImagesPath))
                 fs_1.default.rmSync(oldImagesPath, { recursive: true, force: true });
             if (fs_1.default.existsSync(oldAudiosPath))

@@ -11,6 +11,10 @@ import {
   getTrashFilePath,
   getTrashImagesPath,
   getTrashAudiosPath,
+  getLegacyPulsesConfigPath,
+  getPulsesFilePath,
+  getPulseItemsFilePath,
+  getPulsesConfigPath,
 } from "./paths";
 
 export interface StoredItem {
@@ -46,6 +50,131 @@ export interface TrashedItem {
   deletedAt: string; // ISO date string
 }
 
+export interface StoredPulse {
+  id: string;
+  name: string;
+  heartbeat: string;
+  lastChecked: string | null;
+  lastAnchorValue: string | null;
+  enabled: boolean;
+  addedAt: string;
+  filePath?: string;
+}
+
+export interface StoredPulseItem {
+  id: string; // Unique ID
+  pulseId: string;
+  title: string;
+  content: string; // HTML or Text
+  url?: string;
+  isSeen: boolean;
+  createdAt: string;
+  expiresAt?: string;
+  anchorValue?: string;
+}
+
+function asIsoDate(value: unknown): string | null {
+  if (typeof value !== "string" || value.trim() === "") {
+    return null;
+  }
+
+  const timestamp = Date.parse(value);
+  if (Number.isNaN(timestamp)) {
+    return null;
+  }
+
+  return new Date(timestamp).toISOString();
+}
+
+function normalizeHeartbeat(value: unknown): string {
+  if (typeof value !== "string") {
+    return "1h";
+  }
+
+  const heartbeat = value.trim().toLowerCase();
+  if (!heartbeat) {
+    return "1h";
+  }
+
+  // Supports 15m, 1h, 2d
+  if (/^\d+\s*[mhd]$/.test(heartbeat)) {
+    return heartbeat.replace(/\s+/g, "");
+  }
+
+  return "1h";
+}
+
+function normalizePulse(raw: unknown): StoredPulse | null {
+  if (!raw || typeof raw !== "object") {
+    return null;
+  }
+
+  const data = raw as Record<string, unknown>;
+  const id = typeof data.id === "string" ? data.id.trim() : "";
+  if (!id) {
+    return null;
+  }
+
+  const nowIso = new Date().toISOString();
+
+  return {
+    id,
+    name:
+      typeof data.name === "string" && data.name.trim()
+        ? data.name.trim()
+        : id,
+    heartbeat: normalizeHeartbeat(data.heartbeat),
+    lastChecked: asIsoDate(data.lastChecked),
+    lastAnchorValue:
+      typeof data.lastAnchorValue === "string" ? data.lastAnchorValue : null,
+    enabled: typeof data.enabled === "boolean" ? data.enabled : true,
+    addedAt: asIsoDate(data.addedAt) ?? nowIso,
+    filePath:
+      typeof data.filePath === "string" && data.filePath.trim()
+        ? data.filePath
+        : undefined,
+  };
+}
+
+function normalizePulseItem(raw: unknown): StoredPulseItem | null {
+  if (!raw || typeof raw !== "object") {
+    return null;
+  }
+
+  const data = raw as Record<string, unknown>;
+  const id = typeof data.id === "string" ? data.id.trim() : "";
+  const pulseId = typeof data.pulseId === "string" ? data.pulseId.trim() : "";
+
+  if (!id || !pulseId) {
+    return null;
+  }
+
+  const expiresAt = asIsoDate(data.expiresAt) ?? undefined;
+
+  return {
+    id,
+    pulseId,
+    title:
+      typeof data.title === "string" && data.title.trim()
+        ? data.title
+        : "Pulse Update",
+    content: typeof data.content === "string" ? data.content : "",
+    url: typeof data.url === "string" ? data.url : undefined,
+    isSeen: Boolean(data.isSeen),
+    createdAt: asIsoDate(data.createdAt) ?? new Date().toISOString(),
+    expiresAt,
+    anchorValue:
+      typeof data.anchorValue === "string" ? data.anchorValue : undefined,
+  };
+}
+
+function isExpiredPulseItem(item: StoredPulseItem, nowMs: number): boolean {
+  if (!item.expiresAt) {
+    return false;
+  }
+  return Date.parse(item.expiresAt) <= nowMs;
+}
+
 // Ensure data directories exist
 export function ensureDataDirectories(): void {
   const dataPath = getVaultyDataPath();
@@ -72,6 +201,34 @@ export function ensureDataDirectories(): void {
   }
   if (!fs.existsSync(trashAudiosPath)) {
     fs.mkdirSync(trashAudiosPath, { recursive: true });
+  }
+
+  const pulsesConfigPath = getPulsesConfigPath();
+  const legacyPulsesConfigPath = getLegacyPulsesConfigPath();
+
+  // Move old userData/pulses config directory to the Vault data root.
+  if (
+    legacyPulsesConfigPath !== pulsesConfigPath &&
+    fs.existsSync(legacyPulsesConfigPath) &&
+    fs.statSync(legacyPulsesConfigPath).isDirectory()
+  ) {
+    try {
+      if (!fs.existsSync(pulsesConfigPath)) {
+        fs.renameSync(legacyPulsesConfigPath, pulsesConfigPath);
+      } else {
+        fs.cpSync(legacyPulsesConfigPath, pulsesConfigPath, {
+          recursive: true,
+          force: false,
+        });
+        fs.rmSync(legacyPulsesConfigPath, { recursive: true, force: true });
+      }
+    } catch (err) {
+      console.error("Failed to migrate legacy pulses folder:", err);
+    }
+  }
+
+  if (!fs.existsSync(pulsesConfigPath)) {
+    fs.mkdirSync(pulsesConfigPath, { recursive: true });
   }
 }
 
@@ -169,6 +326,112 @@ export function savePages(pages: StoredPage[]): void {
     fs.writeFileSync(getPagesFilePath(), JSON.stringify(pages, null, 2));
   } catch (err) {
     console.error("Failed to save pages:", err);
+  }
+}
+
+export function loadPulses(): StoredPulse[] {
+  try {
+    ensureDataDirectories();
+    const filePath = getPulsesFilePath();
+    if (!fs.existsSync(filePath)) {
+      return [];
+    }
+    const data = fs.readFileSync(filePath, "utf-8");
+    const parsed = JSON.parse(data) as unknown;
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+
+    let modified = false;
+    const normalized: StoredPulse[] = [];
+
+    for (const rawPulse of parsed) {
+      const pulse = normalizePulse(rawPulse);
+      if (!pulse) {
+        modified = true;
+        continue;
+      }
+
+      normalized.push(pulse);
+      if (
+        JSON.stringify(rawPulse) !== JSON.stringify(pulse)
+      ) {
+        modified = true;
+      }
+    }
+
+    if (modified) {
+      savePulses(normalized);
+    }
+
+    return normalized;
+  } catch (err) {
+    console.error("Failed to load pulses:", err);
+    return [];
+  }
+}
+
+export function savePulses(pulses: StoredPulse[]): void {
+  try {
+    ensureDataDirectories();
+    fs.writeFileSync(getPulsesFilePath(), JSON.stringify(pulses, null, 2));
+  } catch (err) {
+    console.error("Failed to save pulses:", err);
+  }
+}
+
+export function loadPulseItems(): StoredPulseItem[] {
+  try {
+    ensureDataDirectories();
+    const filePath = getPulseItemsFilePath();
+    if (!fs.existsSync(filePath)) {
+      return [];
+    }
+    const data = fs.readFileSync(filePath, "utf-8");
+    const parsed = JSON.parse(data) as unknown;
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+
+    let modified = false;
+    const nowMs = Date.now();
+    const normalized: StoredPulseItem[] = [];
+
+    for (const rawItem of parsed) {
+      const item = normalizePulseItem(rawItem);
+      if (!item) {
+        modified = true;
+        continue;
+      }
+
+      if (isExpiredPulseItem(item, nowMs)) {
+        modified = true;
+        continue;
+      }
+
+      normalized.push(item);
+      if (JSON.stringify(rawItem) !== JSON.stringify(item)) {
+        modified = true;
+      }
+    }
+
+    if (modified) {
+      savePulseItems(normalized);
+    }
+
+    return normalized;
+  } catch (err) {
+    console.error("Failed to load pulse items:", err);
+    return [];
+  }
+}
+
+export function savePulseItems(items: StoredPulseItem[]): void {
+  try {
+    ensureDataDirectories();
+    fs.writeFileSync(getPulseItemsFilePath(), JSON.stringify(items, null, 2));
+  } catch (err) {
+    console.error("Failed to save pulse items:", err);
   }
 }
 
@@ -417,6 +680,10 @@ export function clearAllData(): void {
     // Clear folders.json and pages.json
     saveFolders([]);
     savePages([]);
+
+    // Clear pulses
+    savePulses([]);
+    savePulseItems([]);
 
     // Clear trash.json
     saveTrash([]);

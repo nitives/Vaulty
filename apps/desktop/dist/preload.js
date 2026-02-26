@@ -21,6 +21,7 @@ electron_1.contextBridge.exposeInMainWorld("electronAPI", {
     // Settings (single object get/set)
     getSettings: () => electron_1.ipcRenderer.invoke("settings:get"),
     setSettings: (patch) => electron_1.ipcRenderer.invoke("settings:set", patch),
+    changeStartupSettings: (openOnStartup) => electron_1.ipcRenderer.invoke("settings:startup", openOnStartup),
     // Theme sync (sets nativeTheme.themeSource in main process)
     setNativeTheme: (theme) => electron_1.ipcRenderer.invoke("theme:set", theme),
     // Accent color (Windows only)
@@ -59,6 +60,15 @@ electron_1.contextBridge.exposeInMainWorld("electronAPI", {
     deleteFromTrash: (id) => electron_1.ipcRenderer.invoke("trash:delete", id),
     emptyTrash: () => electron_1.ipcRenderer.invoke("trash:empty"),
     cleanupTrash: () => electron_1.ipcRenderer.invoke("trash:cleanup"),
+    // Pulses
+    loadPulses: () => electron_1.ipcRenderer.invoke("pulses:load"),
+    loadPulseItems: () => electron_1.ipcRenderer.invoke("pulses:loadItems"),
+    markPulseItemSeen: (id) => electron_1.ipcRenderer.invoke("pulses:markItemSeen", id),
+    onNewPulseItem: (callback) => {
+        const listener = (_event, item) => callback(item);
+        electron_1.ipcRenderer.on("new-pulse-item", listener);
+        return () => electron_1.ipcRenderer.removeListener("new-pulse-item", listener);
+    },
     // Auto updates
     checkForUpdates: () => electron_1.ipcRenderer.invoke("updates:check"),
     downloadUpdate: () => electron_1.ipcRenderer.invoke("updates:download"),

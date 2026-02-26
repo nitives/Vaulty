@@ -14,6 +14,10 @@ exports.getTrashFilePath = getTrashFilePath;
 exports.getTrashImagesPath = getTrashImagesPath;
 exports.getTrashAudiosPath = getTrashAudiosPath;
 exports.getSettingsPath = getSettingsPath;
+exports.getLegacyPulsesConfigPath = getLegacyPulsesConfigPath;
+exports.getPulsesConfigPath = getPulsesConfigPath;
+exports.getPulsesFilePath = getPulsesFilePath;
+exports.getPulseItemsFilePath = getPulseItemsFilePath;
 exports.getWebAppPath = getWebAppPath;
 const electron_1 = require("electron");
 const path_1 = __importDefault(require("path"));
@@ -64,6 +68,18 @@ function getTrashAudiosPath() {
 }
 function getSettingsPath() {
     return path_1.default.join(electron_1.app.getPath("userData"), "settings.json");
+}
+function getLegacyPulsesConfigPath() {
+    return path_1.default.join(electron_1.app.getPath("userData"), "pulses");
+}
+function getPulsesConfigPath() {
+    return path_1.default.join(getVaultyDataPath(), "pulses");
+}
+function getPulsesFilePath() {
+    return path_1.default.join(getVaultyDataPath(), "pulses.json");
+}
+function getPulseItemsFilePath() {
+    return path_1.default.join(getVaultyDataPath(), "pulseItems.json");
 }
 function getWebAppPath(isDev) {
     if (isDev)

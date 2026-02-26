@@ -60,6 +60,22 @@ export function getSettingsPath(): string {
   return path.join(app.getPath("userData"), "settings.json");
 }
 
+export function getLegacyPulsesConfigPath(): string {
+  return path.join(app.getPath("userData"), "pulses");
+}
+
+export function getPulsesConfigPath(): string {
+  return path.join(getVaultyDataPath(), "pulses");
+}
+
+export function getPulsesFilePath(): string {
+  return path.join(getVaultyDataPath(), "pulses.json");
+}
+
+export function getPulseItemsFilePath(): string {
+  return path.join(getVaultyDataPath(), "pulseItems.json");
+}
+
 export function getWebAppPath(isDev: boolean): string {
   if (isDev) return path.join(__dirname, "..", "..", "..", "web");
   return path.join(process.resourcesPath, "web");

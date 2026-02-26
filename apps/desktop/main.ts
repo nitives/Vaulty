@@ -21,6 +21,7 @@ import {
 } from "./lib/protocol";
 import { registerIpcHandlers } from "./lib/ipc";
 import { startLocalApi } from "./lib/api";
+import { initVentricle, stopVentricle } from "./lib/ventricle";
 import {
   canCheckForUpdates,
   checkForUpdates,
@@ -300,6 +301,17 @@ app.whenReady().then(async () => {
   createTray();
   setupAutoUpdates(() => mainWindow);
   startLocalApi(() => mainWindow);
+  try {
+    await initVentricle({
+      onNewPulseItem: (item) => {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send("new-pulse-item", item);
+        }
+      },
+    });
+  } catch (error) {
+    console.error("[Ventricle] Failed to initialize:", error);
+  }
   await startNextServer();
   await loadApp();
 
@@ -325,6 +337,7 @@ app.on("activate", async () => {
 
 app.on("before-quit", () => {
   isQuitting = true;
+  stopVentricle();
   if (nextServer) {
     nextServer.kill();
     nextServer = null;

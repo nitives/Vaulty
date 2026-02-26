@@ -50,10 +50,12 @@ interface SidebarProps {
   onFilterChange: (filter: string) => void;
   isCollapsed: boolean;
   items: Item[];
+  unseenPulseCount?: number;
 }
 
 const filters = [
   { id: "all", label: "All Items" },
+  { id: "feeds", label: "Feeds" },
   { id: "notes", label: "Notes" },
   { id: "images", label: "Images" },
   { id: "links", label: "Links" },
@@ -69,6 +71,7 @@ export function Sidebar({
   onFilterChange,
   isCollapsed,
   items,
+  unseenPulseCount = 0,
 }: SidebarProps) {
   const { settings } = useSettings();
   const [isLoading, setIsLoading] = useState(true);
@@ -421,8 +424,24 @@ export function Sidebar({
                 transition={{ duration: 0.15, ease: "easeOut" }}
                 suppressHydrationWarning
               >
-                {/* <span className="text-base">{filter.icon}</span> */}
-                {filter.label}
+                <span>{filter.label}</span>
+                {filter.id === "feeds" && unseenPulseCount > 0 && (
+                  <span
+                    className={clsx(
+                      // "scale-[15] z-[1000] absolute left-1/2 top-1/2",
+                      "aspect-square rounded-full",
+                      "grid place-items-center",
+                      "size-4 ml-auto",
+                      "text-[12px] text-center",
+                      "bg-[var(--accent-600)] font-semibold text-white",
+                      {
+                        "px-[3px]": unseenPulseCount <= 10,
+                      },
+                    )}
+                  >
+                    {unseenPulseCount > 99 ? "99+" : unseenPulseCount}
+                  </span>
+                )}
               </motion.button>
             ))}
           </AnimatePresence>

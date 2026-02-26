@@ -1,6 +1,6 @@
 {
   "name": "desktop",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Your local-first scrapbook for screenshots, notes, and links.",
   "main": "dist/main.js",
   "scripts": {
@@ -68,7 +68,10 @@
     }
   },
   "dependencies": {
-    "electron-updater": "^6.8.3"
+    "cheerio": "^1.2.0",
+    "chokidar": "^5.0.0",
+    "electron-updater": "^6.8.3",
+    "yaml": "^2.8.2"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",

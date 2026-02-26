@@ -6,6 +6,7 @@ import {
   Sidebar,
   InputBar,
   ItemList,
+  Feed,
   Titlebar,
   SettingsModal,
   ConfirmModal,
@@ -15,6 +16,7 @@ import {
 import { useSettings } from "@/lib/settings";
 import { useThemeClasses } from "@/hooks/useThemeClasses";
 import { useItems } from "@/hooks/useItems";
+import { useFeed } from "@/hooks/useFeed";
 import SFIcon from "@bradleyhodges/sfsymbols-react";
 import { sfArrowDown, sfArrowUp } from "@bradleyhodges/sfsymbols";
 
@@ -63,6 +65,28 @@ export default function Home() {
     handleSearch,
     displayItems,
   } = useItems();
+  const {
+    feedItems,
+    unseenCount,
+    isLoading: isFeedLoading,
+    markSeen: markFeedItemSeen,
+  } = useFeed();
+
+  const visibleFeedItems = useMemo(() => {
+    if (!searchQuery.trim()) {
+      return feedItems;
+    }
+
+    const query = searchQuery.trim().toLowerCase();
+    return feedItems.filter((item) => {
+      const contentText = item.content.replace(/<[^>]*>/g, " ").toLowerCase();
+      return (
+        item.title.toLowerCase().includes(query) ||
+        item.pulseName.toLowerCase().includes(query) ||
+        contentText.includes(query)
+      );
+    });
+  }, [feedItems, searchQuery]);
 
   // Ctrl+F keyboard shortcut for search
   useEffect(() => {
@@ -199,6 +223,7 @@ export default function Home() {
           onFilterChange={setActiveFilter}
           isCollapsed={sidebarCollapsed}
           items={items}
+          unseenPulseCount={unseenCount}
         />
         {/* Inline script: runs before first paint to collapse sidebar if needed */}
         <script
@@ -242,25 +267,27 @@ export default function Home() {
           </AnimatePresence>
 
           {/* Unified Input Bar */}
-          <div
-            className={clsx(
-              "z-10 transition-all duration-300",
-              settings.inputBarPosition === "top"
-                ? "shrink-0 px-6 py-4"
-                : "pointer-events-none absolute bottom-0 left-0 right-0 px-6 py-4 pt-8 compact:pt-4",
-            )}
-          >
+          {activeFilter !== "feeds" && (
             <div
               className={clsx(
-                "transition-all duration-300",
+                "z-10 transition-all duration-300",
                 settings.inputBarPosition === "top"
-                  ? "max-w-4xl"
-                  : "pointer-events-auto",
+                  ? "shrink-0 px-6 py-4"
+                  : "pointer-events-none absolute bottom-0 left-0 right-0 px-6 py-4 pt-8 compact:pt-4",
               )}
             >
-              <InputBar onSubmit={handleAddItem} />
+              <div
+                className={clsx(
+                  "transition-all duration-300",
+                  settings.inputBarPosition === "top"
+                    ? "max-w-4xl"
+                    : "pointer-events-auto",
+                )}
+              >
+                <InputBar onSubmit={handleAddItem} />
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Scroll Back Button */}
           <AnimatePresence>
@@ -303,7 +330,7 @@ export default function Home() {
             <div>
               {/* Active Tag Filter Badge */}
 
-              {activeTagFilter && (
+              {activeFilter !== "feeds" && activeTagFilter && (
                 <div className="flex items-center gap-2 mb-4">
                   <span className="text-sm text-neutral-500 dark:text-neutral-400">
                     Filtering by tag:
@@ -331,20 +358,28 @@ export default function Home() {
               )}
 
               {/* Item List */}
-              <ItemList
-                items={displayItems}
-                onTagClick={handleTagClick}
-                onDelete={handleDeleteItem}
-                onEdit={handleEditItem}
-                onMove={setItemToMove}
-                compact={settings.compactMode}
-                isLoading={isLoading}
-                emptyMessage={
-                  searchQuery
-                    ? "No items match your search."
-                    : "No items yet. Add something!"
-                }
-              />
+              {activeFilter === "feeds" ? (
+                <Feed
+                  items={visibleFeedItems}
+                  isLoading={isFeedLoading}
+                  onSeen={markFeedItemSeen}
+                />
+              ) : (
+                <ItemList
+                  items={displayItems}
+                  onTagClick={handleTagClick}
+                  onDelete={handleDeleteItem}
+                  onEdit={handleEditItem}
+                  onMove={setItemToMove}
+                  compact={settings.compactMode}
+                  isLoading={isLoading}
+                  emptyMessage={
+                    searchQuery
+                      ? "No items match your search."
+                      : "No items yet. Add something!"
+                  }
+                />
+              )}
             </div>
           </div>
         </main>

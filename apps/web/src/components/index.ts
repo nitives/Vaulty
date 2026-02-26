@@ -5,6 +5,7 @@ export { SidebarIcon } from "./sidebar/SidebarIcon";
 // -- Items --
 export { ItemCard, type Item } from "./items/ItemCard";
 export { ItemList } from "./items/ItemList";
+export { Feed } from "./feed/Feed";
 
 // -- Layout --
 export { InputBar } from "./layout/InputBar";
