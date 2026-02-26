@@ -10,11 +10,13 @@ import SFIcon from "@bradleyhodges/sfsymbols-react";
 import { DropdownMenu } from "../ui/DropdownMenu";
 import { renderMarkdown } from "@/lib/markdown";
 import { useSettings } from "@/lib/settings";
+import { getImageUrl } from "@/lib/media";
 import { useState } from "react";
 import clsx from "clsx";
 import { buttonStyles } from "@/styles/Button";
 import { Lightbox } from "../modals/Lightbox";
 import { AudioCard } from "./AudioCard";
+import { LinkWidget } from "./LinkWidget";
 
 export interface Item {
   id: string;
@@ -46,38 +48,6 @@ export interface ItemCardProps {
   onDelete?: (id: string) => void;
   onEdit?: (id: string, newContent: string) => void;
   onMove?: (id: string) => void;
-}
-
-// URL regex pattern
-// Render text with clickable links (moved to markdown.tsx but we still need some for other uses, or just completely removed)
-// Convert image path to display URL
-function getImageUrl(imageUrl: string): string {
-  // Data URLs (base64) - use as-is
-  if (imageUrl.startsWith("data:")) {
-    return imageUrl;
-  }
-  // Already a vaulty-image:// URL
-  if (imageUrl.startsWith("vaulty-image://")) {
-    return imageUrl;
-  }
-  // Already a relative path like "images/file.jpg" or "audios/file.mp3"
-  if (imageUrl.startsWith("images/") || imageUrl.startsWith("audios/")) {
-    return `vaulty-image://${imageUrl}`;
-  }
-  // Absolute path (legacy) — extract the relative portion after the vaulty data dir
-  // e.g. "C:\Users\...\vaulty\images\file.jpg" → "images/file.jpg"
-  const normalised = imageUrl.replace(/\\/g, "/");
-  const imagesIdx = normalised.lastIndexOf("/images/");
-  if (imagesIdx !== -1) {
-    return `vaulty-image://${normalised.slice(imagesIdx + 1)}`;
-  }
-  const audiosIdx = normalised.lastIndexOf("/audios/");
-  if (audiosIdx !== -1) {
-    return `vaulty-image://${normalised.slice(audiosIdx + 1)}`;
-  }
-  // Fallback: extract filename and assume images/
-  const filename = imageUrl.split(/[\\/]/).pop() || imageUrl;
-  return `vaulty-image://images/${filename}`;
 }
 
 // Check if content is meaningful text (not just a filename)
@@ -181,47 +151,7 @@ export function ItemCard({
                 </div>
               </div>
             ) : isLink ? (
-              <div className="flex flex-col gap-2">
-                <a
-                  href={item.content}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-[var(--accent-500)] hover:underline dark:text-[var(--accent-400)] break-words"
-                >
-                  {item.content}
-                </a>
-                {item.metadata && (
-                  <a
-                    href={item.content}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="group/card flex flex-col sm:flex-row gap-3 mt-1 overflow-hidden rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white/50 dark:bg-neutral-800/50 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors"
-                  >
-                    {item.metadata.image && (
-                      <div className="sm:w-32 h-32 shrink-0 overflow-hidden bg-neutral-100 dark:bg-neutral-900">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={item.metadata.image}
-                          alt=""
-                          className="h-full w-full object-cover transition-transform duration-300 group-hover/card:scale-105"
-                        />
-                      </div>
-                    )}
-                    <div className="flex flex-col justify-center p-3 sm:px-0 sm:py-3 sm:pr-3 min-w-0">
-                      {item.metadata.title && (
-                        <h4 className="font-semibold text-sm text-neutral-900 dark:text-neutral-100 line-clamp-2">
-                          {item.metadata.title}
-                        </h4>
-                      )}
-                      {item.metadata.description && (
-                        <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400 line-clamp-2">
-                          {item.metadata.description}
-                        </p>
-                      )}
-                    </div>
-                  </a>
-                )}
-              </div>
+              <LinkWidget item={item} />
             ) : (
               <div className="text-sm text-neutral-700 dark:text-neutral-300 break-words">
                 {renderMarkdown(item.content)}

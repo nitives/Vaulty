@@ -37,6 +37,7 @@ electron_1.contextBridge.exposeInMainWorld("electronAPI", {
     addItem: (item) => electron_1.ipcRenderer.invoke("items:add", item),
     deleteItem: (id) => electron_1.ipcRenderer.invoke("items:delete", id),
     updateItem: (item) => electron_1.ipcRenderer.invoke("items:update", item),
+    fetchMetadata: (url, itemId) => electron_1.ipcRenderer.invoke("metadata:fetch", url, itemId),
     // Folders & Pages
     loadFolders: () => electron_1.ipcRenderer.invoke("folders:load"),
     saveFolders: (folders) => electron_1.ipcRenderer.invoke("folders:save", folders),
@@ -47,6 +48,7 @@ electron_1.contextBridge.exposeInMainWorld("electronAPI", {
     getImagesPath: () => electron_1.ipcRenderer.invoke("images:getPath"),
     // Audio storage
     saveAudio: (audioData, filename) => electron_1.ipcRenderer.invoke("audios:save", audioData, filename),
+    saveAudioImage: (imageData, filename) => electron_1.ipcRenderer.invoke("audios:saveImage", imageData, filename),
     getAudiosPath: () => electron_1.ipcRenderer.invoke("audios:getPath"),
     // Storage path
     getStoragePath: () => electron_1.ipcRenderer.invoke("storage:getPath"),

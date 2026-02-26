@@ -31,6 +31,7 @@ function registerProtocolHandler() {
         ".jpeg": "image/jpeg",
         ".gif": "image/gif",
         ".webp": "image/webp",
+        ".avif": "image/avif",
         ".svg": "image/svg+xml",
         ".bmp": "image/bmp",
         // Audio

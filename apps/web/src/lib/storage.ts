@@ -446,6 +446,34 @@ export async function saveAudio(
   }
 }
 
+// Save an audio cover image into the audios directory
+export async function saveAudioImage(
+  imageData: string,
+  filename: string,
+): Promise<{ path: string; size: number } | null> {
+  const api = getElectronAPI();
+
+  if (!api) {
+    const size = Buffer.from(
+      imageData.replace(/^data:[^;]+;base64,/, ""),
+      "base64",
+    ).length;
+    return { path: imageData, size };
+  }
+
+  try {
+    const result = await api.saveAudioImage(imageData, filename);
+    if (result.success && result.path) {
+      return { path: result.path, size: result.size || 0 };
+    }
+    console.error("Failed to save audio image:", result.error);
+    return null;
+  } catch (err) {
+    console.error("Failed to save audio image:", err);
+    return null;
+  }
+}
+
 // Get the storage path
 export async function getStoragePath(): Promise<string | null> {
   const api = getElectronAPI();

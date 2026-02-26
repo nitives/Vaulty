@@ -8,6 +8,7 @@ exports.getItemsFilePath = getItemsFilePath;
 exports.getFoldersFilePath = getFoldersFilePath;
 exports.getPagesFilePath = getPagesFilePath;
 exports.getImagesPath = getImagesPath;
+exports.getMetadataPath = getMetadataPath;
 exports.getAudiosPath = getAudiosPath;
 exports.getTrashPath = getTrashPath;
 exports.getTrashFilePath = getTrashFilePath;
@@ -50,6 +51,9 @@ function getPagesFilePath() {
 }
 function getImagesPath() {
     return path_1.default.join(getVaultyDataPath(), "images");
+}
+function getMetadataPath() {
+    return path_1.default.join(getVaultyDataPath(), "metadata");
 }
 function getAudiosPath() {
     return path_1.default.join(getVaultyDataPath(), "audios");

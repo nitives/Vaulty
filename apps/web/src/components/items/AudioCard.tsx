@@ -1,10 +1,14 @@
 import { useState, useRef, useEffect } from "react";
 import clsx from "clsx";
 import SFIcon from "@bradleyhodges/sfsymbols-react";
-import { sfPlayFill, sfPauseFill, sfXmark } from "@bradleyhodges/sfsymbols";
+import {
+  sfPlayFill,
+  sfPauseFill,
+  sfXmark,
+  sfMusicNote,
+} from "@bradleyhodges/sfsymbols";
 import { useColor } from "color-thief-react";
 import { Item } from "./ItemCard";
-
 
 // Fallback background colors if no cover art is present
 const FALLBACK_GRADIENTS = [
@@ -46,6 +50,21 @@ function toVaultyUrl(storedPath: string | null): string | null {
   return `vaulty-image://images/${filename}`;
 }
 
+function getFileNameFallback(
+  pathOrUrl: string | null | undefined,
+): string | null {
+  if (!pathOrUrl) return null;
+
+  const normalized = pathOrUrl.replace(/\\/g, "/");
+  const filename = normalized.split("/").pop();
+  if (!filename) return null;
+
+  const decoded = decodeURIComponent(filename);
+  const withoutTimestamp = decoded.replace(/^\d+_/, "");
+  const withoutExt = withoutTimestamp.replace(/\.[^/.]+$/, "");
+  return withoutExt.trim() || null;
+}
+
 // -------------------------------------------------------------
 // AudioCard - Main timeline component
 // -------------------------------------------------------------
@@ -62,7 +81,12 @@ export function AudioCard({ item, audioUrl }: AudioCardProps) {
   const audioRef = useRef<HTMLAudioElement>(null);
 
   const meta = item.metadata || {};
-  const title = meta.title || item.content || "Unknown Track";
+  const contentFallback =
+    typeof item.content === "string" ? item.content.trim() : "";
+  const fileNameFallback =
+    getFileNameFallback(item.imageUrl) || getFileNameFallback(audioUrl);
+  const title =
+    meta.title || contentFallback || fileNameFallback || "Unknown Track";
   const artist = meta.artist || "Unknown Artist";
   const album = meta.album || "";
   const year = meta.year || "";
@@ -183,7 +207,7 @@ export function AudioCard({ item, audioUrl }: AudioCardProps) {
 
   return (
     <div
-      className="mt-3 p-[18px] vibrant-border compact:p-[14px] rounded-4xl compact:rounded-3xl flex w-full max-w-sm flex-col overflow-hidden transition-colors duration-500 ease-in-out"
+      className="mt-3 vibrant-border rounded-sm compact:rounded-md flex w-full max-w-sm flex-col overflow-hidden transition-colors duration-500 ease-in-out"
       style={{
         backgroundColor: bgColor,
       }}
@@ -192,9 +216,9 @@ export function AudioCard({ item, audioUrl }: AudioCardProps) {
       <audio ref={audioRef} src={audioUrl} preload="metadata" />
 
       <div className="flex flex-col gap-[9px]">
-        <div className="flex flex-row gap-[9px] items-center">
+        <div className="flex flex-row items-center">
           {/* Cover Art */}
-          <div className="relative select-none size-24 compact:size-16 rounded-[14px] compact:rounded-[10px] shrink-0 overflow-hidden shadow-md">
+          <div className="relative select-none size-[114px] compact:size-[93px] shrink-0 overflow-hidden shadow-md">
             {coverUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
@@ -205,18 +229,18 @@ export function AudioCard({ item, audioUrl }: AudioCardProps) {
             ) : (
               <div
                 className={clsx(
-                  "flex h-full w-full items-center justify-center font-bold text-white/50 text-3xl",
+                  "flex h-full w-full saturate-[0] items-center justify-center font-bold text-white/50 text-3xl",
                   fallbackClass,
                 )}
               >
-                ♪
+                <SFIcon icon={sfMusicNote} size={24} />
               </div>
             )}
           </div>
 
           {/* Info & Controls */}
           <div
-            className="flex flex-col justify-between compact:justify-center compact:gap-2 flex-1 min-w-0 "
+            className="flex flex-col compact:p-[8px] p-[10px] pl-[12px] compact:pl-[10px] justify-between compact:justify-center compact:gap-2 flex-1 min-w-0 "
             style={{ mixBlendMode: isDark ? "plus-lighter" : "color-burn" }}
           >
             <div className="flex flex-col mb-1 compact:mb-0">
@@ -249,7 +273,7 @@ export function AudioCard({ item, audioUrl }: AudioCardProps) {
             </div>
 
             {/* Normal controls */}
-            <div className="flex items-center gap-3 compact:hidden">
+            <div className="flex items-center gap-3 ">
               <button
                 onClick={togglePlay}
                 className={clsx(
@@ -282,42 +306,7 @@ export function AudioCard({ item, audioUrl }: AudioCardProps) {
                 />
               </div>
             </div>
-
-            {/* Compact seek bar — sits under info text */}
-            <div className="hidden compact:flex items-center mt-1 select-none w-full">
-              <input
-                type="range"
-                min="0"
-                max="100"
-                value={isFinite(progress) ? progress : 0}
-                onChange={handleSeek}
-                onClick={(e) => e.stopPropagation()}
-                style={{
-                  backgroundSize: `${isFinite(progress) ? progress : 0}% 100%`,
-                }}
-                className={clsx(
-                  "h-1 w-full cursor-pointer appearance-none rounded-full bg-no-repeat transition-all",
-                  isDark
-                    ? "bg-neutral-600 accent-neutral-200 bg-[image:linear-gradient(to_right,rgb(212,212,212),rgb(212,212,212))]"
-                    : "bg-neutral-300 accent-neutral-500 bg-[image:linear-gradient(to_right,rgb(115,115,115),rgb(115,115,115))]",
-                )}
-              />
-            </div>
           </div>
-
-          {/* Compact play button — sits to the right of info */}
-          <button
-            onClick={togglePlay}
-            style={{ mixBlendMode: isDark ? "plus-lighter" : "color-burn" }}
-            className={clsx(
-              "hidden compact:flex cursor-pointer size-10 shrink-0 items-center justify-center rounded-full transition-transform active:scale-95",
-              isDark
-                ? "bg-neutral-600 text-neutral-200 hover:bg-neutral-500"
-                : "bg-neutral-400/60 text-neutral-600 hover:bg-neutral-400/80",
-            )}
-          >
-            <SFIcon icon={isPlaying ? sfPauseFill : sfPlayFill} size={16} />
-          </button>
         </div>
       </div>
     </div>

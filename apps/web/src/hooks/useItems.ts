@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useCallback, useMemo, useEffect } from "react";
 import { Item } from "@/components";
 import { generateId } from "@/lib/utils";
@@ -9,6 +10,7 @@ import {
   deleteItem as deleteStoredItem,
   saveImage,
   saveAudio,
+  saveAudioImage,
   updateItem as updateStoredItem,
 } from "@/lib/storage";
 
@@ -23,12 +25,101 @@ export function useItems() {
   const [itemToMove, setItemToMove] = useState<string | null>(null);
   const [isProcessingImage, setIsProcessingImage] = useState(false);
 
+  const refreshLinkMetadata = useCallback(async (sourceItems: Item[]) => {
+    if (!window.electronAPI?.fetchMetadata || sourceItems.length === 0) {
+      return;
+    }
+
+    const linkItems = sourceItems.filter(
+      (item) =>
+        item.type === "link" && /^https?:\/\/\S+$/i.test(item.content.trim()),
+    );
+    if (linkItems.length === 0) {
+      return;
+    }
+
+    const metadataUpdates = new Map<
+      string,
+      NonNullable<Item["metadata"]>
+    >();
+
+    await Promise.all(
+      linkItems.map(async (item) => {
+        try {
+          const result = await window.electronAPI.fetchMetadata?.(
+            item.content.trim(),
+            item.id,
+          );
+          if (!result) {
+            return;
+          }
+
+          const nextMetadata: NonNullable<Item["metadata"]> = {
+            ...item.metadata,
+          };
+
+          if (result.title?.trim()) {
+            nextMetadata.title = result.title.trim();
+          }
+          if (result.description?.trim()) {
+            nextMetadata.description = result.description.trim();
+          }
+          if (result.image?.trim()) {
+            nextMetadata.image = result.image.trim();
+          }
+
+          const hasChanged =
+            nextMetadata.title !== item.metadata?.title ||
+            nextMetadata.description !== item.metadata?.description ||
+            nextMetadata.image !== item.metadata?.image;
+
+          if (hasChanged) {
+            metadataUpdates.set(item.id, nextMetadata);
+          }
+        } catch {
+          // Keep existing metadata when offline or fetch fails.
+        }
+      }),
+    );
+
+    if (metadataUpdates.size === 0) {
+      return;
+    }
+
+    setItems((prev) =>
+      prev.map((item) => {
+        const metadata = metadataUpdates.get(item.id);
+        if (!metadata) {
+          return item;
+        }
+        return {
+          ...item,
+          metadata,
+        };
+      }),
+    );
+
+    await Promise.all(
+      sourceItems.map(async (item) => {
+        const metadata = metadataUpdates.get(item.id);
+        if (!metadata) {
+          return;
+        }
+        await updateStoredItem({
+          ...item,
+          metadata,
+        });
+      }),
+    );
+  }, []);
+
   // Load items from storage on mount
   useEffect(() => {
     async function load() {
       try {
         const storedItems = await loadStoredItems();
         setItems(storedItems);
+        void refreshLinkMetadata(storedItems);
       } catch (err) {
         console.error("Failed to load items:", err);
       } finally {
@@ -36,7 +127,7 @@ export function useItems() {
       }
     }
     load();
-  }, []);
+  }, [refreshLinkMetadata]);
 
   const handleAddItem = useCallback(
     async (
@@ -49,8 +140,9 @@ export function useItems() {
     ) => {
       let imagePath: string | undefined;
       let imageSize: number | undefined;
-      let finalContent = content;
-      let finalTags = [...tags];
+      const finalContent = content;
+      const finalTags = [...tags];
+      const newItemId = generateId();
       let pageId: string | undefined;
 
       if (activeFilter.startsWith("page:")) {
@@ -89,7 +181,10 @@ export function useItems() {
       let metadata;
       if (type === "link" && window.electronAPI?.fetchMetadata) {
         try {
-          const result = await window.electronAPI.fetchMetadata(finalContent);
+          const result = await window.electronAPI.fetchMetadata(
+            finalContent,
+            newItemId,
+          );
           if (result && (result.title || result.description || result.image)) {
             metadata = result;
           }
@@ -99,15 +194,19 @@ export function useItems() {
       } else if (providedMetadata) {
         metadata = providedMetadata;
 
-        // Let's also save the extracted audio cover art using saveImage
-        if (metadata.image && metadata.image.startsWith("data:image/")) {
+        // Save extracted audio cover art in the audios folder
+        if (
+          type === "audio" &&
+          metadata.image &&
+          metadata.image.startsWith("data:image/")
+        ) {
           const safeName = (metadata.title || "cover").replace(
             /[^a-zA-Z0-9._-]/g,
             "_",
           );
           const timestamp = Date.now();
           const coverFilename = `${timestamp}_${safeName}_cover.jpg`;
-          const saveResult = await saveImage(metadata.image, coverFilename);
+          const saveResult = await saveAudioImage(metadata.image, coverFilename);
           if (saveResult && saveResult.path) {
             metadata.image = saveResult.path; // Store the local path instead of base64
           }
@@ -115,11 +214,11 @@ export function useItems() {
       }
 
       const newItem: Item = {
-        id: generateId(),
+        id: newItemId,
         type,
-        // For images, use the image name as content if no caption provided
+        // For images/audio, use the media filename as content if no caption is provided
         content:
-          type === "image" && !finalContent && imageName
+          (type === "image" || type === "audio") && !finalContent && imageName
             ? imageName
             : finalContent,
         tags: finalTags,

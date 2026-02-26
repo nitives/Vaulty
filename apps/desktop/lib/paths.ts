@@ -36,6 +36,10 @@ export function getImagesPath(): string {
   return path.join(getVaultyDataPath(), "images");
 }
 
+export function getMetadataPath(): string {
+  return path.join(getVaultyDataPath(), "metadata");
+}
+
 export function getAudiosPath(): string {
   return path.join(getVaultyDataPath(), "audios");
 }

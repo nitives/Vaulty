@@ -15,6 +15,8 @@ exports.savePulses = savePulses;
 exports.loadPulseItems = loadPulseItems;
 exports.savePulseItems = savePulseItems;
 exports.saveImage = saveImage;
+exports.saveMetadataImage = saveMetadataImage;
+exports.saveAudioImage = saveAudioImage;
 exports.saveAudio = saveAudio;
 exports.loadTrash = loadTrash;
 exports.saveTrash = saveTrash;
@@ -134,6 +136,7 @@ function isExpiredPulseItem(item, nowMs) {
 function ensureDataDirectories() {
     const dataPath = (0, paths_1.getVaultyDataPath)();
     const imagesPath = (0, paths_1.getImagesPath)();
+    const metadataPath = (0, paths_1.getMetadataPath)();
     const audiosPath = (0, paths_1.getAudiosPath)();
     const trashPath = (0, paths_1.getTrashPath)();
     const trashImagesPath = (0, paths_1.getTrashImagesPath)();
@@ -143,6 +146,9 @@ function ensureDataDirectories() {
     }
     if (!fs_1.default.existsSync(imagesPath)) {
         fs_1.default.mkdirSync(imagesPath, { recursive: true });
+    }
+    if (!fs_1.default.existsSync(metadataPath)) {
+        fs_1.default.mkdirSync(metadataPath, { recursive: true });
     }
     if (!fs_1.default.existsSync(audiosPath)) {
         fs_1.default.mkdirSync(audiosPath, { recursive: true });
@@ -432,6 +438,38 @@ function saveImage(imageData, filename) {
         return { success: false, error: String(err) };
     }
 }
+function saveMetadataImage(imageData, filename) {
+    try {
+        ensureDataDirectories();
+        const metadataPath = (0, paths_1.getMetadataPath)();
+        const filePath = path_1.default.join(metadataPath, filename);
+        const base64Data = imageData.replace(/^data:image\/\w+;base64,/, "");
+        fs_1.default.writeFileSync(filePath, base64Data, "base64");
+        const size = fs_1.default.statSync(filePath).size;
+        const relativePath = `metadata/${filename}`;
+        return { success: true, path: relativePath, size };
+    }
+    catch (err) {
+        console.error("Failed to save metadata image:", err);
+        return { success: false, error: String(err) };
+    }
+}
+function saveAudioImage(imageData, filename) {
+    try {
+        ensureDataDirectories();
+        const audiosPath = (0, paths_1.getAudiosPath)();
+        const filePath = path_1.default.join(audiosPath, filename);
+        const base64Data = imageData.replace(/^data:image\/\w+;base64,/, "");
+        fs_1.default.writeFileSync(filePath, base64Data, "base64");
+        const size = fs_1.default.statSync(filePath).size;
+        const relativePath = `audios/${filename}`;
+        return { success: true, path: relativePath, size };
+    }
+    catch (err) {
+        console.error("Failed to save audio image:", err);
+        return { success: false, error: String(err) };
+    }
+}
 function saveAudio(audioData, filename) {
     try {
         ensureDataDirectories();
@@ -642,6 +680,14 @@ function clearAllData() {
             const files = fs_1.default.readdirSync(imagesPath);
             for (const file of files) {
                 fs_1.default.unlinkSync(path_1.default.join(imagesPath, file));
+            }
+        }
+        // Delete all metadata images
+        const metadataPath = (0, paths_1.getMetadataPath)();
+        if (fs_1.default.existsSync(metadataPath)) {
+            const files = fs_1.default.readdirSync(metadataPath);
+            for (const file of files) {
+                fs_1.default.unlinkSync(path_1.default.join(metadataPath, file));
             }
         }
         // Delete all audios

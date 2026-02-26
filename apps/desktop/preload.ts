@@ -14,6 +14,11 @@ interface StoredItem {
     tags: string[];
     content: string;
   };
+  metadata?: {
+    title?: string;
+    description?: string;
+    image?: string;
+  };
 }
 
 interface StoredFolder {
@@ -125,6 +130,8 @@ contextBridge.exposeInMainWorld("electronAPI", {
   addItem: (item: StoredItem) => ipcRenderer.invoke("items:add", item),
   deleteItem: (id: string) => ipcRenderer.invoke("items:delete", id),
   updateItem: (item: StoredItem) => ipcRenderer.invoke("items:update", item),
+  fetchMetadata: (url: string, itemId?: string) =>
+    ipcRenderer.invoke("metadata:fetch", url, itemId),
   // Folders & Pages
   loadFolders: () => ipcRenderer.invoke("folders:load"),
   saveFolders: (folders: StoredFolder[]) =>
@@ -138,6 +145,8 @@ contextBridge.exposeInMainWorld("electronAPI", {
   // Audio storage
   saveAudio: (audioData: string, filename: string) =>
     ipcRenderer.invoke("audios:save", audioData, filename),
+  saveAudioImage: (imageData: string, filename: string) =>
+    ipcRenderer.invoke("audios:saveImage", imageData, filename),
   getAudiosPath: () => ipcRenderer.invoke("audios:getPath"),
   // Storage path
   getStoragePath: () => ipcRenderer.invoke("storage:getPath"),
@@ -206,6 +215,14 @@ declare global {
       updateItem: (
         item: StoredItem,
       ) => Promise<{ success: boolean; items: StoredItem[] }>;
+      fetchMetadata?: (
+        url: string,
+        itemId?: string,
+      ) => Promise<{
+        title?: string;
+        description?: string;
+        image?: string;
+      }>;
       // Folders & Pages
       loadFolders: () => Promise<StoredFolder[]>;
       saveFolders: (folders: StoredFolder[]) => Promise<{ success: boolean }>;
@@ -225,6 +242,15 @@ declare global {
       // Audio storage
       saveAudio: (
         audioData: string,
+        filename: string,
+      ) => Promise<{
+        success: boolean;
+        path?: string;
+        size?: number;
+        error?: string;
+      }>;
+      saveAudioImage: (
+        imageData: string,
         filename: string,
       ) => Promise<{
         success: boolean;

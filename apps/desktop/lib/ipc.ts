@@ -13,6 +13,8 @@ import {
   loadItems,
   saveItems,
   saveImage,
+  saveMetadataImage,
+  saveAudioImage,
   saveAudio,
   StoredItem,
   moveToTrash,
@@ -46,6 +48,7 @@ import {
   getTrashPath,
 } from "./paths";
 import { getWindowIcon } from "./icon";
+import { fetchOpenGraph } from "./opengraph";
 
 function normalizeAccentColor(color: string | null | undefined): string | null {
   if (!color) return null;
@@ -64,6 +67,39 @@ function getCurrentWindowsAccentColor(): string | null {
   } catch {
     return null;
   }
+}
+
+function sanitizeFilePart(value: string): string {
+  return value.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 80) || "link";
+}
+
+function extensionFromContentType(contentType: string | null): string | null {
+  if (!contentType) return null;
+  const normalized = contentType.toLowerCase().split(";")[0].trim();
+  const map: Record<string, string> = {
+    "image/jpeg": "jpg",
+    "image/jpg": "jpg",
+    "image/png": "png",
+    "image/webp": "webp",
+    "image/gif": "gif",
+    "image/avif": "avif",
+    "image/svg+xml": "svg",
+  };
+  return map[normalized] ?? null;
+}
+
+function extensionFromUrl(rawUrl: string): string | null {
+  try {
+    const pathname = new URL(rawUrl).pathname;
+    const ext = pathname.split(".").pop()?.toLowerCase() ?? "";
+    if (!ext) return null;
+    if (["jpg", "jpeg", "png", "webp", "gif", "avif", "svg"].includes(ext)) {
+      return ext === "jpeg" ? "jpg" : ext;
+    }
+  } catch {
+    // Ignore parse failures.
+  }
+  return null;
 }
 
 export function registerIpcHandlers(
@@ -134,6 +170,78 @@ export function registerIpcHandlers(
   ipcMain.handle("theme:set", (_event, theme: "system" | "light" | "dark") => {
     nativeTheme.themeSource = theme;
   });
+
+  ipcMain.handle(
+    "metadata:fetch",
+    async (_event, rawUrl: string, itemId?: string) => {
+      if (typeof rawUrl !== "string" || !rawUrl.trim()) {
+        return {};
+      }
+
+      let targetUrl: string;
+      try {
+        targetUrl = new URL(rawUrl.trim()).toString();
+      } catch {
+        return {};
+      }
+
+      if (!/^https?:/i.test(targetUrl)) {
+        return {};
+      }
+
+      const metadata = await fetchOpenGraph(targetUrl);
+
+      if (metadata.image) {
+        let imageUrl = metadata.image;
+        try {
+          imageUrl = new URL(imageUrl, targetUrl).toString();
+        } catch {
+          imageUrl = metadata.image;
+        }
+
+        try {
+          const response = await fetch(imageUrl, {
+            redirect: "follow",
+            headers: {
+              "User-Agent":
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
+                "(KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+            },
+          });
+
+          const contentType = response.headers.get("content-type");
+          if (
+            response.ok &&
+            contentType?.toLowerCase().startsWith("image/")
+          ) {
+            const imageBytes = Buffer.from(await response.arrayBuffer());
+            const mimeType = contentType.split(";")[0].trim();
+            const base64Data = imageBytes.toString("base64");
+            const dataUrl = `data:${mimeType};base64,${base64Data}`;
+            const safeId = sanitizeFilePart(itemId ?? targetUrl);
+            const ext =
+              extensionFromContentType(contentType) ??
+              extensionFromUrl(imageUrl) ??
+              "jpg";
+            const filename = `link_${safeId}_og.${ext}`;
+            const saved = saveMetadataImage(dataUrl, filename);
+            if (saved.success && saved.path) {
+              metadata.image = saved.path;
+            } else {
+              metadata.image = imageUrl;
+            }
+          } else {
+            metadata.image = imageUrl;
+          }
+        } catch {
+          // Keep the previously resolved image URL if image download fails.
+          metadata.image = imageUrl;
+        }
+      }
+
+      return metadata;
+    },
+  );
 
   // Windows accent color
   ipcMain.handle("accent:getWindowsColor", () => {
@@ -252,6 +360,13 @@ export function registerIpcHandlers(
     },
   );
 
+  ipcMain.handle(
+    "audios:saveImage",
+    async (_event, imageData: string, filename: string) => {
+      return saveAudioImage(imageData, filename);
+    },
+  );
+
   ipcMain.handle("audios:getPath", () => {
     return getAudiosPath();
   });
@@ -353,6 +468,13 @@ export function registerIpcHandlers(
         fs.cpSync(oldImagesPath, newImagesPath, { recursive: true });
       }
 
+      // For metadata folder
+      const oldMetadataPath = path.join(oldPath, "metadata");
+      const newMetadataPath = path.join(newPath, "metadata");
+      if (fs.existsSync(oldMetadataPath)) {
+        fs.cpSync(oldMetadataPath, newMetadataPath, { recursive: true });
+      }
+
       // For audios folder
       const oldAudiosPath = path.join(oldPath, "audios");
       const newAudiosPath = path.join(newPath, "audios");
@@ -380,6 +502,8 @@ export function registerIpcHandlers(
       if (fs.existsSync(oldPulseItemsPath)) fs.unlinkSync(oldPulseItemsPath);
       if (fs.existsSync(oldImagesPath))
         fs.rmSync(oldImagesPath, { recursive: true, force: true });
+      if (fs.existsSync(oldMetadataPath))
+        fs.rmSync(oldMetadataPath, { recursive: true, force: true });
       if (fs.existsSync(oldAudiosPath))
         fs.rmSync(oldAudiosPath, { recursive: true, force: true });
       if (fs.existsSync(oldTrashPath))

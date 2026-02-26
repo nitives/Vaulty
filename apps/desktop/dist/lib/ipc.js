@@ -11,6 +11,7 @@ const storage_1 = require("./storage");
 const settings_1 = require("./settings");
 const paths_1 = require("./paths");
 const icon_1 = require("./icon");
+const opengraph_1 = require("./opengraph");
 function normalizeAccentColor(color) {
     if (!color)
         return null;
@@ -33,6 +34,39 @@ function getCurrentWindowsAccentColor() {
     catch {
         return null;
     }
+}
+function sanitizeFilePart(value) {
+    return value.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 80) || "link";
+}
+function extensionFromContentType(contentType) {
+    if (!contentType)
+        return null;
+    const normalized = contentType.toLowerCase().split(";")[0].trim();
+    const map = {
+        "image/jpeg": "jpg",
+        "image/jpg": "jpg",
+        "image/png": "png",
+        "image/webp": "webp",
+        "image/gif": "gif",
+        "image/avif": "avif",
+        "image/svg+xml": "svg",
+    };
+    return map[normalized] ?? null;
+}
+function extensionFromUrl(rawUrl) {
+    try {
+        const pathname = new URL(rawUrl).pathname;
+        const ext = pathname.split(".").pop()?.toLowerCase() ?? "";
+        if (!ext)
+            return null;
+        if (["jpg", "jpeg", "png", "webp", "gif", "avif", "svg"].includes(ext)) {
+            return ext === "jpeg" ? "jpg" : ext;
+        }
+    }
+    catch {
+        // Ignore parse failures.
+    }
+    return null;
 }
 function registerIpcHandlers(getMainWindow) {
     // App info
@@ -86,6 +120,68 @@ function registerIpcHandlers(getMainWindow) {
     // Theme
     electron_1.ipcMain.handle("theme:set", (_event, theme) => {
         electron_1.nativeTheme.themeSource = theme;
+    });
+    electron_1.ipcMain.handle("metadata:fetch", async (_event, rawUrl, itemId) => {
+        if (typeof rawUrl !== "string" || !rawUrl.trim()) {
+            return {};
+        }
+        let targetUrl;
+        try {
+            targetUrl = new URL(rawUrl.trim()).toString();
+        }
+        catch {
+            return {};
+        }
+        if (!/^https?:/i.test(targetUrl)) {
+            return {};
+        }
+        const metadata = await (0, opengraph_1.fetchOpenGraph)(targetUrl);
+        if (metadata.image) {
+            let imageUrl = metadata.image;
+            try {
+                imageUrl = new URL(imageUrl, targetUrl).toString();
+            }
+            catch {
+                imageUrl = metadata.image;
+            }
+            try {
+                const response = await fetch(imageUrl, {
+                    redirect: "follow",
+                    headers: {
+                        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
+                            "(KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+                    },
+                });
+                const contentType = response.headers.get("content-type");
+                if (response.ok &&
+                    contentType?.toLowerCase().startsWith("image/")) {
+                    const imageBytes = Buffer.from(await response.arrayBuffer());
+                    const mimeType = contentType.split(";")[0].trim();
+                    const base64Data = imageBytes.toString("base64");
+                    const dataUrl = `data:${mimeType};base64,${base64Data}`;
+                    const safeId = sanitizeFilePart(itemId ?? targetUrl);
+                    const ext = extensionFromContentType(contentType) ??
+                        extensionFromUrl(imageUrl) ??
+                        "jpg";
+                    const filename = `link_${safeId}_og.${ext}`;
+                    const saved = (0, storage_1.saveMetadataImage)(dataUrl, filename);
+                    if (saved.success && saved.path) {
+                        metadata.image = saved.path;
+                    }
+                    else {
+                        metadata.image = imageUrl;
+                    }
+                }
+                else {
+                    metadata.image = imageUrl;
+                }
+            }
+            catch {
+                // Keep the previously resolved image URL if image download fails.
+                metadata.image = imageUrl;
+            }
+        }
+        return metadata;
     });
     // Windows accent color
     electron_1.ipcMain.handle("accent:getWindowsColor", () => {
@@ -179,6 +275,9 @@ function registerIpcHandlers(getMainWindow) {
     electron_1.ipcMain.handle("audios:save", async (_event, audioData, filename) => {
         return (0, storage_1.saveAudio)(audioData, filename);
     });
+    electron_1.ipcMain.handle("audios:saveImage", async (_event, imageData, filename) => {
+        return (0, storage_1.saveAudioImage)(imageData, filename);
+    });
     electron_1.ipcMain.handle("audios:getPath", () => {
         return (0, paths_1.getAudiosPath)();
     });
@@ -264,6 +363,12 @@ function registerIpcHandlers(getMainWindow) {
             if (fs_1.default.existsSync(oldImagesPath)) {
                 fs_1.default.cpSync(oldImagesPath, newImagesPath, { recursive: true });
             }
+            // For metadata folder
+            const oldMetadataPath = path_1.default.join(oldPath, "metadata");
+            const newMetadataPath = path_1.default.join(newPath, "metadata");
+            if (fs_1.default.existsSync(oldMetadataPath)) {
+                fs_1.default.cpSync(oldMetadataPath, newMetadataPath, { recursive: true });
+            }
             // For audios folder
             const oldAudiosPath = path_1.default.join(oldPath, "audios");
             const newAudiosPath = path_1.default.join(newPath, "audios");
@@ -293,6 +398,8 @@ function registerIpcHandlers(getMainWindow) {
                 fs_1.default.unlinkSync(oldPulseItemsPath);
             if (fs_1.default.existsSync(oldImagesPath))
                 fs_1.default.rmSync(oldImagesPath, { recursive: true, force: true });
+            if (fs_1.default.existsSync(oldMetadataPath))
+                fs_1.default.rmSync(oldMetadataPath, { recursive: true, force: true });
             if (fs_1.default.existsSync(oldAudiosPath))
                 fs_1.default.rmSync(oldAudiosPath, { recursive: true, force: true });
             if (fs_1.default.existsSync(oldTrashPath))
