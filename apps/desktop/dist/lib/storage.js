@@ -76,6 +76,29 @@ function normalizePulse(raw) {
             : undefined,
     };
 }
+function normalizeFolder(raw) {
+    if (!raw || typeof raw !== "object") {
+        return null;
+    }
+    const data = raw;
+    const id = typeof data.id === "string" ? data.id.trim() : "";
+    if (!id) {
+        return null;
+    }
+    const nowIso = new Date().toISOString();
+    const normalizedCreatedAt = asIsoDate(data.createdAt) ?? nowIso;
+    const parentFolderId = typeof data.parentFolderId === "string" && data.parentFolderId.trim()
+        ? data.parentFolderId.trim()
+        : null;
+    return {
+        id,
+        name: typeof data.name === "string" && data.name.trim()
+            ? data.name.trim()
+            : id,
+        createdAt: normalizedCreatedAt,
+        parentFolderId: parentFolderId === id ? null : parentFolderId,
+    };
+}
 function normalizePulseItem(raw) {
     if (!raw || typeof raw !== "object") {
         return null;
@@ -214,7 +237,51 @@ function loadFolders() {
             return [];
         }
         const data = fs_1.default.readFileSync(filePath, "utf-8");
-        return JSON.parse(data);
+        const parsed = JSON.parse(data);
+        if (!Array.isArray(parsed)) {
+            return [];
+        }
+        let modified = false;
+        const normalized = [];
+        for (const rawFolder of parsed) {
+            const folder = normalizeFolder(rawFolder);
+            if (!folder) {
+                modified = true;
+                continue;
+            }
+            normalized.push(folder);
+            if (JSON.stringify(rawFolder) !== JSON.stringify(folder)) {
+                modified = true;
+            }
+        }
+        const folderById = new Map(normalized.map((folder) => [folder.id, folder]));
+        for (const folder of normalized) {
+            if (!folder.parentFolderId) {
+                continue;
+            }
+            if (!folderById.has(folder.parentFolderId)) {
+                folder.parentFolderId = null;
+                modified = true;
+                continue;
+            }
+            // Break ancestry cycles (A -> B -> A).
+            const seen = new Set([folder.id]);
+            let currentParentId = folder.parentFolderId;
+            while (currentParentId) {
+                if (seen.has(currentParentId)) {
+                    folder.parentFolderId = null;
+                    modified = true;
+                    break;
+                }
+                seen.add(currentParentId);
+                const parent = folderById.get(currentParentId);
+                currentParentId = parent?.parentFolderId ?? null;
+            }
+        }
+        if (modified) {
+            saveFolders(normalized);
+        }
+        return normalized;
     }
     catch (err) {
         console.error("Failed to load folders:", err);

@@ -20,6 +20,7 @@ interface StoredFolder {
   id: string;
   name: string;
   createdAt: string;
+  parentFolderId: string | null;
 }
 
 interface StoredPage {

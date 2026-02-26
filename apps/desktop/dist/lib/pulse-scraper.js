@@ -59,10 +59,11 @@ function normalizeUrl(rawUrl) {
     return trimmed;
 }
 function parseAttribute(node, attribute) {
+    const normalizeText = (value) => value.replace(/[\s\u00a0]+/g, " ").trim();
     const attr = attribute.trim();
     const lower = attr.toLowerCase();
-    if (lower === "innertext" || lower === "text") {
-        const value = node.text().trim();
+    if (lower === "innertext" || lower === "text" || lower === "textcontent") {
+        const value = normalizeText(node.text());
         return value || null;
     }
     if (lower === "innerhtml" || lower === "html") {

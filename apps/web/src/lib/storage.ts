@@ -27,6 +27,7 @@ export interface StoredFolder {
   id: string;
   name: string;
   createdAt: string;
+  parentFolderId: string | null;
 }
 
 export interface StoredPage {
@@ -63,6 +64,7 @@ export interface Folder {
   id: string;
   name: string;
   createdAt: Date;
+  parentFolderId: string | null;
 }
 
 export interface Page {
@@ -130,11 +132,22 @@ export function storedToItem(stored: StoredItem): Item {
 }
 
 export function folderToStored(folder: Folder): StoredFolder {
-  return { ...folder, createdAt: folder.createdAt.toISOString() };
+  return {
+    ...folder,
+    createdAt: folder.createdAt.toISOString(),
+    parentFolderId: folder.parentFolderId ?? null,
+  };
 }
 
 export function storedToFolder(stored: StoredFolder): Folder {
-  return { ...stored, createdAt: new Date(stored.createdAt) };
+  return {
+    ...stored,
+    createdAt: new Date(stored.createdAt),
+    parentFolderId:
+      typeof stored.parentFolderId === "string" && stored.parentFolderId.trim()
+        ? stored.parentFolderId
+        : null,
+  };
 }
 
 export function pageToStored(page: Page): StoredPage {

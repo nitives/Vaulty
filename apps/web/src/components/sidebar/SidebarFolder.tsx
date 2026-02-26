@@ -15,21 +15,33 @@ import { useDroppable } from "@dnd-kit/core";
 interface SidebarFolderProps {
   folder: Folder;
   pages: Page[];
-  isExpanded: boolean;
+  childFolders: Folder[];
+  getPagesForFolder: (folderId: string) => Page[];
+  getChildFolders: (folderId: string) => Folder[];
+  depth?: number;
+  isSortable?: boolean;
+  isFolderExpanded: (folderId: string) => boolean;
   activeFilter: string;
-  isCreatingPage: boolean;
+  creatingPageFolderId: string | null;
+  creatingFolderParentId: string | null;
   newPageName: string;
+  newFolderName: string;
   pageInputRef: React.RefObject<HTMLInputElement | null>;
+  folderInputRef: React.RefObject<HTMLInputElement | null>;
   onToggle: (id: string) => void;
   onContextMenu: (
     e: React.MouseEvent,
     id: string,
     type: "folder" | "page",
   ) => void;
+  onStartCreateFolder: (parentFolderId: string) => void;
   onStartCreatePage: (folderId: string) => void;
   onFilterChange: (filter: string) => void;
+  onCommitCreateFolder: () => void;
   onCommitCreatePage: () => void;
+  onFolderInputKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => void;
   onPageInputKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => void;
+  setNewFolderName: (name: string) => void;
   setNewPageName: (name: string) => void;
   isRenaming?: boolean;
   renameValue?: string;
@@ -47,17 +59,29 @@ interface SidebarFolderProps {
 export function SidebarFolder({
   folder,
   pages,
-  isExpanded,
+  childFolders,
+  getPagesForFolder,
+  getChildFolders,
+  depth = 0,
+  isSortable = false,
+  isFolderExpanded,
   activeFilter,
-  isCreatingPage,
+  creatingPageFolderId,
+  creatingFolderParentId,
   newPageName,
+  newFolderName,
   pageInputRef,
+  folderInputRef,
   onToggle,
   onContextMenu,
+  onStartCreateFolder,
   onStartCreatePage,
   onFilterChange,
+  onCommitCreateFolder,
   onCommitCreatePage,
+  onFolderInputKeyDown,
   onPageInputKeyDown,
+  setNewFolderName,
   setNewPageName,
   isRenaming = false,
   renameValue = "",
@@ -68,6 +92,9 @@ export function SidebarFolder({
   onStartRename,
 }: SidebarFolderProps) {
   const renameInputRef = useRef<HTMLInputElement>(null);
+  const isExpanded = isFolderExpanded(folder.id);
+  const isCreatingPageHere = creatingPageFolderId === folder.id;
+  const isCreatingFolderHere = creatingFolderParentId === folder.id;
 
   // Sortable for the folder itself
   const {
@@ -80,6 +107,7 @@ export function SidebarFolder({
   } = useSortable({
     id: `folder:${folder.id}`,
     data: { type: "folder", folder },
+    disabled: !isSortable,
   });
 
   // Droppable zone for pages to be dropped INTO this folder
@@ -121,8 +149,8 @@ export function SidebarFolder({
       >
         <button
           name="Toggle Folder"
-          {...attributes}
-          {...listeners}
+          {...(isSortable ? attributes : {})}
+          {...(isSortable ? listeners : {})}
           onClick={() => {
             if (!isRenaming) onToggle(folder.id);
           }}
@@ -131,7 +159,7 @@ export function SidebarFolder({
             "transition-colors rounded-lg text-sm duration-[250ms] hover:duration-0",
             "flex flex-1 items-center gap-2.5 px-2 py-1",
             "hover:bg-black/5 dark:hover:bg-white/5",
-            "touch-none cursor-grab active:cursor-grabbing",
+            isSortable && "touch-none cursor-grab active:cursor-grabbing",
           )}
         >
           {/* Folder icon */}
@@ -144,7 +172,10 @@ export function SidebarFolder({
             <input
               ref={renameInputRef}
               value={renameValue}
+              spellCheck={false}
               onChange={(e) => onRenameChange?.(e.target.value)}
+              onPointerDown={(e) => e.stopPropagation()}
+              onMouseDown={(e) => e.stopPropagation()}
               onBlur={onRenameCommit}
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
@@ -171,20 +202,34 @@ export function SidebarFolder({
           )}
         </button>
 
-        {/* New page button (visible on hover) */}
-        <button
-          onClick={() => onStartCreatePage(folder.id)}
-          className={clsx(
-            "px-2 cursor-pointer",
-            "transition-colors",
-            "opacity-0 group-hover:opacity-100",
-            "text-black/15 hover:text-black/35",
-            "dark:text-white/25 dark:hover:text-white/35",
-          )}
-          title="New Page"
-        >
-          <SFIcon icon={sfPlus} size={10} weight={1} />
-        </button>
+        <div className="flex gap-2.5 mr-3.5 pl-2">
+          <button
+            onClick={() => onStartCreateFolder(folder.id)}
+            className={clsx(
+              "cursor-pointer",
+              "transition-colors",
+              "opacity-0 group-hover:opacity-100",
+              "text-black/15 hover:text-black/35",
+              "dark:text-white/25 dark:hover:text-white/35",
+            )}
+            title="New Subfolder"
+          >
+            <SFIcon icon={sfFolder} size={14} weight={1} />
+          </button>
+          <button
+            onClick={() => onStartCreatePage(folder.id)}
+            className={clsx(
+              "cursor-pointer",
+              "transition-colors",
+              "opacity-0 group-hover:opacity-100",
+              "text-black/15 hover:text-black/35",
+              "dark:text-white/25 dark:hover:text-white/35",
+            )}
+            title="New Page"
+          >
+            <SFIcon icon={sfPlus} size={10} weight={1} />
+          </button>
+        </div>
       </div>
 
       {/* Nested pages with continuous tree line */}
@@ -199,23 +244,88 @@ export function SidebarFolder({
             "mb-1",
           )}
         >
+          {isCreatingFolderHere && (
+            <div className="flex w-full items-center gap-2 rounded-lg px-2 py-1 text-sm text-neutral-700 dark:text-neutral-200">
+              <SFIcon icon={sfFolder} size={11} className="opacity-70 mx-0.5" />
+              <input
+                ref={folderInputRef}
+                value={newFolderName}
+                onChange={(e) => setNewFolderName(e.target.value)}
+                onPointerDown={(e) => e.stopPropagation()}
+                onMouseDown={(e) => e.stopPropagation()}
+                onClick={(e) => e.stopPropagation()}
+                onBlur={onCommitCreateFolder}
+                onKeyDown={onFolderInputKeyDown}
+                className="flex-1 min-w-0 bg-transparent outline-none selection:bg-[var(--accent-600)] selection:text-white rounded-sm placeholder-neutral-400"
+              />
+            </div>
+          )}
+
+          {childFolders.map((childFolder) => (
+            <SidebarFolder
+              key={childFolder.id}
+              folder={childFolder}
+              pages={getPagesForFolder(childFolder.id)}
+              childFolders={getChildFolders(childFolder.id)}
+              getPagesForFolder={getPagesForFolder}
+              getChildFolders={getChildFolders}
+              depth={depth + 1}
+              isSortable={false}
+              isFolderExpanded={isFolderExpanded}
+              activeFilter={activeFilter}
+              creatingPageFolderId={creatingPageFolderId}
+              creatingFolderParentId={creatingFolderParentId}
+              newPageName={newPageName}
+              newFolderName={newFolderName}
+              pageInputRef={pageInputRef}
+              folderInputRef={folderInputRef}
+              onToggle={onToggle}
+              onContextMenu={onContextMenu}
+              onStartCreateFolder={onStartCreateFolder}
+              onStartCreatePage={onStartCreatePage}
+              onFilterChange={onFilterChange}
+              onCommitCreateFolder={onCommitCreateFolder}
+              onCommitCreatePage={onCommitCreatePage}
+              onFolderInputKeyDown={onFolderInputKeyDown}
+              onPageInputKeyDown={onPageInputKeyDown}
+              setNewFolderName={setNewFolderName}
+              setNewPageName={setNewPageName}
+              isRenaming={
+                renamingTarget?.id === childFolder.id &&
+                renamingTarget?.type === "folder"
+              }
+              renameValue={renameValue}
+              onRenameChange={onRenameChange}
+              onRenameCommit={onRenameCommit}
+              onRenameCancel={onRenameCancel}
+              renamingTarget={renamingTarget}
+              onStartRename={onStartRename}
+            />
+          ))}
+
           <SortableContext
             items={pageIds}
             strategy={verticalListSortingStrategy}
           >
-            {isCreatingPage && (
+            {isCreatingPageHere && (
               <div className="flex w-full items-center gap-2 rounded-lg px-2 py-1 text-sm text-neutral-700 dark:text-neutral-200">
                 <input
                   ref={pageInputRef}
                   value={newPageName}
                   onChange={(e) => setNewPageName(e.target.value)}
+                  onPointerDown={(e) => e.stopPropagation()}
+                  onMouseDown={(e) => e.stopPropagation()}
+                  onClick={(e) => e.stopPropagation()}
                   onBlur={onCommitCreatePage}
                   onKeyDown={onPageInputKeyDown}
                   className="flex-1 min-w-0 bg-transparent outline-none selection:bg-[var(--accent-600)] selection:text-white rounded-sm placeholder-neutral-400"
                 />
               </div>
             )}
-            {pages.length === 0 && !isCreatingPage ? (
+            {pages.length === 0 &&
+            childFolders.length === 0 &&
+            !isCreatingPageHere &&
+            !isCreatingFolderHere ? (
               <p className="select-none px-2 py-1 text-xs text-black/30 dark:text-white/30 italic">
                 Empty
               </p>

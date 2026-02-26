@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import clsx from "clsx";
 import SFIcon from "@bradleyhodges/sfsymbols-react";
@@ -29,11 +29,6 @@ export function ContextMenu({
   items,
 }: ContextMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null);
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -72,15 +67,19 @@ export function ContextMenu({
     }
   }, [isOpen, onClose]);
 
-  if (!isOpen || !mounted) return null;
+  if (!isOpen || typeof window === "undefined") return null;
 
   return createPortal(
     <div
       ref={menuRef}
+      id="context-menu"
       className={clsx(
-        "absolute z-50 min-w-[160px] overflow-hidden rounded-lg border shadow-lg",
-        "backdrop-blur-xl",
-        "border-black/5 bg-white/20 dark:border-white/10 dark:bg-neutral-800/70",
+        "p-1",
+        "absolute z-50 min-w-[160px]",
+        "overflow-hidden rounded-xl",
+        "backdrop-blur-xl shadow-lg",
+        "bg-neutral-100 dark:bg-neutral-900",
+        "border border-black/10 dark:border-white/10 ",
       )}
       style={{
         top: Math.min(y, window.innerHeight - 100),
@@ -96,13 +95,13 @@ export function ContextMenu({
             onClose();
           }}
           className={clsx(
-            "cursor-pointer flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors",
+            "cursor-pointer rounded-lg flex w-full items-center gap-2 px-3 py-2 compact:px-2 compact:py-1 text-left text-sm transition-colors",
             item.variant === "danger"
-              ? "text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
-              : "text-neutral-700 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-700",
+              ? "text-red-600 hover:bg-red-100 dark:text-red-400 dark:hover:bg-red-400/10"
+              : "text-neutral-900 hover:bg-black/5 dark:text-white dark:hover:bg-white/5",
           )}
         >
-          {item.icon && <SFIcon icon={item.icon} size={16} />}
+          {item.icon && <SFIcon icon={item.icon} size={14} />}
           {item.label}
         </button>
       ))}

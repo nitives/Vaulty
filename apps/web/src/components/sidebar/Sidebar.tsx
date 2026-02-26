@@ -81,7 +81,7 @@ export function Sidebar({
     new Set(),
   );
 
-  const [isCreatingFolder, setIsCreatingFolder] = useState(false);
+  const [isCreatingFolder, setIsCreatingFolder] = useState<string | null>(null);
   const [newFolderName, setNewFolderName] = useState("New Folder");
   const folderInputRef = useRef<HTMLInputElement>(null);
 
@@ -121,18 +121,44 @@ export function Sidebar({
   const deleteFolder = async (id: string) => {
     if (
       !window.confirm(
-        "Are you sure you want to delete this folder? All pages inside will also be deleted.",
+        "Are you sure you want to delete this folder? All nested folders and pages inside will also be deleted.",
       )
     )
       return;
-    const newFolders = folders.filter((f) => f.id !== id);
+
+    const folderIdsToDelete = new Set<string>([id]);
+    let discoveredNewFolder = true;
+    while (discoveredNewFolder) {
+      discoveredNewFolder = false;
+      for (const folder of folders) {
+        if (
+          folder.parentFolderId &&
+          folderIdsToDelete.has(folder.parentFolderId) &&
+          !folderIdsToDelete.has(folder.id)
+        ) {
+          folderIdsToDelete.add(folder.id);
+          discoveredNewFolder = true;
+        }
+      }
+    }
+
+    const newFolders = folders.filter((f) => !folderIdsToDelete.has(f.id));
     setFolders(newFolders);
     await saveFolders(newFolders);
 
-    // Also delete associated pages
-    const newPages = pages.filter((p) => p.folderId !== id);
+    // Also delete pages in all removed folders
+    const newPages = pages.filter(
+      (p) => !p.folderId || !folderIdsToDelete.has(p.folderId),
+    );
     setPages(newPages);
     await savePages(newPages);
+
+    if (activeFilter.startsWith("page:")) {
+      const activePageId = activeFilter.slice("page:".length);
+      if (!newPages.some((page) => page.id === activePageId)) {
+        onFilterChange("all");
+      }
+    }
   };
 
   const deletePage = async (id: string) => {
@@ -223,9 +249,29 @@ export function Sidebar({
     });
   };
 
-  const startCreateFolder = () => {
-    setIsCreatingFolder(true);
+  const isFolderExpanded = useCallback(
+    (folderId: string) => expandedFolders.has(folderId),
+    [expandedFolders],
+  );
+
+  const getChildFolders = useCallback(
+    (parentFolderId: string) =>
+      folders.filter((folder) => folder.parentFolderId === parentFolderId),
+    [folders],
+  );
+
+  const getPagesForFolder = useCallback(
+    (folderId: string) => pages.filter((page) => page.folderId === folderId),
+    [pages],
+  );
+
+  const startCreateFolder = (parentFolderId: string | null = null) => {
+    const target = parentFolderId ?? "root";
+    setIsCreatingFolder(target);
     setNewFolderName("New Folder");
+    if (parentFolderId) {
+      setExpandedFolders((prev) => new Set(prev).add(parentFolderId));
+    }
     setTimeout(() => {
       folderInputRef.current?.focus();
       folderInputRef.current?.select();
@@ -234,11 +280,18 @@ export function Sidebar({
 
   const commitCreateFolder = async () => {
     if (!isCreatingFolder) return;
-    setIsCreatingFolder(false);
+    const parentFolderId =
+      isCreatingFolder === "root" ? null : isCreatingFolder;
+    setIsCreatingFolder(null);
     const name = newFolderName.trim();
     if (!name) return;
 
-    const newFolder: Folder = { id: generateId(), name, createdAt: new Date() };
+    const newFolder: Folder = {
+      id: generateId(),
+      name,
+      createdAt: new Date(),
+      parentFolderId,
+    };
     const newFolders = [...folders, newFolder];
     setFolders(newFolders);
     await saveFolders(newFolders);
@@ -250,7 +303,7 @@ export function Sidebar({
     if (e.key === "Enter") {
       commitCreateFolder();
     } else if (e.key === "Escape") {
-      setIsCreatingFolder(false);
+      setIsCreatingFolder(null);
     }
   };
 
@@ -299,14 +352,18 @@ export function Sidebar({
     }),
   );
 
-  // Build sortable IDs: root pages + folders interleaved
-  const rootPages = pages.filter((p) => !p.folderId);
+  // Build sortable IDs: root pages + root folders interleaved
+  const rootPages = useMemo(() => pages.filter((p) => !p.folderId), [pages]);
+  const rootFolders = useMemo(
+    () => folders.filter((folder) => !folder.parentFolderId),
+    [folders],
+  );
   const sortableIds = useMemo(() => {
     const ids: string[] = [];
     rootPages.forEach((p) => ids.push(`page:${p.id}`));
-    folders.forEach((f) => ids.push(`folder:${f.id}`));
+    rootFolders.forEach((f) => ids.push(`folder:${f.id}`));
     return ids;
-  }, [rootPages, folders]);
+  }, [rootPages, rootFolders]);
 
   const handleDragEnd = useCallback(
     async (event: DragEndEvent) => {
@@ -327,14 +384,18 @@ export function Sidebar({
         return;
       }
 
-      // 2) Folder reordering
+      // 2) Root folder reordering
       if (activeData?.type === "folder" && overData?.type === "folder") {
-        const oldIndex = folders.findIndex(
+        const oldIndex = rootFolders.findIndex(
           (f) => f.id === activeData.folder.id,
         );
-        const newIndex = folders.findIndex((f) => f.id === overData.folder.id);
+        const newIndex = rootFolders.findIndex(
+          (f) => f.id === overData.folder.id,
+        );
         if (oldIndex !== -1 && newIndex !== -1 && oldIndex !== newIndex) {
-          const newFolders = arrayMove(folders, oldIndex, newIndex);
+          const reorderedRoots = arrayMove(rootFolders, oldIndex, newIndex);
+          const nonRootFolders = folders.filter((f) => f.parentFolderId);
+          const newFolders = [...reorderedRoots, ...nonRootFolders];
           setFolders(newFolders);
           await saveFolders(newFolders);
         }
@@ -378,7 +439,7 @@ export function Sidebar({
         return;
       }
     },
-    [folders, pages],
+    [folders, pages, rootFolders],
   );
 
   return (
@@ -448,7 +509,7 @@ export function Sidebar({
         </nav>
 
         {/* Folders & Pages Tree */}
-        <div className="flex-1 overflow-y-auto px-2 pb-4">
+        <div className="flex-1 px-2 pb-4 relative">
           <div className="flex items-center justify-between px-3 py-2">
             <h3
               className={clsx(
@@ -461,7 +522,7 @@ export function Sidebar({
             </h3>
             <div className="flex gap-2.5">
               <button
-                onClick={startCreateFolder}
+                onClick={() => startCreateFolder(null)}
                 className={clsx(
                   "cursor-pointer",
                   "transition-colors",
@@ -496,9 +557,9 @@ export function Sidebar({
               items={sortableIds}
               strategy={verticalListSortingStrategy}
             >
-              <div className="space-y-0.5">
+              <div className="space-y-0.5 overflow-y-auto pb-10">
                 {/* Inline create folder */}
-                {isCreatingFolder && (
+                {isCreatingFolder === "root" && (
                   <div>
                     <div className="flex items-center group">
                       <div className="flex flex-1 items-center gap-2 rounded-lg px-3 py-1.5 text-sm text-neutral-700 dark:text-neutral-200">
@@ -509,6 +570,9 @@ export function Sidebar({
                           ref={folderInputRef}
                           value={newFolderName}
                           onChange={(e) => setNewFolderName(e.target.value)}
+                          onPointerDown={(e) => e.stopPropagation()}
+                          onMouseDown={(e) => e.stopPropagation()}
+                          onClick={(e) => e.stopPropagation()}
                           onBlur={commitCreateFolder}
                           onKeyDown={handleFolderInputKeyDown}
                           className="flex-1 w-full min-w-0 bg-transparent outline-none selection:bg-[var(--accent-600)] selection:text-white rounded-sm placeholder-neutral-400"
@@ -530,6 +594,9 @@ export function Sidebar({
                       ref={pageInputRef}
                       value={newPageName}
                       onChange={(e) => setNewPageName(e.target.value)}
+                      onPointerDown={(e) => e.stopPropagation()}
+                      onMouseDown={(e) => e.stopPropagation()}
+                      onClick={(e) => e.stopPropagation()}
                       onBlur={commitCreatePage}
                       onKeyDown={handlePageInputKeyDown}
                       className="flex-1 w-full min-w-0 bg-transparent outline-none selection:bg-[var(--accent-600)] selection:text-white rounded-sm placeholder-neutral-400"
@@ -558,28 +625,43 @@ export function Sidebar({
                 ))}
 
                 {/* Folders containing pages */}
-                {folders.map((folder) => {
-                  const folderPages = pages.filter(
-                    (p) => p.folderId === folder.id,
-                  );
-                  const isExpanded = expandedFolders.has(folder.id);
-
+                {rootFolders.map((folder) => {
                   return (
                     <SidebarFolder
                       key={folder.id}
                       folder={folder}
-                      pages={folderPages}
-                      isExpanded={isExpanded}
+                      pages={getPagesForFolder(folder.id)}
+                      childFolders={getChildFolders(folder.id)}
+                      getPagesForFolder={getPagesForFolder}
+                      getChildFolders={getChildFolders}
+                      depth={0}
+                      isSortable
+                      isFolderExpanded={isFolderExpanded}
                       activeFilter={activeFilter}
-                      isCreatingPage={isCreatingPage === folder.id}
+                      creatingPageFolderId={
+                        isCreatingPage && isCreatingPage !== "root"
+                          ? isCreatingPage
+                          : null
+                      }
+                      creatingFolderParentId={
+                        isCreatingFolder && isCreatingFolder !== "root"
+                          ? isCreatingFolder
+                          : null
+                      }
                       newPageName={newPageName}
+                      newFolderName={newFolderName}
                       pageInputRef={pageInputRef}
+                      folderInputRef={folderInputRef}
                       onToggle={toggleFolder}
                       onContextMenu={handleContextMenu}
+                      onStartCreateFolder={startCreateFolder}
                       onStartCreatePage={startCreatePage}
                       onFilterChange={onFilterChange}
+                      onCommitCreateFolder={commitCreateFolder}
                       onCommitCreatePage={commitCreatePage}
+                      onFolderInputKeyDown={handleFolderInputKeyDown}
                       onPageInputKeyDown={handlePageInputKeyDown}
+                      setNewFolderName={setNewFolderName}
                       setNewPageName={setNewPageName}
                       isRenaming={
                         renamingTarget?.id === folder.id &&
@@ -640,6 +722,15 @@ export function Sidebar({
         y={contextMenu.y}
         onClose={() => setContextMenu((prev) => ({ ...prev, isOpen: false }))}
         items={[
+          ...(contextMenu.targetType === "folder" && contextMenu.targetId
+            ? [
+                {
+                  label: "New Subfolder",
+                  icon: sfFolder,
+                  onClick: () => startCreateFolder(contextMenu.targetId),
+                },
+              ]
+            : []),
           {
             label: "Rename",
             icon: sfPencil,

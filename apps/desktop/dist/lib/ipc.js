@@ -11,6 +11,29 @@ const storage_1 = require("./storage");
 const settings_1 = require("./settings");
 const paths_1 = require("./paths");
 const icon_1 = require("./icon");
+function normalizeAccentColor(color) {
+    if (!color)
+        return null;
+    const hex = color.trim().replace(/^#/, "");
+    if (!/^[\da-fA-F]+$/.test(hex))
+        return null;
+    if (hex.length === 6)
+        return `#${hex.toLowerCase()}`;
+    // Electron system colors use RGBA; strip alpha for CSS use.
+    if (hex.length === 8)
+        return `#${hex.slice(0, 6).toLowerCase()}`;
+    return null;
+}
+function getCurrentWindowsAccentColor() {
+    if (process.platform !== "win32")
+        return null;
+    try {
+        return normalizeAccentColor(electron_1.systemPreferences.getAccentColor());
+    }
+    catch {
+        return null;
+    }
+}
 function registerIpcHandlers(getMainWindow) {
     // App info
     electron_1.ipcMain.handle("app:version", () => electron_1.app.getVersion());
@@ -66,24 +89,14 @@ function registerIpcHandlers(getMainWindow) {
     });
     // Windows accent color
     electron_1.ipcMain.handle("accent:getWindowsColor", () => {
-        if (process.platform === "win32") {
-            try {
-                // Get the Windows accent color (returns RRGGBBAA format)
-                const accentColor = electron_1.systemPreferences.getAccentColor();
-                // getAccentColor returns RRGGBBAA, covert to RRGGBB
-                return `#${accentColor.slice(0, 6)}`;
-            }
-            catch {
-                return null;
-            }
-        }
-        return null;
+        return getCurrentWindowsAccentColor();
     });
     if (process.platform === "win32") {
-        electron_1.systemPreferences.on("accent-color-changed", (_event, newColor) => {
+        electron_1.systemPreferences.on("accent-color-changed", () => {
             const win = getMainWindow();
-            if (win && !win.isDestroyed()) {
-                win.webContents.send("accent:changed", `#${newColor.slice(0, 6)}`);
+            const currentColor = getCurrentWindowsAccentColor();
+            if (win && !win.isDestroyed() && currentColor) {
+                win.webContents.send("accent:changed", currentColor);
             }
         });
     }

@@ -71,11 +71,14 @@ function parseAttribute(
   node: cheerio.Cheerio<any>,
   attribute: string,
 ): string | null {
+  const normalizeText = (value: string): string =>
+    value.replace(/[\s\u00a0]+/g, " ").trim();
+
   const attr = attribute.trim();
   const lower = attr.toLowerCase();
 
-  if (lower === "innertext" || lower === "text") {
-    const value = node.text().trim();
+  if (lower === "innertext" || lower === "text" || lower === "textcontent") {
+    const value = normalizeText(node.text());
     return value || null;
   }
 
