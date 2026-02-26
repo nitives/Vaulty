@@ -317,6 +317,15 @@ function BehaviorSection() {
         />
       </SettingsRow>
       <SettingsRow
+        label="Persist input bar state"
+        description="Keep your draft text, tags, and media when switching sidebar filters or pages"
+      >
+        <Toggle
+          checked={settings.persistInputBarStateOnSwitch ?? true}
+          onChange={(v) => update({ persistInputBarStateOnSwitch: v })}
+        />
+      </SettingsRow>
+      <SettingsRow
         label="Reduce motion"
         description="Disables most animations and transitions"
       >

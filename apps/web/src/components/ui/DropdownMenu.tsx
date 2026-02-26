@@ -66,7 +66,7 @@ export function DropdownMenu({
       <button
         ref={triggerRef}
         onClick={() => setIsOpen(!isOpen)}
-        className="rounded-sm size-6 flex items-center justify-center cursor-pointer text-neutral-400 transition-colors hover:bg-neutral-200 hover:text-neutral-600 dark:hover:bg-neutral-700 dark:hover:text-neutral-300"
+        className="rounded-sm size-6 flex items-center justify-center cursor-pointer text-black/50 transition-colors hover:bg-black/5 hover:text-black dark:hover:bg-white/5 dark:hover:text-white"
         aria-label="More options"
         aria-expanded={isOpen}
         aria-haspopup="true"
@@ -78,8 +78,12 @@ export function DropdownMenu({
         <div
           ref={menuRef}
           className={clsx(
-            "absolute z-50 min-w-[140px] overflow-hidden rounded-lg border shadow-lg",
-            "border-neutral-200 bg-white dark:border-neutral-700 dark:bg-neutral-800",
+            "p-1",
+            "absolute z-50 min-w-[160px]",
+            "overflow-hidden rounded-xl",
+            "backdrop-blur-xl shadow-lg",
+            "bg-neutral-100 dark:bg-neutral-900",
+            "border border-black/10 dark:border-white/10",
             align === "right" ? "right-0" : "left-0",
           )}
         >
@@ -90,15 +94,21 @@ export function DropdownMenu({
                 item.onClick();
                 setIsOpen(false);
               }}
+              // className={clsx(
+              //   "cursor-pointer",
+              //   "flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors",
+              //   item.variant === "danger"
+              //     ? "text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
+              //     : "text-neutral-700 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-700",
+              // )}
               className={clsx(
-                "cursor-pointer",
-                "flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors",
+                "cursor-pointer rounded-lg flex w-full items-center gap-2 px-3 py-2 compact:px-2 compact:py-1 text-left text-sm transition-colors",
                 item.variant === "danger"
-                  ? "text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
-                  : "text-neutral-700 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-700",
+                  ? "text-red-600 hover:bg-red-100 dark:text-red-400 dark:hover:bg-red-400/10"
+                  : "text-neutral-900 hover:bg-black/5 dark:text-white dark:hover:bg-white/5",
               )}
             >
-              {item.icon && <SFIcon icon={item.icon} size={16} />}
+              {item.icon && <SFIcon icon={item.icon} size={14} />}
               {item.label}
             </button>
           ))}

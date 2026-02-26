@@ -22,6 +22,7 @@ export interface AppSettings {
   hideNotesWhenFilteringBySize?: boolean;
   showImageSize?: boolean;
   showImageFileName?: boolean;
+  persistInputBarStateOnSwitch?: boolean;
   useFlorence?: boolean;
   sidebarTransparent?: boolean;
   vaultyDataPath?: string;

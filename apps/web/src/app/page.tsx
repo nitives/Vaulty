@@ -22,6 +22,8 @@ import { sfArrowDown, sfArrowUp } from "@bradleyhodges/sfsymbols";
 
 export default function Home() {
   const { settings } = useSettings();
+  const persistInputBarStateOnSwitch =
+    settings.persistInputBarStateOnSwitch ?? true;
 
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
     if (typeof window !== "undefined") {
@@ -267,13 +269,16 @@ export default function Home() {
           </AnimatePresence>
 
           {/* Unified Input Bar */}
-          {activeFilter !== "feeds" && (
+          {(activeFilter !== "feeds" || persistInputBarStateOnSwitch) && (
             <div
               className={clsx(
                 "z-10 transition-all duration-300",
                 settings.inputBarPosition === "top"
                   ? "shrink-0 px-6 py-4"
                   : "pointer-events-none absolute bottom-0 left-0 right-0 px-6 py-4 pt-8 compact:pt-4",
+                activeFilter === "feeds" &&
+                  persistInputBarStateOnSwitch &&
+                  "h-0 overflow-hidden !p-0 opacity-0 pointer-events-none",
               )}
             >
               <div
@@ -282,9 +287,17 @@ export default function Home() {
                   settings.inputBarPosition === "top"
                     ? "max-w-4xl"
                     : "pointer-events-auto",
+                  activeFilter === "feeds" &&
+                    persistInputBarStateOnSwitch &&
+                    "pointer-events-none",
                 )}
               >
-                <InputBar onSubmit={handleAddItem} />
+                <InputBar
+                  key={
+                    persistInputBarStateOnSwitch ? "persistent" : activeFilter
+                  }
+                  onSubmit={handleAddItem}
+                />
               </div>
             </div>
           )}

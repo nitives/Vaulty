@@ -43,6 +43,7 @@ export interface AppSettings {
   hideNotesWhenFilteringBySize?: boolean;
   showImageSize?: boolean;
   showImageFileName?: boolean;
+  persistInputBarStateOnSwitch?: boolean;
   useFlorence?: boolean;
   sidebarTransparent?: boolean;
   openOnStartup?: boolean;
@@ -67,6 +68,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   hideNotesWhenFilteringBySize: false,
   showImageSize: false,
   showImageFileName: false,
+  persistInputBarStateOnSwitch: true,
   useFlorence: false,
   sidebarTransparent: false,
   openOnStartup: false,
