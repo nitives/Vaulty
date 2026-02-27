@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog } from "electron";
+import { app, BrowserWindow } from "electron";
 import { autoUpdater, type UpdateInfo } from "electron-updater";
 
 export type UpdateState =
@@ -44,9 +44,8 @@ let getMainWindow: () => BrowserWindow | null = () => null;
 let isConfigured = false;
 let isChecking = false;
 let isDownloading = false;
-let downloadPromptOpen = false;
-let restartPromptOpen = false;
 let lastKnownAvailableVersion: string | undefined;
+let markQuitting: (() => void) | null = null;
 
 let latestStatus: UpdateStatusPayload = {
   state: "idle",
@@ -73,58 +72,6 @@ function updatesDisabledInDev(): CheckForUpdatesResult {
   return { status: "disabled-in-dev" };
 }
 
-async function promptToDownload(version?: string): Promise<void> {
-  const win = getMainWindow();
-  if (!win || win.isDestroyed() || downloadPromptOpen || isDownloading) return;
-
-  downloadPromptOpen = true;
-  try {
-    const { response } = await dialog.showMessageBox(win, {
-      type: "info",
-      title: "Update Available",
-      message: version
-        ? `Update available (v${version}). Download now?`
-        : "An update is available. Download now?",
-      detail:
-        "A newer version of Vaulty is available. You can continue using the app while it downloads.",
-      buttons: ["Download", "Later"],
-      defaultId: 0,
-      cancelId: 1,
-    });
-
-    if (response === 0) {
-      await downloadUpdate();
-    }
-  } finally {
-    downloadPromptOpen = false;
-  }
-}
-
-async function promptToRestart(version?: string): Promise<void> {
-  const win = getMainWindow();
-  if (!win || win.isDestroyed() || restartPromptOpen) return;
-
-  restartPromptOpen = true;
-  try {
-    const { response } = await dialog.showMessageBox(win, {
-      type: "info",
-      title: "Update Ready",
-      message: version
-        ? `Update v${version} downloaded. Restart now to install?`
-        : "Update downloaded. Restart now to install?",
-      buttons: ["Restart and Install", "Later"],
-      defaultId: 0,
-      cancelId: 1,
-    });
-
-    if (response === 0) {
-      quitAndInstall();
-    }
-  } finally {
-    restartPromptOpen = false;
-  }
-}
-
 function onUpdateAvailable(info: UpdateInfo): void {
   isChecking = false;
   lastKnownAvailableVersion = info.version;
@@ -136,17 +83,20 @@ function onUpdateAvailable(info: UpdateInfo): void {
       ? `Update ${info.releaseName} is available.`
       : `Update v${info.version} is available.`,
   });
-
-  void promptToDownload(info.version);
 }
 
-export function setupAutoUpdates(getWindow: () => BrowserWindow | null): void {
+export function setupAutoUpdates(
+  getWindow: () => BrowserWindow | null,
+  onQuitting?: () => void,
+): void {
   getMainWindow = getWindow;
+  if (onQuitting) markQuitting = onQuitting;
 
   if (isConfigured) return;
   isConfigured = true;
 
   autoUpdater.autoDownload = false;
+  autoUpdater.autoInstallOnAppQuit = false;
   autoUpdater.logger = console;
 
   autoUpdater.on("checking-for-update", () => {
@@ -196,8 +146,6 @@ export function setupAutoUpdates(getWindow: () => BrowserWindow | null): void {
       availableVersion: info.version,
       message: "Update downloaded. Restart to install.",
     });
-
-    void promptToRestart(info.version);
   });
 
   autoUpdater.on("error", (error: Error) => {
@@ -281,5 +229,8 @@ export function quitAndInstall(): void {
     updatesDisabledInDev();
     return;
   }
+  // Mark the app as quitting so the close-to-tray handler doesn't
+  // intercept the close event and block the NSIS installer.
+  markQuitting?.();
   autoUpdater.quitAndInstall();
 }

@@ -299,7 +299,12 @@ app.whenReady().then(async () => {
 
   createWindow();
   createTray();
-  setupAutoUpdates(() => mainWindow);
+  setupAutoUpdates(
+    () => mainWindow,
+    () => {
+      isQuitting = true;
+    },
+  );
   startLocalApi(() => mainWindow);
   try {
     await initVentricle({
@@ -330,7 +335,12 @@ app.on("window-all-closed", () => {
 app.on("activate", async () => {
   if (BrowserWindow.getAllWindows().length === 0) {
     createWindow();
-    setupAutoUpdates(() => mainWindow);
+    setupAutoUpdates(
+      () => mainWindow,
+      () => {
+        isQuitting = true;
+      },
+    );
     await loadApp();
   }
 });
