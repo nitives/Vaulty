@@ -238,7 +238,9 @@ electron_1.app.whenReady().then(async () => {
     registerUpdateIpcHandlers();
     createWindow();
     createTray();
-    (0, updates_1.setupAutoUpdates)(() => mainWindow);
+    (0, updates_1.setupAutoUpdates)(() => mainWindow, () => {
+        isQuitting = true;
+    });
     (0, api_1.startLocalApi)(() => mainWindow);
     try {
         await (0, ventricle_1.initVentricle)({
@@ -267,7 +269,9 @@ electron_1.app.on("window-all-closed", () => {
 electron_1.app.on("activate", async () => {
     if (electron_1.BrowserWindow.getAllWindows().length === 0) {
         createWindow();
-        (0, updates_1.setupAutoUpdates)(() => mainWindow);
+        (0, updates_1.setupAutoUpdates)(() => mainWindow, () => {
+            isQuitting = true;
+        });
         await loadApp();
     }
 });

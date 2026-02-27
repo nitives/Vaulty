@@ -65,9 +65,7 @@ function normalizePulse(raw) {
     const nowIso = new Date().toISOString();
     return {
         id,
-        name: typeof data.name === "string" && data.name.trim()
-            ? data.name.trim()
-            : id,
+        name: typeof data.name === "string" && data.name.trim() ? data.name.trim() : id,
         heartbeat: normalizeHeartbeat(data.heartbeat),
         lastChecked: asIsoDate(data.lastChecked),
         lastAnchorValue: typeof data.lastAnchorValue === "string" ? data.lastAnchorValue : null,
@@ -94,9 +92,7 @@ function normalizeFolder(raw) {
         : null;
     return {
         id,
-        name: typeof data.name === "string" && data.name.trim()
-            ? data.name.trim()
-            : id,
+        name: typeof data.name === "string" && data.name.trim() ? data.name.trim() : id,
         createdAt: normalizedCreatedAt,
         parentFolderId: parentFolderId === id ? null : parentFolderId,
     };
