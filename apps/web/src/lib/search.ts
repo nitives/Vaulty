@@ -14,20 +14,22 @@ export function parseSearchQuery(query: string): SearchQuery {
 
   // Extract explicit size: syntax
   // Supported formats: size:>1MB, size:>=1mb, size: > 1 mb, size:>1.5mb, size:>1,5mb, size:>1_000kb, size:>1m
-  const sizeMatch = cleanQuery.match(/size\s*:\s*([>=<]{0,2})\s*([\d.,_]+)\s*(kb?|mb?|gb?|b)?/i);
+  const sizeMatch = cleanQuery.match(
+    /size\s*:\s*([>=<]{0,2})\s*([\d.,_]+)\s*(kb?|mb?|gb?|b)?/i,
+  );
   if (sizeMatch) {
     const operator = sizeMatch[1] || "<="; // Default to <= if no operator is provided
-    
+
     // Parse the amount, replacing commas with dots for decimals, and removing underscores
     const amountStr = sizeMatch[2].replace(/_/g, "").replace(/,/g, ".");
     const amount = parseFloat(amountStr);
-    
+
     const unit = (sizeMatch[3] || "b").toLowerCase();
     let bytes = amount;
     if (unit === "k" || unit === "kb") bytes *= 1024;
     else if (unit === "m" || unit === "mb") bytes *= 1024 * 1024;
     else if (unit === "g" || unit === "gb") bytes *= 1024 * 1024 * 1024;
-    
+
     sizeFilter = { operator, value: bytes };
     cleanQuery = cleanQuery.replace(sizeMatch[0], "").trim();
   }
@@ -119,8 +121,7 @@ export function parseSearchQuery(query: string): SearchQuery {
       const { start, end } = handler(match);
       startDate = start;
       endDate = end;
-      // Using query.replace(regex) instead of cleanQuery.replace since we only ever want to replace the FIRST time query match, 
-      // but if the user has multiple time filters, we just pick the first regex that matches the original `query` String... Wait! 
+      // Only the first matching time filter is applied; the break below ensures we stop after one match.
       cleanQuery = cleanQuery.replace(match[0], "").trim();
       break;
     }

@@ -88,10 +88,7 @@ export function useFeed() {
       }));
   }, [pulseItems, pulseNameById]);
 
-  const unseenCount = useMemo(
-    () => feedItems.filter((item) => !item.isSeen).length,
-    [feedItems],
-  );
+  const unseenCount = feedItems.length;
 
   const handleSeen = useCallback(async (id: string) => {
     setPulseItems((items) =>

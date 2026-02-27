@@ -5,19 +5,15 @@ import clsx from "clsx";
 import SFIcon from "@bradleyhodges/sfsymbols-react";
 import {
   sfExternaldrive,
-  sfPlus,
   sfTag,
   sfFolder,
-  sfFolderFill,
   sfTextPage,
   sfPencil,
   sfTrash,
-  sfChevronDown,
 } from "@bradleyhodges/sfsymbols";
 import { useEffect, useState, useMemo, useRef, useCallback } from "react";
 import { ContextMenu } from "../ui/ContextMenu";
 import {
-  loadItems,
   loadFolders,
   loadPages,
   saveFolders,
@@ -34,7 +30,6 @@ import {
   DndContext,
   closestCenter,
   DragEndEvent,
-  DragOverEvent,
   PointerSensor,
   useSensor,
   useSensors,
@@ -60,7 +55,6 @@ const filters = [
   { id: "images", label: "Images" },
   { id: "links", label: "Links" },
   { id: "audio", label: "Audio" },
-  // { id: "reminders", label: "Reminders" },
 ];
 
 const EXPANDED_WIDTH = 224;

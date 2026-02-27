@@ -589,67 +589,6 @@ function StorageSection() {
           </Button>
         </div>
       </div>
-
-      {/* <div className="p-4">
-        <h4 className="font-semibold text-red-900 dark:text-red-400">
-          Danger Zone
-        </h4>
-        <p className="text-sm text-red-700 dark:text-red-300 mt-1 mb-4">
-          Permanently delete all your items and clear the application data. This
-          cannot be undone.
-        </p>
-
-        {!showClearConfirm ? (
-          <Button
-            variant="danger"
-            className="text-xs px-3 py-1.5"
-            onClick={() => setShowClearConfirm(true)}
-          >
-            Clear all data
-          </Button>
-        ) : (
-          <div className="space-y-3">
-            <p className="text-xs font-medium text-red-800 dark:text-red-300">
-              Type{" "}
-              <strong className="font-bold select-all">
-                Clear all my data
-              </strong>{" "}
-              below to confirm.
-            </p>
-            <input
-              type="text"
-              className={clsx(
-                "w-full rounded border px-3 py-1.5 text-sm outline-none transition-colors",
-                "border-red-200 bg-white text-neutral-900 focus:border-red-500",
-                "dark:border-red-900/50 dark:bg-neutral-900 dark:text-white dark:focus:border-red-500",
-              )}
-              value={clearConfirmText}
-              onChange={(e) => setClearConfirmText(e.target.value)}
-              placeholder="Clear all my data"
-            />
-            <div className="flex gap-2">
-              <Button
-                variant="danger"
-                className="text-xs px-3 py-1.5 disabled:cursor-not-allowed disabled:opacity-50"
-                disabled={clearConfirmText !== "Clear all my data"}
-                onClick={handleClearData}
-              >
-                Permanently Delete
-              </Button>
-              <Button
-                variant="base"
-                className="text-xs px-3 py-1.5 bg-neutral-200/50 dark:bg-neutral-800"
-                onClick={() => {
-                  setShowClearConfirm(false);
-                  setClearConfirmText("");
-                }}
-              >
-                Cancel
-              </Button>
-            </div>
-          </div>
-        )}
-      </div> */}
     </div>
   );
 }

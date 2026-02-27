@@ -11,7 +11,15 @@ import {
 } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import SFIcon from "@bradleyhodges/sfsymbols-react";
-import { sfAppleTerminal, sfBold, sfChevronLeftForwardslashChevronRight, sfItalic, sfPlus, sfStrikethrough, sfTextQuote, sfXmark } from "@bradleyhodges/sfsymbols";
+import {
+  sfBold,
+  sfChevronLeftForwardslashChevronRight,
+  sfItalic,
+  sfPlus,
+  sfStrikethrough,
+  sfTextQuote,
+  sfXmark,
+} from "@bradleyhodges/sfsymbols";
 // @ts-expect-error - ignoring type errors for pre-built bundle
 import jsmediatags from "jsmediatags/dist/jsmediatags.min.js";
 import { AudioPreview } from "../items/AudioCard";
@@ -823,7 +831,7 @@ export function InputBar({ onSubmit }: InputBarProps) {
                 type="button"
                 onClick={() => wrapSelection("`")}
                 className={clsx(
-                 "rounded-[6px] aspect-square",
+                  "rounded-[6px] aspect-square",
                   "min-w-6.5 h-full",
                   "grid place-items-center",
                   "text-sm font-bold",
@@ -831,14 +839,18 @@ export function InputBar({ onSubmit }: InputBarProps) {
                 )}
                 title="Inline code"
               >
-                 <SFIcon weight={0.5} size={16} icon={sfChevronLeftForwardslashChevronRight} />
-                 {/* <SFIcon size={12} icon={sfAppleTerminal} /> */}
+                <SFIcon
+                  weight={0.5}
+                  size={16}
+                  icon={sfChevronLeftForwardslashChevronRight}
+                />
+                {/* <SFIcon size={12} icon={sfAppleTerminal} /> */}
               </button>
               <button
                 type="button"
                 onClick={() => toggleLinePrefix("> ")}
-                 className={clsx(
-                 "rounded-[6px] aspect-square",
+                className={clsx(
+                  "rounded-[6px] aspect-square",
                   "min-w-6.5 h-full",
                   "grid place-items-center",
                   "text-sm font-bold",

@@ -37,7 +37,7 @@ function getBackgroundColor(isDark: boolean, color?: string): string {
     return `rgb(${Math.floor(rgb.r * isDarkMultiplier)}, ${Math.floor(rgb.g * isDarkMultiplier)}, ${Math.floor(rgb.b * isDarkMultiplier)})`;
   }
 
-  const lightMultiplier = 0.;
+  const lightMultiplier = 0.3;
 
   return `rgb(${Math.floor(rgb.r * lightMultiplier + 255 * (1 - lightMultiplier))}, ${Math.floor(rgb.g * lightMultiplier + 255 * (1 - lightMultiplier))}, ${Math.floor(rgb.b * lightMultiplier + 255 * (1 - lightMultiplier))}`;
 }
@@ -80,7 +80,9 @@ export const LinkWidget = ({ item }: LinkWidgetProps) => {
         style={{ backgroundColor: getBackgroundColor(isDark, extractedColor) }}
         className="p-4 transition-colors duration-300"
       >
-        <h2 className="text-lg font-bold text-white">{title}</h2>
+        <h2 className="text-lg font-bold text-neutral-900 dark:text-white">
+          {title}
+        </h2>
         <p className="text-sm mix-blend-plus-lighter text-neutral-600">
           {description}
         </p>

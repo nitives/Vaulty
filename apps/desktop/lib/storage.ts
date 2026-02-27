@@ -31,6 +31,15 @@ export interface StoredItem {
     tags: string[];
     content: string;
   };
+  metadata?: {
+    title?: string;
+    description?: string;
+    image?: string;
+    artist?: string;
+    album?: string;
+    year?: string;
+  };
+  pageId?: string;
 }
 
 export interface StoredFolder {
@@ -122,9 +131,7 @@ function normalizePulse(raw: unknown): StoredPulse | null {
   return {
     id,
     name:
-      typeof data.name === "string" && data.name.trim()
-        ? data.name.trim()
-        : id,
+      typeof data.name === "string" && data.name.trim() ? data.name.trim() : id,
     heartbeat: normalizeHeartbeat(data.heartbeat),
     lastChecked: asIsoDate(data.lastChecked),
     lastAnchorValue:
@@ -159,9 +166,7 @@ function normalizeFolder(raw: unknown): StoredFolder | null {
   return {
     id,
     name:
-      typeof data.name === "string" && data.name.trim()
-        ? data.name.trim()
-        : id,
+      typeof data.name === "string" && data.name.trim() ? data.name.trim() : id,
     createdAt: normalizedCreatedAt,
     parentFolderId: parentFolderId === id ? null : parentFolderId,
   };
@@ -440,9 +445,7 @@ export function loadPulses(): StoredPulse[] {
       }
 
       normalized.push(pulse);
-      if (
-        JSON.stringify(rawPulse) !== JSON.stringify(pulse)
-      ) {
+      if (JSON.stringify(rawPulse) !== JSON.stringify(pulse)) {
         modified = true;
       }
     }

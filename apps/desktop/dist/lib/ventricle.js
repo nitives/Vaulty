@@ -7,7 +7,7 @@ exports.initVentricle = initVentricle;
 exports.stopVentricle = stopVentricle;
 const fs_1 = __importDefault(require("fs"));
 const path_1 = __importDefault(require("path"));
-const uuid_1 = require("uuid");
+const crypto_1 = __importDefault(require("crypto"));
 const paths_1 = require("./paths");
 const storage_1 = require("./storage");
 const pulse_scraper_1 = require("./pulse-scraper");
@@ -247,7 +247,7 @@ async function executePulse(pulseId) {
         const duplicate = pulseItems.find((item) => item.pulseId === pulseId && item.anchorValue === anchorValue);
         if (!duplicate) {
             const newPulseItem = {
-                id: (0, uuid_1.v4)(),
+                id: crypto_1.default.randomUUID(),
                 pulseId,
                 title: title ?? pulse.name,
                 content: content ?? "",

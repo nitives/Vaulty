@@ -1,7 +1,7 @@
 import type { FSWatcher } from "chokidar";
 import fs from "fs";
 import path from "path";
-import { v4 as uuidv4 } from "uuid";
+import crypto from "crypto";
 import { getPulsesConfigPath } from "./paths";
 import {
   StoredPulse,
@@ -69,7 +69,9 @@ function parseHeartbeat(heartbeat: string): number {
   return 60 * 60 * 1000;
 }
 
-function firstNonEmpty(...values: Array<string | undefined | null>): string | undefined {
+function firstNonEmpty(
+  ...values: Array<string | undefined | null>
+): string | undefined {
   for (const value of values) {
     if (typeof value === "string" && value.trim()) {
       return value;
@@ -102,7 +104,10 @@ function getPulseFiles(configPath: string): string[] {
     .map((entry) => path.join(configPath, entry));
 }
 
-function upsertPulseRecord(definition: PulseDefinition, filePath: string): void {
+function upsertPulseRecord(
+  definition: PulseDefinition,
+  filePath: string,
+): void {
   const pulses = loadPulses();
   const existing = pulses.find((pulse) => pulse.id === definition.id);
 
@@ -158,7 +163,10 @@ function reloadPulseDefinitionsFromDisk(): void {
       activeIds.add(definition.id);
       upsertPulseRecord(definition, filePath);
     } catch (error) {
-      console.error(`[Ventricle] Failed to load pulse file ${filePath}:`, error);
+      console.error(
+        `[Ventricle] Failed to load pulse file ${filePath}:`,
+        error,
+      );
     }
   }
 
@@ -228,7 +236,9 @@ function unregisterPulseDefinition(filePath: string): void {
   }
 
   const pulses = loadPulses();
-  const pulse = pulses.find((existingPulse) => existingPulse.id === removedPulseId);
+  const pulse = pulses.find(
+    (existingPulse) => existingPulse.id === removedPulseId,
+  );
   if (pulse && pulse.enabled) {
     pulse.enabled = false;
     savePulses(pulses);
@@ -300,8 +310,16 @@ async function executePulse(pulseId: string): Promise<void> {
     });
 
     const variables = flowResult.variables;
-    const title = firstNonEmpty(variables.title, variables.headline, pulse.name);
-    const content = firstNonEmpty(variables.content, variables.summary, anchorValue);
+    const title = firstNonEmpty(
+      variables.title,
+      variables.headline,
+      pulse.name,
+    );
+    const content = firstNonEmpty(
+      variables.content,
+      variables.summary,
+      anchorValue,
+    );
     const url = firstNonEmpty(
       variables.url,
       variables.latest_link,
@@ -326,7 +344,7 @@ async function executePulse(pulseId: string): Promise<void> {
 
     if (!duplicate) {
       const newPulseItem: StoredPulseItem = {
-        id: uuidv4(),
+        id: crypto.randomUUID(),
         pulseId,
         title: title ?? pulse.name,
         content: content ?? "",
@@ -402,4 +420,3 @@ export function stopVentricle(): void {
   pulseIdsInFlight.clear();
   newPulseItemListener = null;
 }
-

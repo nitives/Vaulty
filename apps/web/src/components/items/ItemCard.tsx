@@ -104,9 +104,6 @@ export function ItemCard({
       <div className="min-w-0 flex-1">
         {/* Header: type label + timestamp */}
         <div className="flex items-center gap-2 -mt-[5px]">
-          {/* <span className="text-sm font-medium text-neutral-900 dark:text-neutral-100">
-            {item.type}
-          </span> */}
           <SFIcon
             className="text-neutral-900/10 group-hover:text-neutral-900/50 transition-colors dark:text-white/10 group-hover:dark:text-white"
             icon={sfCircleFill}
