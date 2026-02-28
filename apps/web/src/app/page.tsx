@@ -13,6 +13,7 @@ import {
   MoveModal,
   FloatingSearchBar,
 } from "@/components";
+import { UpdateNotification } from "@/components/layout/UpdateNotification";
 import { useSettings } from "@/lib/settings";
 import { useThemeClasses } from "@/hooks/useThemeClasses";
 import { useItems } from "@/hooks/useItems";
@@ -246,6 +247,8 @@ export default function Home() {
             }).toString()})()`,
           }}
         />
+
+        <UpdateNotification />
 
         {/* Main Content */}
         <main

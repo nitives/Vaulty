@@ -11,6 +11,7 @@ export { Feed } from "./feed/Feed";
 export { InputBar } from "./layout/InputBar";
 export { FloatingSearchBar } from "./layout/FloatingSearchBar";
 export { Titlebar } from "./layout/Titlebar";
+export { UpdateNotification } from "./layout/UpdateNotification";
 export { VaultyMotionConfig } from "./layout/VaultyMotionConfig";
 
 // -- Modals --
