@@ -8,6 +8,7 @@ interface ItemListProps {
   onTagClick?: (tag: string) => void;
   onDelete?: (id: string) => void;
   onEdit?: (id: string, newContent: string) => void;
+  onUpdateTags?: (id: string, newTags: string[]) => void;
   onMove?: (id: string) => void;
   emptyMessage?: string;
   isLoading?: boolean;
@@ -19,6 +20,7 @@ export function ItemList({
   onTagClick,
   onDelete,
   onEdit,
+  onUpdateTags,
   onMove,
   emptyMessage = "No items yet. Add something above!",
   isLoading = false,
@@ -59,6 +61,7 @@ export function ItemList({
           onTagClick={onTagClick}
           onDelete={onDelete}
           onEdit={onEdit}
+          onUpdateTags={onUpdateTags}
           onMove={onMove}
         />
       ))}

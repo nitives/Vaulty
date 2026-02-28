@@ -27,11 +27,12 @@ export function FloatingSearchBar({
   return (
     <motion.div
       key="search-bar"
+      layout="position"
+      layoutId="search-bar-layout"
       initial={{ y: -10, opacity: 0, filter: "blur(12px)" }}
       animate={{ y: 0, opacity: 1, filter: "blur(0px)" }}
       exit={{ y: -10, opacity: 0, filter: "blur(12px)" }}
       transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
-      className="absolute top-4 right-6 z-50"
     >
       <div className="relative flex items-center">
         <SFIcon

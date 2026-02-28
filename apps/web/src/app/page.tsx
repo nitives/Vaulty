@@ -19,6 +19,7 @@ import { useItems } from "@/hooks/useItems";
 import { useFeed } from "@/hooks/useFeed";
 import SFIcon from "@bradleyhodges/sfsymbols-react";
 import { sfArrowDown, sfArrowUp } from "@bradleyhodges/sfsymbols";
+import { TagFilter } from "@/components/layout/TagFilter";
 
 export default function Home() {
   const { settings } = useSettings();
@@ -62,6 +63,7 @@ export default function Home() {
     confirmDelete,
     handleDeleteItem,
     handleEditItem,
+    handleUpdateTags,
     handleMoveItem,
     handleTagClick,
     handleSearch,
@@ -253,20 +255,30 @@ export default function Home() {
             "dark:bg-[var(--main-content-background-tint-dark)]",
           )}
         >
-          {/* Floating Search Bar - Top Right with animation */}
-          <AnimatePresence>
-            {searchVisible && (
-              <FloatingSearchBar
-                searchQuery={searchQuery}
-                setSearchQuery={setSearchQuery}
-                onSearch={handleSearch}
-                onClose={() => {
-                  setSearchVisible(false);
-                  handleSearch("");
-                }}
-              />
-            )}
-          </AnimatePresence>
+          {/* Floating UI Container */}
+          <div className="absolute top-4 right-6 z-50 flex flex-col items-end gap-2">
+            <AnimatePresence mode="popLayout">
+              {searchVisible && (
+                <FloatingSearchBar
+                  key="search-bar"
+                  searchQuery={searchQuery}
+                  setSearchQuery={setSearchQuery}
+                  onSearch={handleSearch}
+                  onClose={() => {
+                    setSearchVisible(false);
+                    handleSearch("");
+                  }}
+                />
+              )}
+              {activeFilter !== "feeds" && activeTagFilter && (
+                <TagFilter
+                  key="tag-filter"
+                  activeTagFilter={activeTagFilter}
+                  setActiveTagFilter={setActiveTagFilter}
+                />
+              )}
+            </AnimatePresence>
+          </div>
 
           {/* Unified Input Bar */}
           {(activeFilter !== "feeds" || persistInputBarStateOnSwitch) && (
@@ -341,35 +353,6 @@ export default function Home() {
             className="content-area compact:pb-[5rem]! flex-1 overflow-y-auto px-6 py-6 flex"
           >
             <div>
-              {/* Active Tag Filter Badge */}
-
-              {activeFilter !== "feeds" && activeTagFilter && (
-                <div className="flex items-center gap-2 mb-4">
-                  <span className="text-sm text-neutral-500 dark:text-neutral-400">
-                    Filtering by tag:
-                  </span>
-                  <button
-                    onClick={() => setActiveTagFilter(null)}
-                    className="inline-flex items-center gap-1 rounded-full bg-[var(--accent-100)] px-3 py-1 text-sm font-medium text-[var(--accent-800)] dark:bg-[var(--accent-900)] dark:text-[var(--accent-200)]"
-                  >
-                    #{activeTagFilter}
-                    <svg
-                      className="h-3.5 w-3.5"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M6 18L18 6M6 6l12 12"
-                      />
-                    </svg>
-                  </button>
-                </div>
-              )}
-
               {/* Item List */}
               {activeFilter === "feeds" ? (
                 <Feed
@@ -381,6 +364,7 @@ export default function Home() {
                 <ItemList
                   items={displayItems}
                   onTagClick={handleTagClick}
+                  onUpdateTags={handleUpdateTags}
                   onDelete={handleDeleteItem}
                   onEdit={handleEditItem}
                   onMove={setItemToMove}

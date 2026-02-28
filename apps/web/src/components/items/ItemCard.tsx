@@ -5,18 +5,21 @@ import {
   sfTrash,
   sfPencil,
   sfFolder,
+  sfPlus,
 } from "@bradleyhodges/sfsymbols";
 import SFIcon from "@bradleyhodges/sfsymbols-react";
 import { DropdownMenu } from "../ui/DropdownMenu";
 import { renderMarkdown } from "@/lib/markdown";
 import { useSettings } from "@/lib/settings";
 import { getImageUrl } from "@/lib/media";
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import clsx from "clsx";
 import { buttonStyles } from "@/styles/Button";
 import { Lightbox } from "../modals/Lightbox";
 import { AudioCard } from "./AudioCard";
 import { LinkWidget } from "./LinkWidget";
+import { AddTagButton, Tags } from "./Tags";
+import { VideoCard } from "./types/VideoCard";
 
 export interface Item {
   id: string;
@@ -45,6 +48,7 @@ export interface Item {
 export interface ItemCardProps {
   item: Item;
   onTagClick?: (tag: string) => void;
+  onUpdateTags?: (id: string, newTags: string[]) => void;
   onDelete?: (id: string) => void;
   onEdit?: (id: string, newContent: string) => void;
   onMove?: (id: string) => void;
@@ -73,6 +77,7 @@ function formatSize(bytes?: number): string {
 export function ItemCard({
   item,
   onTagClick,
+  onUpdateTags,
   onDelete,
   onEdit,
   onMove,
@@ -88,6 +93,38 @@ export function ItemCard({
   const isVideo = item.type === "video";
   const isReminder = item.type === "reminder";
   const showContent = hasTextContent(item.content, item.imageUrl);
+
+  // Tags Editing State
+  const [tagInput, setTagInput] = useState("");
+  const [isAddingTag, setIsAddingTag] = useState(false);
+  const tagInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (isAddingTag && tagInputRef.current) {
+      tagInputRef.current.focus();
+    }
+  }, [isAddingTag]);
+
+  const handleAddTag = () => {
+    if (!tagInput.trim() || !onUpdateTags) {
+      setIsAddingTag(false);
+      return;
+    }
+    const currentTags = item.tags || [];
+    if (!currentTags.includes(tagInput.trim())) {
+      onUpdateTags(item.id, [...currentTags, tagInput.trim()]);
+    }
+    setTagInput("");
+    setIsAddingTag(false);
+  };
+
+  const handleRemoveTag = (tagToRemove: string) => {
+    if (!onUpdateTags) return;
+    onUpdateTags(
+      item.id,
+      item.tags.filter((t) => t !== tagToRemove),
+    );
+  };
 
   const handleSaveEdit = () => {
     const currentContent = showContent ? item.content : "";
@@ -188,16 +225,7 @@ export function ItemCard({
           <AudioCard item={item} audioUrl={getImageUrl(item.imageUrl)} />
         )}
 
-        {isVideo && item.imageUrl && (
-          <div className="mt-2 max-w-md">
-            <video
-              controls
-              src={getImageUrl(item.imageUrl)}
-              className="rounded-lg object-cover bg-black"
-              style={{ maxHeight: "300px", maxWidth: "100%" }}
-            />
-          </div>
-        )}
+        {isVideo && item.imageUrl && <VideoCard item={item} />}
 
         {/* Reminder */}
         {isReminder && item.reminder && (
@@ -220,19 +248,44 @@ export function ItemCard({
         )}
 
         {/* Tags */}
-        {item.tags.length > 0 && (
-          <div className="mt-1.5 flex flex-wrap gap-1">
+        {(item.tags.length > 0 || isEditing || isAddingTag) && (
+          <div className="mt-1.5 flex flex-wrap items-center gap-1 group/tags">
             {item.tags.map((tag) => (
-              <button
+              <Tags
                 key={tag}
-                onClick={() => onTagClick?.(tag)}
-                className={clsx(
-                  "rounded-full cursor-pointer px-1.5 py-0.5 text-xs text-neutral-500 transition-colors hover:bg-white/15 hover:text-neutral-700 dark:text-neutral-400 dark:hover:bg-neutral-700 dark:hover:text-neutral-200",
-                )}
-              >
-                #{tag}
-              </button>
+                tag={tag}
+                onTagClick={onTagClick}
+                onUpdateTags={onUpdateTags}
+                handleRemoveTag={handleRemoveTag}
+              />
             ))}
+
+            {onUpdateTags && isAddingTag ? (
+              <div className="flex items-center ml-1">
+                <input
+                  ref={tagInputRef}
+                  value={tagInput}
+                  onChange={(e) => setTagInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") handleAddTag();
+                    if (e.key === "Escape") {
+                      setIsAddingTag(false);
+                      setTagInput("");
+                    }
+                  }}
+                  onBlur={handleAddTag}
+                  className="w-20 rounded border border-white/5 bg-black/5 dark:bg-white/5 px-1 text-xs text-black/50 dark:text-white/50 outline-none focus:ring-1 focus:ring-neutral-500/30"
+                  placeholder="tag"
+                />
+              </div>
+            ) : null}
+
+            {onUpdateTags && !isAddingTag && (
+              <AddTagButton
+                isEditing={isEditing}
+                setIsAddingTag={setIsAddingTag}
+              />
+            )}
           </div>
         )}
       </div>

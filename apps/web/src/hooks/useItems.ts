@@ -38,10 +38,7 @@ export function useItems() {
       return;
     }
 
-    const metadataUpdates = new Map<
-      string,
-      NonNullable<Item["metadata"]>
-    >();
+    const metadataUpdates = new Map<string, NonNullable<Item["metadata"]>>();
 
     await Promise.all(
       linkItems.map(async (item) => {
@@ -206,7 +203,10 @@ export function useItems() {
           );
           const timestamp = Date.now();
           const coverFilename = `${timestamp}_${safeName}_cover.jpg`;
-          const saveResult = await saveAudioImage(metadata.image, coverFilename);
+          const saveResult = await saveAudioImage(
+            metadata.image,
+            coverFilename,
+          );
           if (saveResult && saveResult.path) {
             metadata.image = saveResult.path; // Store the local path instead of base64
           }
@@ -318,6 +318,26 @@ export function useItems() {
       await updateStoredItem(updatedItem);
     }
   }, []);
+
+  const handleUpdateTags = useCallback(
+    async (id: string, newTags: string[]) => {
+      let updatedItem: Item | undefined;
+      setItems((prev) =>
+        prev.map((item) => {
+          if (item.id === id) {
+            updatedItem = { ...item, tags: newTags };
+            return updatedItem;
+          }
+          return item;
+        }),
+      );
+
+      if (updatedItem) {
+        await updateStoredItem(updatedItem);
+      }
+    },
+    [],
+  );
 
   const handleMoveItem = useCallback(
     async (pageId: string | null) => {
@@ -482,6 +502,7 @@ export function useItems() {
     confirmDelete,
     handleDeleteItem,
     handleEditItem,
+    handleUpdateTags,
     handleMoveItem,
     handleTagClick,
     handleSearch,

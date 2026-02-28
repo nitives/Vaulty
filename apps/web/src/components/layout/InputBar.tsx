@@ -538,7 +538,7 @@ export function InputBar({ onSubmit }: InputBarProps) {
         "text-sm font-medium text-white",
         "transition-colors",
         "bg-[var(--accent-600)] hover:bg-[var(--accent-700)]",
-        "disabled:opacity-50 disabled:hover:bg-[var(--accent-600)]",
+        "disabled:opacity-50 disabled:hover:bg-[var(--accent-600)] disabled:cursor-default",
       )}
     >
       Save
