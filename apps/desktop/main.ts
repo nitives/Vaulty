@@ -360,11 +360,32 @@ app.on("activate", async () => {
   }
 });
 
+function killNextServer(): void {
+  if (!nextServer) return;
+  const pid = nextServer.pid;
+  if (pid) {
+    try {
+      // On Windows, kill the entire process tree so no orphaned Node processes remain
+      spawn("taskkill", ["/pid", String(pid), "/T", "/F"], {
+        stdio: "ignore",
+        detached: true,
+      }).unref();
+    } catch {
+      nextServer.kill("SIGKILL");
+    }
+  } else {
+    nextServer.kill("SIGKILL");
+  }
+  nextServer = null;
+}
+
 app.on("before-quit", () => {
   isQuitting = true;
   stopVentricle();
-  if (nextServer) {
-    nextServer.kill();
-    nextServer = null;
-  }
+  killNextServer();
+});
+
+// Safety net: ensure the Next.js server is killed if the process exits unexpectedly
+process.on("exit", () => {
+  killNextServer();
 });

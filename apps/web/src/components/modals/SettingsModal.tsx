@@ -154,6 +154,7 @@ function AppearanceSection() {
             { value: "dev", label: "Dev" },
             { value: "dawn", label: "Dawn" },
             { value: "sunset", label: "Sunset" },
+            { value: "midnight", label: "Midnight" },
             { value: "inverted", label: "Inverted" },
           ]}
         />

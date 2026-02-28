@@ -12,6 +12,9 @@ const ICON_BASE_NAME_BY_THEME = {
     default: "icon-rounded",
     dev: "icon-dev-rounded",
     dawn: "icon-dawn-rounded",
+    sunset: "icon-sunset-rounded",
+    midnight: "icon-midnight-rounded",
+    inverted: "icon-inverted-rounded",
 };
 /**
  * In production the icons live in the asarUnpack directory on the real
@@ -28,7 +31,12 @@ function getIconsBaseDir() {
     return path_1.default.join(resolvedPath, "icons");
 }
 function resolveIconTheme(theme) {
-    if (theme === "default" || theme === "dev" || theme === "dawn") {
+    if (theme === "default" ||
+        theme === "dev" ||
+        theme === "dawn" ||
+        theme === "sunset" ||
+        theme === "midnight" ||
+        theme === "inverted") {
         return theme;
     }
     // Backward compatibility for previously saved values.
@@ -38,6 +46,12 @@ function resolveIconTheme(theme) {
         return "dawn";
     if (theme === "dev-night")
         return "default";
+    if (theme === "dev-sunset")
+        return "sunset";
+    if (theme === "dev-midnight")
+        return "midnight";
+    if (theme === "dev-inverted")
+        return "inverted";
     return DEFAULT_ICON_THEME;
 }
 function getIconCandidates(theme) {

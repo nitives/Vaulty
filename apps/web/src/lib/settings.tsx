@@ -24,7 +24,13 @@ export type AccentColor =
   | "green"
   | "graphite";
 
-export type AppIconTheme = "default" | "dev" | "dawn" | "sunset" | "inverted";
+export type AppIconTheme =
+  | "default"
+  | "dev"
+  | "dawn"
+  | "sunset"
+  | "midnight"
+  | "inverted";
 
 export interface AppSettings {
   transparency?: boolean;
@@ -87,6 +93,7 @@ function normalizeIconTheme(theme: unknown): AppIconTheme {
     theme === "dev" ||
     theme === "dawn" ||
     theme === "sunset" ||
+    theme === "midnight" ||
     theme === "inverted"
   ) {
     return theme;
@@ -96,6 +103,7 @@ function normalizeIconTheme(theme: unknown): AppIconTheme {
   if (theme === "dev-dawn") return "dawn";
   if (theme === "dev-night") return "default";
   if (theme === "dev-sunset") return "sunset";
+  if (theme === "dev-midnight") return "midnight";
   if (theme === "dev-inverted") return "inverted";
   return DEFAULT_SETTINGS.iconTheme ?? "default";
 }
