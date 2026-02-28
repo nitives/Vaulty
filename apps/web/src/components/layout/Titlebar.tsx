@@ -32,7 +32,7 @@ function getIsElectronServerSnapshot() {
 const windowControlBase =
   "flex h-full w-12 items-center justify-center transition-colors text-neutral-900/75 dark:text-neutral-100";
 const windowControlHover = "hover:bg-black/10 dark:hover:bg-white/10";
-const windowControlCloseHover = "hover:bg-red-600 hover:text-white";
+const windowControlCloseHover = "hover:bg-[#c42b1c] hover:text-white";
 
 interface TitlebarProps {
   sidebarCollapsed?: boolean;
@@ -139,20 +139,7 @@ export function Titlebar({
           className="flex items-center gap-2 pr-3"
           style={{ WebkitAppRegion: "drag" } as React.CSSProperties}
         >
-          {/* <svg
-            className="h-4 w-4 text-[var(--accent-600)] dark:text-[var(--accent-400)]"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"
-            />
-          </svg> */}
-          {/* <span className="pl-3 text-sm font-medium text-neutral-700 dark:text-neutral-300">
+          {/* <span className="pl-4 text-sm font-medium text-neutral-700 dark:text-neutral-300">
             Vaulty
           </span> */}
         </div>

@@ -54,7 +54,6 @@ function createWindow(): void {
     minHeight: 360,
     title: "Vaulty",
     icon: getWindowIcon(settings.iconTheme),
-    roundedCorners: true,
     titleBarStyle: "hidden",
     backgroundColor: "#1a1a1a",
     backgroundMaterial: "mica",
