@@ -1,7 +1,7 @@
 import { app, nativeImage } from "electron";
 import path from "path";
 
-export type AppIconTheme = "default" | "dev" | "dawn";
+export type AppIconTheme = "default" | "dev" | "dawn" | "sunset" | "inverted";
 
 const DEFAULT_ICON_THEME: AppIconTheme = "default";
 
@@ -9,6 +9,8 @@ const ICON_BASE_NAME_BY_THEME: Record<AppIconTheme, string> = {
   default: "icon-rounded",
   dev: "icon-dev-rounded",
   dawn: "icon-dawn-rounded",
+  sunset: "icon-sunset-rounded",
+  inverted: "icon-inverted-rounded",
 };
 
 /**
@@ -27,13 +29,21 @@ function getIconsBaseDir(): string {
 }
 
 export function resolveIconTheme(theme?: string): AppIconTheme {
-  if (theme === "default" || theme === "dev" || theme === "dawn") {
+  if (
+    theme === "default" ||
+    theme === "dev" ||
+    theme === "dawn" ||
+    theme === "sunset" ||
+    theme === "inverted"
+  ) {
     return theme;
   }
   // Backward compatibility for previously saved values.
   if (theme === "rounded") return "default";
   if (theme === "dev-dawn") return "dawn";
   if (theme === "dev-night") return "default";
+  if (theme === "dev-sunset") return "sunset";
+  if (theme === "dev-inverted") return "inverted";
   return DEFAULT_ICON_THEME;
 }
 

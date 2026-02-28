@@ -153,6 +153,8 @@ function AppearanceSection() {
             { value: "default", label: "Default" },
             { value: "dev", label: "Dev" },
             { value: "dawn", label: "Dawn" },
+            { value: "sunset", label: "Sunset" },
+            { value: "inverted", label: "Inverted" },
           ]}
         />
       </SettingsRow>

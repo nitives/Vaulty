@@ -24,7 +24,7 @@ export type AccentColor =
   | "green"
   | "graphite";
 
-export type AppIconTheme = "default" | "dev" | "dawn";
+export type AppIconTheme = "default" | "dev" | "dawn" | "sunset" | "inverted";
 
 export interface AppSettings {
   transparency?: boolean;
@@ -82,13 +82,21 @@ export const DEFAULT_SETTINGS: AppSettings = {
 const STORAGE_KEY = "vaulty-settings";
 
 function normalizeIconTheme(theme: unknown): AppIconTheme {
-  if (theme === "default" || theme === "dev" || theme === "dawn") {
+  if (
+    theme === "default" ||
+    theme === "dev" ||
+    theme === "dawn" ||
+    theme === "sunset" ||
+    theme === "inverted"
+  ) {
     return theme;
   }
   // Backward compatibility for previously saved values.
   if (theme === "rounded") return "default";
   if (theme === "dev-dawn") return "dawn";
   if (theme === "dev-night") return "default";
+  if (theme === "dev-sunset") return "sunset";
+  if (theme === "dev-inverted") return "inverted";
   return DEFAULT_SETTINGS.iconTheme ?? "default";
 }
 
