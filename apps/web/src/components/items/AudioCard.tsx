@@ -240,7 +240,7 @@ export function AudioCard({ item, audioUrl }: AudioCardProps) {
 
           {/* Info & Controls */}
           <div
-            className="flex flex-col compact:p-[8px] p-[10px] pl-[12px] compact:pl-[10px] justify-between compact:justify-center compact:gap-2 flex-1 min-w-0 "
+            className="flex flex-col compact:p-[8px] p-[10px] pl-[12px] pr-[16px] compact:pl-[10px] compact:pr-[18px] justify-between compact:justify-center compact:gap-2 flex-1 min-w-0 "
             style={{ mixBlendMode: isDark ? "plus-lighter" : "color-burn" }}
           >
             <div className="flex flex-col mb-1 compact:mb-0">

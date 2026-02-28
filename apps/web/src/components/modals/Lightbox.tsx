@@ -82,7 +82,7 @@ export function Lightbox({
             src={imageUrl}
             alt={alt}
             className={clsx(
-              "max-h-full max-w-full rounded-lg object-contain shadow-2xl drop-shadow-2xl",
+              "max-h-full max-w-full object-contain shadow-2xl drop-shadow-2xl",
               isZoomed ? "cursor-zoom-out" : "cursor-zoom-in",
             )}
             onClick={(e) => {
