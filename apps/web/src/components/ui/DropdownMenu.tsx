@@ -66,7 +66,7 @@ export function DropdownMenu({
       <button
         ref={triggerRef}
         onClick={() => setIsOpen(!isOpen)}
-        className="rounded-sm size-6 flex items-center justify-center cursor-pointer text-black/50 transition-colors hover:bg-black/5 hover:text-black dark:hover:bg-white/5 dark:hover:text-white"
+        className="rounded-sm size-6 flex items-center justify-center cursor-pointer text-black/50 transition-colors hover:bg-black/5 hover:text-black dark:hover:bg-white/5 dark:text-white/50 dark:hover:text-white"
         aria-label="More options"
         aria-expanded={isOpen}
         aria-haspopup="true"

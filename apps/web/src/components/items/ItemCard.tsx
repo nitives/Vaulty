@@ -90,7 +90,8 @@ export function ItemCard({
   const showContent = hasTextContent(item.content, item.imageUrl);
 
   const handleSaveEdit = () => {
-    if (editContent.trim() !== item.content) {
+    const currentContent = showContent ? item.content : "";
+    if (editContent.trim() !== currentContent.trim()) {
       onEdit?.(item.id, editContent);
     }
     setIsEditing(false);
@@ -118,7 +119,7 @@ export function ItemCard({
         </div>
 
         {/* Text content */}
-        {showContent && (
+        {(showContent || isEditing) && (
           <div className="mt-1">
             {isEditing ? (
               <div className="flex flex-col gap-2 mt-2 w-full">
@@ -132,7 +133,7 @@ export function ItemCard({
                 <div className="flex justify-end gap-2">
                   <button
                     onClick={() => {
-                      setEditContent(item.content);
+                      setEditContent(showContent ? item.content : "");
                       setIsEditing(false);
                     }}
                     className={clsx(buttonStyles.base)}
@@ -246,7 +247,10 @@ export function ItemCard({
                   {
                     label: "Edit",
                     icon: sfPencil,
-                    onClick: () => setIsEditing(true),
+                    onClick: () => {
+                      setEditContent(showContent ? item.content : "");
+                      setIsEditing(true);
+                    },
                   },
                 ]
               : []),
