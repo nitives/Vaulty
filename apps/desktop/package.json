@@ -1,6 +1,6 @@
 {
   "name": "desktop",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Your local-first scrapbook for screenshots, notes, and links.",
   "main": "dist/main.js",
   "scripts": {
