@@ -22,6 +22,7 @@ import {
 import { registerIpcHandlers } from "./lib/ipc";
 import { startLocalApi } from "./lib/api";
 import { initVentricle, stopVentricle } from "./lib/ventricle";
+import { restoreDwmAttributes } from "./lib/dwm";
 import {
   canCheckForUpdates,
   checkForUpdates,
@@ -109,6 +110,27 @@ function createWindow(): void {
       }
     }
   });
+
+  // ── DWM fix: re-apply rounded corners & backdrop after state transitions ──
+  // Chromium resets Win32 style flags on these transitions, which detaches
+  // the DWM border radius and backdrop material from the window handle.
+  const restoreDwm = () => {
+    if (!mainWindow || mainWindow.isDestroyed()) return;
+    setTimeout(() => {
+      if (!mainWindow || mainWindow.isDestroyed()) return;
+      const s = loadSettings();
+      if (s.transparency) {
+        restoreDwmAttributes(mainWindow, s.backgroundMaterial);
+        // Belt-and-suspenders: also re-apply via Electron's API
+        applyTransparency(mainWindow, true, s.backgroundMaterial);
+      }
+    }, 100);
+  };
+
+  mainWindow.on("leave-full-screen", restoreDwm);
+  mainWindow.on("maximize", restoreDwm);
+  mainWindow.on("unmaximize", restoreDwm);
+  mainWindow.on("restore", restoreDwm);
 
   mainWindow.on("closed", () => {
     mainWindow = null;

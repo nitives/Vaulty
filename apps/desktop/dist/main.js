@@ -15,6 +15,7 @@ const protocol_1 = require("./lib/protocol");
 const ipc_1 = require("./lib/ipc");
 const api_1 = require("./lib/api");
 const ventricle_1 = require("./lib/ventricle");
+const dwm_1 = require("./lib/dwm");
 const updates_1 = require("./lib/updates");
 const isDev = !electron_1.app.isPackaged;
 let mainWindow = null;
@@ -34,7 +35,6 @@ function createWindow() {
         minHeight: 360,
         title: "Vaulty",
         icon: (0, icon_1.getWindowIcon)(settings.iconTheme),
-        roundedCorners: true,
         titleBarStyle: "hidden",
         backgroundColor: "#1a1a1a",
         backgroundMaterial: "mica",
@@ -86,6 +86,27 @@ function createWindow() {
             }
         }
     });
+    // ── DWM fix: re-apply rounded corners & backdrop after state transitions ──
+    // Chromium resets Win32 style flags on these transitions, which detaches
+    // the DWM border radius and backdrop material from the window handle.
+    const restoreDwm = () => {
+        if (!mainWindow || mainWindow.isDestroyed())
+            return;
+        setTimeout(() => {
+            if (!mainWindow || mainWindow.isDestroyed())
+                return;
+            const s = (0, settings_1.loadSettings)();
+            if (s.transparency) {
+                (0, dwm_1.restoreDwmAttributes)(mainWindow, s.backgroundMaterial);
+                // Belt-and-suspenders: also re-apply via Electron's API
+                (0, settings_1.applyTransparency)(mainWindow, true, s.backgroundMaterial);
+            }
+        }, 100);
+    };
+    mainWindow.on("leave-full-screen", restoreDwm);
+    mainWindow.on("maximize", restoreDwm);
+    mainWindow.on("unmaximize", restoreDwm);
+    mainWindow.on("restore", restoreDwm);
     mainWindow.on("closed", () => {
         mainWindow = null;
     });
