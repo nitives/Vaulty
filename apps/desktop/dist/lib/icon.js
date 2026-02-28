@@ -13,6 +13,20 @@ const ICON_BASE_NAME_BY_THEME = {
     dev: "icon-dev-rounded",
     dawn: "icon-dawn-rounded",
 };
+/**
+ * In production the icons live in the asarUnpack directory on the real
+ * filesystem, NOT inside the asar archive.  nativeImage.createFromPath
+ * cannot reliably read .ico files from inside asar on Windows, so we
+ * resolve to the unpacked path when the app is packaged.
+ */
+function getIconsBaseDir() {
+    const appPath = electron_1.app.getAppPath();
+    // When packaged the appPath is e.g. "…/resources/app.asar"
+    const resolvedPath = electron_1.app.isPackaged
+        ? appPath.replace("app.asar", "app.asar.unpacked")
+        : appPath;
+    return path_1.default.join(resolvedPath, "icons");
+}
 function resolveIconTheme(theme) {
     if (theme === "default" || theme === "dev" || theme === "dawn") {
         return theme;
@@ -28,7 +42,7 @@ function resolveIconTheme(theme) {
 }
 function getIconCandidates(theme) {
     const baseName = ICON_BASE_NAME_BY_THEME[theme];
-    const baseDir = path_1.default.join(electron_1.app.getAppPath(), "icons");
+    const baseDir = getIconsBaseDir();
     // On Windows, try ICO first, then PNG fallback.
     if (process.platform === "win32") {
         return [
@@ -39,7 +53,7 @@ function getIconCandidates(theme) {
     return [path_1.default.join(baseDir, "png", `${baseName}.png`)];
 }
 function getGenericIconCandidates() {
-    const baseDir = path_1.default.join(electron_1.app.getAppPath(), "icons");
+    const baseDir = getIconsBaseDir();
     if (process.platform === "win32") {
         return [
             path_1.default.join(baseDir, "ico", "icon.ico"),

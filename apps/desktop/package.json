@@ -30,6 +30,9 @@
       "icons/**",
       "package.json"
     ],
+    "asarUnpack": [
+      "icons/**"
+    ],
     "extraResources": [
       {
         "from": "resources/web/.next/standalone",

@@ -113,10 +113,10 @@ function createWindow() {
 }
 function createTray() {
     const settings = (0, settings_1.loadSettings)();
-    const iconPath = path_1.default.join(__dirname, "..", "icons", "ico", "icon-rounded.ico");
-    if (!fs_1.default.existsSync(iconPath))
+    const trayIcon = (0, icon_1.getWindowIcon)(settings.iconTheme);
+    if (!trayIcon)
         return;
-    tray = new electron_1.Tray(iconPath);
+    tray = new electron_1.Tray(trayIcon);
     const contextMenu = electron_1.Menu.buildFromTemplate([
         {
             label: "Open Vaulty",

@@ -139,17 +139,11 @@ function createWindow(): void {
 
 function createTray(): void {
   const settings = loadSettings();
-  const iconPath = path.join(
-    __dirname,
-    "..",
-    "icons",
-    "ico",
-    "icon-rounded.ico",
-  );
+  const trayIcon = getWindowIcon(settings.iconTheme);
 
-  if (!fs.existsSync(iconPath)) return;
+  if (!trayIcon) return;
 
-  tray = new Tray(iconPath);
+  tray = new Tray(trayIcon);
 
   const contextMenu = Menu.buildFromTemplate([
     {
