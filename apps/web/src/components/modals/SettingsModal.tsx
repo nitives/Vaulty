@@ -126,11 +126,20 @@ function SettingsRow({
 
 // -- Section content components --
 
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="text-xs font-bold select-none uppercase tracking-wide text-neutral-400 dark:text-neutral-500 pt-2 pb-0.5 px-4">
+      {children}
+    </p>
+  );
+}
+
 function AppearanceSection() {
   const { settings, update } = useSettings();
 
   return (
     <div className="space-y-2">
+      <SectionLabel>General</SectionLabel>
       <SettingsRow
         label="Theme"
         description="Choose your preferred color scheme"
@@ -168,6 +177,8 @@ function AppearanceSection() {
           onChange={(v) => update({ accentColor: v as AccentColor })}
         />
       </SettingsRow>
+
+      <SectionLabel>Layout</SectionLabel>
       <SettingsRow
         label="Input bar position"
         description="Place the input bar at the top or bottom of the content area (also reverses the content order)"
@@ -191,26 +202,35 @@ function AppearanceSection() {
           onChange={(v) => update({ compactMode: v })}
         />
       </SettingsRow>
+
+      <SectionLabel>Customization</SectionLabel>
       <SettingsRow
-        label="Transparent titlebar"
-        description="Make the titlebar background transparent (Requires window transparency to be visible)"
+        label="Custom font"
+        description="Use a custom font for the UI"
         toggleOnRowClick
       >
         <Toggle
-          checked={settings.titlebarTransparent ?? false}
-          onChange={(v) => update({ titlebarTransparent: v })}
+          checked={settings.customFont ?? false}
+          onChange={(v) => update({ customFont: v })}
         />
       </SettingsRow>
-      <SettingsRow
-        label="Transparent sidebar"
-        description="Make the sidebar background transparent (Requires window transparency to be visible)"
-        toggleOnRowClick
-      >
-        <Toggle
-          checked={settings.sidebarTransparent ?? false}
-          onChange={(v) => update({ sidebarTransparent: v })}
-        />
-      </SettingsRow>
+      {settings.customFont && (
+        <SettingsRow
+          label="Font family"
+          description="Enter the name of an installed system font"
+        >
+          <input
+            type="text"
+            value={settings.customFontFamily ?? ""}
+            onChange={(e) => update({ customFontFamily: e.target.value })}
+            placeholder="e.g. Inter, Cascadia Code"
+            spellCheck={false}
+            className="w-48 rounded-lg border border-neutral-300 bg-white px-3 py-1.5 text-sm text-neutral-900 placeholder:text-neutral-400 focus:border-[var(--accent-500)] focus:outline-none focus:ring-1 focus:ring-[var(--accent-500)] dark:border-neutral-600 dark:bg-neutral-700 dark:text-neutral-100 dark:placeholder:text-neutral-500"
+          />
+        </SettingsRow>
+      )}
+
+      <SectionLabel>Transparency</SectionLabel>
       <SettingsRow
         label="Window transparency"
         description="Enable transparent blur background"
@@ -222,23 +242,44 @@ function AppearanceSection() {
         />
       </SettingsRow>
       {settings.transparency && (
-        <SettingsRow
-          label="Blur style"
-          description="Mica uses your wallpaper tint, Acrylic uses a frosted glass effect"
-        >
-          <Select
-            value={settings.backgroundMaterial ?? "mica"}
-            onChange={(v) =>
-              update({ backgroundMaterial: v as "mica" | "acrylic" })
-            }
-            options={[
-              { value: "mica", label: "Mica" },
-              { value: "acrylic", label: "Acrylic" },
-            ]}
-          />
-        </SettingsRow>
+        <>
+          <SettingsRow
+            label="Transparent titlebar"
+            description="Make the titlebar background transparent"
+            toggleOnRowClick
+          >
+            <Toggle
+              checked={settings.titlebarTransparent ?? false}
+              onChange={(v) => update({ titlebarTransparent: v })}
+            />
+          </SettingsRow>
+          <SettingsRow
+            label="Transparent sidebar"
+            description="Make the sidebar background transparent"
+            toggleOnRowClick
+          >
+            <Toggle
+              checked={settings.sidebarTransparent ?? false}
+              onChange={(v) => update({ sidebarTransparent: v })}
+            />
+          </SettingsRow>
+          <SettingsRow
+            label="Blur style"
+            description="Mica uses your wallpaper tint, Acrylic uses a frosted glass effect"
+          >
+            <Select
+              value={settings.backgroundMaterial ?? "mica"}
+              onChange={(v) =>
+                update({ backgroundMaterial: v as "mica" | "acrylic" })
+              }
+              options={[
+                { value: "mica", label: "Mica" },
+                { value: "acrylic", label: "Acrylic" },
+              ]}
+            />
+          </SettingsRow>
+        </>
       )}
-      {/* Custom sliders for tint opacity, only when transparency is on and blur style is acrylic */}
       {settings.transparency && settings.backgroundMaterial === "acrylic" && (
         <>
           <SettingsRow

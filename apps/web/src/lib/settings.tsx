@@ -55,6 +55,8 @@ export interface AppSettings {
   openOnStartup?: boolean;
   startMinimized?: boolean;
   closeToTray?: boolean;
+  customFont?: boolean;
+  customFontFamily?: string;
   experiments?: Record<string, unknown>;
 }
 
@@ -81,6 +83,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   openOnStartup: false,
   startMinimized: false,
   closeToTray: true,
+  customFont: false,
+  customFontFamily: "",
 };
 
 // -- localStorage helpers (for fast sync access on page load) --
@@ -275,6 +279,20 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
       !!settings.reduceMotion,
     );
   }, [settings.reduceMotion]);
+
+  // Custom font
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    const body = document.body;
+    if (settings.customFont && settings.customFontFamily?.trim()) {
+      body.style.setProperty(
+        "--app-font-family",
+        `"${settings.customFontFamily.trim()}", system-ui, sans-serif`,
+      );
+    } else {
+      body.style.removeProperty("--app-font-family");
+    }
+  }, [settings.customFont, settings.customFontFamily]);
 
   const update = useCallback((patch: Partial<AppSettings>) => {
     const normalizedPatch =
