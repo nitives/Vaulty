@@ -102,11 +102,12 @@ export function UpdateNotification() {
           transition={{ duration: 0.3, ease: [0.2, 0, 0, 1] }}
           className={clsx(
             "update-notification",
-            "absolute bottom-4 left-4 z-50 w-72",
+            "absolute bottom-4 left-4 z-50 w-72 h-fit",
             "rounded-xl border p-4",
             "border-neutral-200/80 dark:border-white/10",
             "bg-white dark:bg-neutral-900",
             "backdrop-blur-xl shadow-lg select-none",
+            // "scale-[4] left-1/2! -translate-x-1/2! top-1/2! -translate-y-1/2!",
           )}
         >
           {/* Dismiss button */}
@@ -167,7 +168,10 @@ export function UpdateNotification() {
                   }
                   target="_blank"
                   rel="noreferrer"
-                  className="text-[var(--accent-600)] dark:text-[var(--accent-400)] hover:underline cursor-pointer"
+                  className={clsx(
+                    "shimmer",
+                    "text-[var(--accent-600)] dark:text-[var(--accent-400)] hover:underline cursor-pointer",
+                  )}
                 >
                   See what&apos;s new.{" "}
                   <SFIcon size={6.5} weight={1} icon={sfArrowUpRight} />

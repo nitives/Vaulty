@@ -136,3 +136,47 @@ button,
     mask-composite: exclude;
   }
 }
+
+@utility shimmer {
+  --shimmer-base: var(--accent-600);
+  --shimmer-highlight: oklch(from var(--shimmer-base) calc(l + 0.2) c h);
+  --shimmer-speed: 200;
+  --shimmer-duration: calc(375000 / var(--shimmer-speed));
+  --shimmer-repeat-delay: calc(20000 / var(--shimmer-speed));
+  --shimmer-slide-time: calc(
+    (var(--shimmer-duration) + var(--shimmer-repeat-delay)) * 1ms
+  );
+  --shimmer-pause: 750ms;
+  --shimmer-total: calc(var(--shimmer-slide-time) + var(--shimmer-pause));
+  color: transparent;
+  background: linear-gradient(
+    90deg,
+    var(--shimmer-base) 0%,
+    var(--shimmer-base) 40%,
+    var(--shimmer-highlight) 50%,
+    var(--shimmer-base) 60%,
+    var(--shimmer-base) 100%
+  );
+  background-size: 275% 100%;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  -webkit-background-clip: text;
+  font-weight: 650;
+  animation: shimmer-slide var(--shimmer-total) linear infinite backwards;
+  @variant dark {
+    --shimmer-base: var(--accent-400);
+    --shimmer-highlight: oklch(from var(--shimmer-base) calc(l + 0.2) c h);
+  }
+}
+
+@keyframes shimmer-slide {
+  0% {
+    background-position-x: 100%;
+  }
+  40% {
+    background-position-x: 0%;
+  }
+  100% {
+    background-position-x: 0%;
+  }
+}
