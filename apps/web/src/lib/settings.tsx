@@ -57,6 +57,8 @@ export interface AppSettings {
   closeToTray?: boolean;
   customFont?: boolean;
   customFontFamily?: string;
+  customCSS?: boolean;
+  customCSSContent?: string;
   experiments?: Record<string, unknown>;
 }
 
@@ -85,6 +87,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   closeToTray: true,
   customFont: false,
   customFontFamily: "",
+  customCSS: false,
+  customCSSContent: "",
 };
 
 // -- localStorage helpers (for fast sync access on page load) --
@@ -293,6 +297,23 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
       body.style.removeProperty("--app-font-family");
     }
   }, [settings.customFont, settings.customFontFamily]);
+
+  // Custom CSS
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    const styleId = "vaulty-custom-css";
+    let styleEl = document.getElementById(styleId) as HTMLStyleElement | null;
+    if (settings.customCSS && settings.customCSSContent?.trim()) {
+      if (!styleEl) {
+        styleEl = document.createElement("style");
+        styleEl.id = styleId;
+        document.head.appendChild(styleEl);
+      }
+      styleEl.textContent = settings.customCSSContent;
+    } else if (styleEl) {
+      styleEl.remove();
+    }
+  }, [settings.customCSS, settings.customCSSContent]);
 
   const update = useCallback((patch: Partial<AppSettings>) => {
     const normalizedPatch =

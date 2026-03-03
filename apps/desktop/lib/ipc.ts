@@ -142,7 +142,11 @@ export function registerIpcHandlers(
     saveSettings(updated);
 
     const win = getMainWindow();
-    if (win && ("transparency" in patch || "backgroundMaterial" in patch)) {
+    if (
+      win &&
+      (settings.transparency !== updated.transparency ||
+        settings.backgroundMaterial !== updated.backgroundMaterial)
+    ) {
       applyTransparency(
         win,
         updated.transparency ?? false,
@@ -210,10 +214,7 @@ export function registerIpcHandlers(
           });
 
           const contentType = response.headers.get("content-type");
-          if (
-            response.ok &&
-            contentType?.toLowerCase().startsWith("image/")
-          ) {
+          if (response.ok && contentType?.toLowerCase().startsWith("image/")) {
             const imageBytes = Buffer.from(await response.arrayBuffer());
             const mimeType = contentType.split(";")[0].trim();
             const base64Data = imageBytes.toString("base64");

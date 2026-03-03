@@ -100,7 +100,9 @@ function registerIpcHandlers(getMainWindow) {
         const updated = { ...settings, ...patch };
         (0, settings_1.saveSettings)(updated);
         const win = getMainWindow();
-        if (win && ("transparency" in patch || "backgroundMaterial" in patch)) {
+        if (win &&
+            (settings.transparency !== updated.transparency ||
+                settings.backgroundMaterial !== updated.backgroundMaterial)) {
             (0, settings_1.applyTransparency)(win, updated.transparency ?? false, updated.backgroundMaterial);
         }
         if (win && "iconTheme" in patch) {
@@ -153,8 +155,7 @@ function registerIpcHandlers(getMainWindow) {
                     },
                 });
                 const contentType = response.headers.get("content-type");
-                if (response.ok &&
-                    contentType?.toLowerCase().startsWith("image/")) {
+                if (response.ok && contentType?.toLowerCase().startsWith("image/")) {
                     const imageBytes = Buffer.from(await response.arrayBuffer());
                     const mimeType = contentType.split(";")[0].trim();
                     const base64Data = imageBytes.toString("base64");

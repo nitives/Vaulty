@@ -119,7 +119,7 @@ function SettingsRow({
           </p>
         )}
       </div>
-      <div className="flex-shrink-0">{children}</div>
+      <div className="flex-shrink-0 flex items-center">{children}</div>
     </div>
   );
 }
@@ -228,6 +228,37 @@ function AppearanceSection() {
             className="w-48 rounded-lg border border-neutral-300 bg-white px-3 py-1.5 text-sm text-neutral-900 placeholder:text-neutral-400 focus:border-[var(--accent-500)] focus:outline-none focus:ring-1 focus:ring-[var(--accent-500)] dark:border-neutral-600 dark:bg-neutral-700 dark:text-neutral-100 dark:placeholder:text-neutral-500"
           />
         </SettingsRow>
+      )}
+      <SettingsRow
+        label="Custom CSS"
+        description="Inject your own CSS styles into the app"
+        toggleOnRowClick
+      >
+        <Toggle
+          checked={settings.customCSS ?? false}
+          onChange={(v) => update({ customCSS: v })}
+        />
+      </SettingsRow>
+      {settings.customCSS && (
+        <div className="rounded-lg border border-neutral-300 bg-neutral-50 dark:border-neutral-600 dark:bg-neutral-800/50 overflow-hidden">
+          <div className="flex items-center justify-between px-3 py-1.5 border-b border-neutral-200 dark:border-neutral-700 bg-neutral-100 dark:bg-neutral-800">
+            <span className="text-[11px] font-medium text-neutral-500 dark:text-neutral-400 select-none">
+              CSS
+            </span>
+          </div>
+          <div className="flex items-center justify-between px-1.5 py-1.5 border-b border-neutral-200 dark:border-neutral-700 bg-neutral-100 dark:bg-neutral-800">
+            <textarea
+              value={settings.customCSSContent ?? ""}
+              onChange={(e) => update({ customCSSContent: e.target.value })}
+              placeholder={
+                "/* Your custom styles */\n#vaulty-sidebar {\n  background-color: red;\n}"
+              }
+              spellCheck={false}
+              rows={8}
+              className="w-full rounded-b-[2px] resize-y bg-transparent px-3 py-2 font-mono text-xs leading-relaxed text-neutral-800 placeholder:text-neutral-400 focus:outline-none dark:text-neutral-200 dark:placeholder:text-neutral-600"
+            />
+          </div>
+        </div>
       )}
 
       <SectionLabel>Transparency</SectionLabel>
@@ -600,7 +631,7 @@ function StorageSection() {
   };
 
   return (
-    <div className="space-y-4 p-2 pb-6">
+    <div className="space-y-4 pb-6">
       <div className="p-4">
         <h4 className="font-semibold text-neutral-900 dark:text-neutral-100 mb-1">
           Data Location
@@ -887,7 +918,7 @@ function AboutSection() {
 
 function GuideSection() {
   return (
-    <div className="space-y-4 p-2 pb-6">
+    <div className="space-y-4 pb-6">
       <div className="p-4">
         <h4 className="font-semibold mb-2 text-neutral-900 dark:text-neutral-100">
           Search Operators
@@ -1114,7 +1145,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
             key="settings-panel"
             ref={modalRef}
             className={clsx(
-              "relative flex h-[70vh] w-full max-w-3xl overflow-hidden rounded-xl border",
+              "relative flex h-[70vh] w-[calc(100%-4rem)] max-w-4xl overflow-hidden rounded-xl border",
               "bg-white/75 dark:bg-neutral-900/85",
               "transparent:bg-neutral-100/95 transparent:dark:bg-neutral-900/95",
               "border-neutral-200 dark:border-neutral-700",
