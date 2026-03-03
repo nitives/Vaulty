@@ -106,14 +106,14 @@ export function UpdateNotification() {
             "rounded-xl border p-4",
             "border-neutral-200/80 dark:border-white/10",
             "bg-white dark:bg-neutral-900",
-            "backdrop-blur-xl shadow-lg",
+            "backdrop-blur-xl shadow-lg select-none",
           )}
         >
           {/* Dismiss button */}
           <button
             onClick={() => setDismissed(true)}
             className={clsx(
-              "absolute top-2.5 right-2.5 flex size-6 p-1.5 items-center justify-center rounded-full",
+              "absolute top-2.5 right-2.5 flex size-6 p-2 items-center justify-center rounded-md",
               "text-neutral-400 dark:text-neutral-500",
               "hover:text-neutral-600 dark:hover:text-neutral-300",
               "hover:bg-black/5 dark:hover:bg-white/10",
@@ -121,7 +121,7 @@ export function UpdateNotification() {
             )}
             aria-label="Dismiss notification"
           >
-            <SFIcon className="size-full" weight={0.5} icon={sfXmark} />
+            <SFIcon className="size-full" weight={1} icon={sfXmark} />
           </button>
 
           {/* Header icon + title */}
