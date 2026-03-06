@@ -24,6 +24,7 @@ import {
 import { motion, AnimatePresence } from "motion/react";
 import { buttonStyles } from "@/styles/Button";
 import { IconDefinition } from "@bradleyhodges/sfsymbols-types";
+import { getElectronAPI } from "@/lib/electron";
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -136,6 +137,9 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 
 function AppearanceSection() {
   const { settings, update } = useSettings();
+  const platform = getElectronAPI()?.getPlatform?.() ?? "";
+  const isMac = platform === "darwin";
+  const isWindows = platform === "win32";
 
   return (
     <div className="space-y-2">
@@ -170,7 +174,11 @@ function AppearanceSection() {
       </SettingsRow>
       <SettingsRow
         label="Accent color"
-        description="Multicolor uses your Windows accent color"
+        description={
+          isWindows
+            ? "Multicolor uses your Windows accent color"
+            : "Choose an accent color for the UI"
+        }
       >
         <AccentColorPicker
           value={settings.accentColor ?? "blue"}
@@ -294,57 +302,61 @@ function AppearanceSection() {
               onChange={(v) => update({ sidebarTransparent: v })}
             />
           </SettingsRow>
-          <SettingsRow
-            label="Blur style"
-            description="Mica uses your wallpaper tint, Acrylic uses a frosted glass effect"
-          >
-            <Select
-              value={settings.backgroundMaterial ?? "mica"}
-              onChange={(v) =>
-                update({ backgroundMaterial: v as "mica" | "acrylic" })
-              }
-              options={[
-                { value: "mica", label: "Mica" },
-                { value: "acrylic", label: "Acrylic" },
-              ]}
-            />
-          </SettingsRow>
+          {isWindows && (
+            <SettingsRow
+              label="Blur style"
+              description="Mica uses your wallpaper tint, Acrylic uses a frosted glass effect"
+            >
+              <Select
+                value={settings.backgroundMaterial ?? "mica"}
+                onChange={(v) =>
+                  update({ backgroundMaterial: v as "mica" | "acrylic" })
+                }
+                options={[
+                  { value: "mica", label: "Mica" },
+                  { value: "acrylic", label: "Acrylic" },
+                ]}
+              />
+            </SettingsRow>
+          )}
         </>
       )}
-      {settings.transparency && settings.backgroundMaterial === "acrylic" && (
-        <>
-          <SettingsRow
-            label="Light mode tint opacity"
-            description="Adjust the transparency for light mode background tint"
-          >
-            <Slider
-              value={Math.round(
-                (settings.backgroundTintOpacityLight ?? 1) * 10,
-              )}
-              min={0}
-              max={10}
-              stops={10}
-              onChange={(v) => update({ backgroundTintOpacityLight: v / 10 })}
-              ariaLabel="Light mode tint opacity"
-            />
-          </SettingsRow>
-          <SettingsRow
-            label="Dark mode tint opacity"
-            description="Adjust the transparency for dark mode background tint"
-          >
-            <Slider
-              value={Math.round(
-                (settings.backgroundTintOpacityDark ?? 1.5) * 10,
-              )}
-              min={0}
-              max={10}
-              stops={10}
-              onChange={(v) => update({ backgroundTintOpacityDark: v / 10 })}
-              ariaLabel="Dark mode tint opacity"
-            />
-          </SettingsRow>
-        </>
-      )}
+      {settings.transparency &&
+        settings.backgroundMaterial === "acrylic" &&
+        isWindows && (
+          <>
+            <SettingsRow
+              label="Light mode tint opacity"
+              description="Adjust the transparency for light mode background tint"
+            >
+              <Slider
+                value={Math.round(
+                  (settings.backgroundTintOpacityLight ?? 1) * 10,
+                )}
+                min={0}
+                max={10}
+                stops={10}
+                onChange={(v) => update({ backgroundTintOpacityLight: v / 10 })}
+                ariaLabel="Light mode tint opacity"
+              />
+            </SettingsRow>
+            <SettingsRow
+              label="Dark mode tint opacity"
+              description="Adjust the transparency for dark mode background tint"
+            >
+              <Slider
+                value={Math.round(
+                  (settings.backgroundTintOpacityDark ?? 1.5) * 10,
+                )}
+                min={0}
+                max={10}
+                stops={10}
+                onChange={(v) => update({ backgroundTintOpacityDark: v / 10 })}
+                ariaLabel="Dark mode tint opacity"
+              />
+            </SettingsRow>
+          </>
+        )}
     </div>
   );
 }

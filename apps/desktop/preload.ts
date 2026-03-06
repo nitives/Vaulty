@@ -103,6 +103,7 @@ function onUpdateStatus(callback: UpdateStatusListener): () => void {
 contextBridge.exposeInMainWorld("electronAPI", {
   getVersion: () => ipcRenderer.invoke("app:version"),
   getName: () => ipcRenderer.invoke("app:name"),
+  getPlatform: () => process.platform,
   // Window controls
   minimizeWindow: () => ipcRenderer.invoke("window:minimize"),
   maximizeWindow: () => ipcRenderer.invoke("window:maximize"),
@@ -191,6 +192,7 @@ declare global {
     electronAPI: {
       getVersion: () => Promise<string>;
       getName: () => Promise<string>;
+      getPlatform: () => string;
       minimizeWindow: () => Promise<void>;
       maximizeWindow: () => Promise<void>;
       closeWindow: () => Promise<void>;
@@ -281,9 +283,7 @@ declare global {
       // Pulses
       loadPulses: () => Promise<StoredPulse[]>;
       loadPulseItems: () => Promise<StoredPulseItem[]>;
-      markPulseItemSeen: (
-        id: string,
-      ) => Promise<{
+      markPulseItemSeen: (id: string) => Promise<{
         success: boolean;
         item?: StoredPulseItem;
         error?: string;

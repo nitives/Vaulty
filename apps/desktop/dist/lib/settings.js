@@ -27,12 +27,20 @@ function applyTransparency(win, enabled, material) {
             win.setBackgroundMaterial(mat);
             console.log(`Applied ${mat} background on Windows`);
         }
+        else if (process.platform === "darwin") {
+            win.setVibrancy("under-window");
+            console.log("Applied vibrancy on macOS");
+        }
     }
     else {
         win.setBackgroundColor("#1a1a1a");
         if (process.platform === "win32") {
             win.setBackgroundMaterial("none");
             console.log("Removed transparent background on Windows");
+        }
+        else if (process.platform === "darwin") {
+            win.setVibrancy(null);
+            console.log("Removed vibrancy on macOS");
         }
     }
 }

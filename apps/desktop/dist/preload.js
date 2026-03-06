@@ -13,6 +13,7 @@ function onUpdateStatus(callback) {
 electron_1.contextBridge.exposeInMainWorld("electronAPI", {
     getVersion: () => electron_1.ipcRenderer.invoke("app:version"),
     getName: () => electron_1.ipcRenderer.invoke("app:name"),
+    getPlatform: () => process.platform,
     // Window controls
     minimizeWindow: () => electron_1.ipcRenderer.invoke("window:minimize"),
     maximizeWindow: () => electron_1.ipcRenderer.invoke("window:maximize"),

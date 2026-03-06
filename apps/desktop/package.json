@@ -10,7 +10,9 @@
     "prep:web": "node scripts/prep-web.mjs",
     "start": "electron .",
     "package": "npm run build:web && npm run prep:web && npm run build && electron-builder --win nsis",
-    "publish": "npm run build:web && npm run prep:web && npm run build && electron-builder --win nsis --publish always"
+    "package:mac": "npm run build:web && npm run prep:web && npm run build && electron-builder --mac dmg",
+    "publish": "npm run build:web && npm run prep:web && npm run build && electron-builder --win nsis --publish always",
+    "publish:mac": "npm run build:web && npm run prep:web && npm run build && electron-builder --mac dmg --publish always"
   },
   "keywords": [
     "electron",
@@ -70,6 +72,22 @@
       "artifactName": "${productName}-${version}.${ext}",
       "include": "installer.nsh",
       "allowToChangeInstallationDirectory": true
+    },
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ],
+      "icon": "icons/png/icon-rounded.png",
+      "category": "public.app-category.productivity"
+    },
+    "dmg": {
+      "artifactName": "${productName}-${version}-${arch}.${ext}"
     }
   },
   "dependencies": {

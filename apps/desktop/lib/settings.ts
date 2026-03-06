@@ -55,12 +55,18 @@ export function applyTransparency(
     if (process.platform === "win32") {
       (win as any).setBackgroundMaterial(mat);
       console.log(`Applied ${mat} background on Windows`);
+    } else if (process.platform === "darwin") {
+      (win as any).setVibrancy("under-window");
+      console.log("Applied vibrancy on macOS");
     }
   } else {
     win.setBackgroundColor("#1a1a1a");
     if (process.platform === "win32") {
       (win as any).setBackgroundMaterial("none");
       console.log("Removed transparent background on Windows");
+    } else if (process.platform === "darwin") {
+      (win as any).setVibrancy(null);
+      console.log("Removed vibrancy on macOS");
     }
   }
 }

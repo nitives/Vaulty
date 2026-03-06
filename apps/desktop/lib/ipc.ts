@@ -164,10 +164,14 @@ export function registerIpcHandlers(
   });
 
   ipcMain.handle("settings:startup", (_event, openOnStartup: boolean) => {
-    app.setLoginItemSettings({
-      openAtLogin: openOnStartup,
-      path: app.getPath("exe"),
-    });
+    if (process.platform === "darwin") {
+      app.setLoginItemSettings({ openAtLogin: openOnStartup });
+    } else {
+      app.setLoginItemSettings({
+        openAtLogin: openOnStartup,
+        path: app.getPath("exe"),
+      });
+    }
   });
 
   // Theme

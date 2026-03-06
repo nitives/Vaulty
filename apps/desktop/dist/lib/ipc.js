@@ -114,10 +114,15 @@ function registerIpcHandlers(getMainWindow) {
         return updated;
     });
     electron_1.ipcMain.handle("settings:startup", (_event, openOnStartup) => {
-        electron_1.app.setLoginItemSettings({
-            openAtLogin: openOnStartup,
-            path: electron_1.app.getPath("exe"),
-        });
+        if (process.platform === "darwin") {
+            electron_1.app.setLoginItemSettings({ openAtLogin: openOnStartup });
+        }
+        else {
+            electron_1.app.setLoginItemSettings({
+                openAtLogin: openOnStartup,
+                path: electron_1.app.getPath("exe"),
+            });
+        }
     });
     // Theme
     electron_1.ipcMain.handle("theme:set", (_event, theme) => {

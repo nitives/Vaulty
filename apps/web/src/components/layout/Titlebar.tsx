@@ -28,6 +28,15 @@ function getIsElectronServerSnapshot() {
   return false;
 }
 
+function getIsMacSnapshot() {
+  const api = getElectronAPI();
+  return api?.getPlatform?.() === "darwin";
+}
+
+function getIsMacServerSnapshot() {
+  return false;
+}
+
 // Shared styles for window control buttons
 const windowControlBase =
   "flex h-full w-12 items-center justify-center transition-colors text-neutral-900/75 dark:text-neutral-100";
@@ -54,6 +63,11 @@ export function Titlebar({
     subscribe,
     getIsElectronSnapshot,
     getIsElectronServerSnapshot,
+  );
+  const isMac = useSyncExternalStore(
+    subscribe,
+    getIsMacSnapshot,
+    getIsMacServerSnapshot,
   );
   const [isMaximized, setIsMaximized] = useState(false);
 
@@ -132,7 +146,10 @@ export function Titlebar({
     >
       {/* App Title */}
       <div
-        className="flex h-full items-center -ml-1.5"
+        className={clsx(
+          "flex h-full items-center",
+          isMac ? "ml-[68px]" : "-ml-1.5",
+        )}
         style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
       >
         <div
@@ -178,47 +195,49 @@ export function Titlebar({
         )}
       </div>
 
-      {/* Window Controls */}
-      <div
-        className="flex h-full"
-        style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
-      >
-        {/* Minimize */}
-        <button
-          onClick={handleMinimize}
-          tabIndex={-1}
-          className={`${windowControlBase} ${windowControlHover}`}
-          aria-label="Minimize"
+      {/* Window Controls (Windows/Linux only — macOS uses native traffic lights) */}
+      {!isMac && (
+        <div
+          className="flex h-full"
+          style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
         >
-          <SFIcon icon={sfMinus} size={12} weight={0.5} />
-        </button>
+          {/* Minimize */}
+          <button
+            onClick={handleMinimize}
+            tabIndex={-1}
+            className={`${windowControlBase} ${windowControlHover}`}
+            aria-label="Minimize"
+          >
+            <SFIcon icon={sfMinus} size={12} weight={0.5} />
+          </button>
 
-        {/* Maximize/Restore */}
-        <button
-          onClick={handleMaximize}
-          tabIndex={-1}
-          className={`${windowControlBase} ${windowControlHover}`}
-          aria-label={isMaximized ? "Restore" : "Maximize"}
-        >
-          {isMaximized ? (
-            // Restore icon (two overlapping squares)
-            <SFIcon icon={sfSquareOnSquare} size={12} weight={0.5} />
-          ) : (
-            // Maximize icon (single square)
-            <SFIcon icon={sfSquare} size={12} weight={0.5} />
-          )}
-        </button>
+          {/* Maximize/Restore */}
+          <button
+            onClick={handleMaximize}
+            tabIndex={-1}
+            className={`${windowControlBase} ${windowControlHover}`}
+            aria-label={isMaximized ? "Restore" : "Maximize"}
+          >
+            {isMaximized ? (
+              // Restore icon (two overlapping squares)
+              <SFIcon icon={sfSquareOnSquare} size={12} weight={0.5} />
+            ) : (
+              // Maximize icon (single square)
+              <SFIcon icon={sfSquare} size={12} weight={0.5} />
+            )}
+          </button>
 
-        {/* Close */}
-        <button
-          onClick={handleClose}
-          tabIndex={-1}
-          className={`${windowControlBase} ${windowControlCloseHover}`}
-          aria-label="Close"
-        >
-          <SFIcon icon={sfXmark} size={12} weight={0.25} />
-        </button>
-      </div>
+          {/* Close */}
+          <button
+            onClick={handleClose}
+            tabIndex={-1}
+            className={`${windowControlBase} ${windowControlCloseHover}`}
+            aria-label="Close"
+          >
+            <SFIcon icon={sfXmark} size={12} weight={0.25} />
+          </button>
+        </div>
+      )}
     </header>
   );
 }

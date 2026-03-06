@@ -56,8 +56,16 @@ function createWindow(): void {
     title: "Vaulty",
     icon: getWindowIcon(settings.iconTheme),
     titleBarStyle: "hidden",
+    ...(process.platform === "darwin"
+      ? { trafficLightPosition: { x: 12, y: 10 } }
+      : {}),
     backgroundColor: "#1a1a1a",
-    backgroundMaterial: "mica",
+    ...(process.platform === "win32"
+      ? { backgroundMaterial: "mica" as const }
+      : {}),
+    ...(process.platform === "darwin" && settings.transparency
+      ? { vibrancy: "under-window" as const }
+      : {}),
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -111,26 +119,28 @@ function createWindow(): void {
     }
   });
 
-  // ── DWM fix: re-apply rounded corners & backdrop after state transitions ──
+  // ── DWM fix (Windows only): re-apply rounded corners & backdrop after state transitions ──
   // Chromium resets Win32 style flags on these transitions, which detaches
   // the DWM border radius and backdrop material from the window handle.
-  const restoreDwm = () => {
-    if (!mainWindow || mainWindow.isDestroyed()) return;
-    setTimeout(() => {
+  if (process.platform === "win32") {
+    const restoreDwm = () => {
       if (!mainWindow || mainWindow.isDestroyed()) return;
-      const s = loadSettings();
-      if (s.transparency) {
-        restoreDwmAttributes(mainWindow, s.backgroundMaterial);
-        // Belt-and-suspenders: also re-apply via Electron's API
-        applyTransparency(mainWindow, true, s.backgroundMaterial);
-      }
-    }, 100);
-  };
+      setTimeout(() => {
+        if (!mainWindow || mainWindow.isDestroyed()) return;
+        const s = loadSettings();
+        if (s.transparency) {
+          restoreDwmAttributes(mainWindow, s.backgroundMaterial);
+          // Belt-and-suspenders: also re-apply via Electron's API
+          applyTransparency(mainWindow, true, s.backgroundMaterial);
+        }
+      }, 100);
+    };
 
-  mainWindow.on("leave-full-screen", restoreDwm);
-  mainWindow.on("maximize", restoreDwm);
-  mainWindow.on("unmaximize", restoreDwm);
-  mainWindow.on("restore", restoreDwm);
+    mainWindow.on("leave-full-screen", restoreDwm);
+    mainWindow.on("maximize", restoreDwm);
+    mainWindow.on("unmaximize", restoreDwm);
+    mainWindow.on("restore", restoreDwm);
+  }
 
   mainWindow.on("closed", () => {
     mainWindow = null;
@@ -205,6 +215,8 @@ async function startNextServer(): Promise<void> {
         HOSTNAME: "localhost",
       },
       stdio: "pipe",
+      // Create a process group so we can kill the entire tree on macOS/Linux
+      detached: process.platform !== "win32",
     });
 
     nextServer.stdout?.on("data", (data) => {
@@ -365,11 +377,16 @@ function killNextServer(): void {
   const pid = nextServer.pid;
   if (pid) {
     try {
-      // On Windows, kill the entire process tree so no orphaned Node processes remain
-      spawn("taskkill", ["/pid", String(pid), "/T", "/F"], {
-        stdio: "ignore",
-        detached: true,
-      }).unref();
+      if (process.platform === "win32") {
+        // On Windows, kill the entire process tree so no orphaned Node processes remain
+        spawn("taskkill", ["/pid", String(pid), "/T", "/F"], {
+          stdio: "ignore",
+          detached: true,
+        }).unref();
+      } else {
+        // On macOS/Linux, kill the process group
+        process.kill(-pid, "SIGTERM");
+      }
     } catch {
       nextServer.kill("SIGKILL");
     }
