@@ -1,5 +1,4 @@
 "use client";
-
 import { ItemCard, Item } from "./ItemCard";
 import clsx from "clsx";
 
@@ -10,7 +9,13 @@ interface ItemListProps {
   onEdit?: (id: string, newContent: string) => void;
   onUpdateTags?: (id: string, newTags: string[]) => void;
   onMove?: (id: string) => void;
-  emptyMessage?: string;
+  emptyMessage?:
+    | {
+        main: string;
+        sub?: string;
+        inputIsTop?: boolean;
+      }
+    | string;
   isLoading?: boolean;
   compact?: boolean;
 }
@@ -22,7 +27,7 @@ export function ItemList({
   onEdit,
   onUpdateTags,
   onMove,
-  emptyMessage = "No items yet. Add something above!",
+  emptyMessage,
   isLoading = false,
   compact = false,
 }: ItemListProps) {
@@ -45,9 +50,21 @@ export function ItemList({
   }
 
   if (items.length === 0) {
+    const mainMessage =
+      typeof emptyMessage === "string" ? emptyMessage : emptyMessage?.main;
+    const subMessage =
+      typeof emptyMessage === "object" ? emptyMessage?.sub : undefined;
+
     return (
-      <div className="flex flex-1 flex-col items-center justify-center py-16 text-center">
-        <p className="text-neutral-500 dark:text-neutral-400">{emptyMessage}</p>
+      <div className="flex flex-col h-full max-w-sm mx-auto items-center justify-center py-16 text-center">
+        <h1 className="font-bold text-black/90 dark:text-white/90">
+          {mainMessage || "No items yet."}
+        </h1>
+        {subMessage && (
+          <p className="text-sm text-black/50 dark:text-white/50">
+            {subMessage}
+          </p>
+        )}
       </div>
     );
   }

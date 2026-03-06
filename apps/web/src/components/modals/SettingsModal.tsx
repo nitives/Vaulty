@@ -322,8 +322,7 @@ function AppearanceSection() {
         </>
       )}
       {settings.transparency &&
-        settings.backgroundMaterial === "acrylic" &&
-        isWindows && (
+        (isMac || (isWindows && settings.backgroundMaterial === "acrylic")) && (
           <>
             <SettingsRow
               label="Light mode tint opacity"

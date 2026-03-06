@@ -59,7 +59,10 @@ function createWindow(): void {
     ...(process.platform === "darwin"
       ? { trafficLightPosition: { x: 12, y: 10 } }
       : {}),
-    backgroundColor: "#1a1a1a",
+    backgroundColor:
+      process.platform === "darwin" && settings.transparency
+        ? "#00000000"
+        : "#1a1a1a",
     ...(process.platform === "win32"
       ? { backgroundMaterial: "mica" as const }
       : {}),

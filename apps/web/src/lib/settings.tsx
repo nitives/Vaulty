@@ -119,8 +119,7 @@ function normalizeIconTheme(theme: unknown): AppIconTheme {
 // Read settings injected by blocking script (prevents flash)
 function getPreloadedSettings(): AppSettings | null {
   if (typeof window === "undefined") return null;
-  const preloaded = (window as Window & { __VAULTY_SETTINGS__?: AppSettings })
-    .__VAULTY_SETTINGS__;
+  const preloaded = window.__VAULTY_SETTINGS__;
   return preloaded ?? null;
 }
 

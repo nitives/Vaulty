@@ -29,7 +29,7 @@ export default function Home() {
 
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
     if (typeof window !== "undefined") {
-      const cached = (window as any).__VAULTY_SETTINGS__;
+      const cached = window.__VAULTY_SETTINGS__;
       if (cached && cached.startCollapsed) return true;
     }
     return false;
@@ -235,7 +235,7 @@ export default function Home() {
           suppressHydrationWarning
           dangerouslySetInnerHTML={{
             __html: `(${(() => {
-              const s = (window as any).__VAULTY_SETTINGS__;
+              const s = window.__VAULTY_SETTINGS__;
               if (s && s.startCollapsed) {
                 const el = document.getElementById("vaulty-sidebar");
                 if (el) {
@@ -376,7 +376,10 @@ export default function Home() {
                   emptyMessage={
                     searchQuery
                       ? "No items match your search."
-                      : "No items yet. Add something!"
+                      : {
+                          main: "No items yet.",
+                          sub: "Add something using the input.",
+                        }
                   }
                 />
               )}
