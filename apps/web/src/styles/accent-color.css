@@ -139,9 +139,9 @@
   --accent-950: #0a0a0a;
 }
 
-/* Multicolor - uses Windows accent color via CSS oklch manipulation
- * Only --windows-accent-base is set by Electron, shades are derived via oklch
- * Fallback to blue if Windows accent is not available.
+/* Multicolor - uses system accent color via CSS oklch manipulation
+ * Only --windows-accent-base is set by Electron (Windows & macOS), shades are derived via oklch
+ * Fallback to blue if system accent is not available.
  */
 [data-accent="multicolor"] {
   --windows-accent-base: #3b82f6; /* Fallback to blue */

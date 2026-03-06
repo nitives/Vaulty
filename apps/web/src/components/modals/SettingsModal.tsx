@@ -175,8 +175,8 @@ function AppearanceSection() {
       <SettingsRow
         label="Accent color"
         description={
-          isWindows
-            ? "Multicolor uses your Windows accent color"
+          isWindows || isMac
+            ? "Multicolor uses your system accent color"
             : "Choose an accent color for the UI"
         }
       >

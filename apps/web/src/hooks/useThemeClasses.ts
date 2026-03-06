@@ -52,7 +52,7 @@ export function useThemeClasses(settings: AppSettings) {
     const root = document.documentElement;
     root.setAttribute("data-accent", settings.accentColor ?? "blue");
 
-    // Multicolor maps to Windows accent color in real time.
+    // Multicolor maps to system accent color in real time (Windows & macOS).
     if (
       settings.accentColor !== "multicolor" ||
       !window.electronAPI?.getWindowsAccentColor

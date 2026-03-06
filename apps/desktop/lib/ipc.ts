@@ -60,8 +60,9 @@ function normalizeAccentColor(color: string | null | undefined): string | null {
   return null;
 }
 
-function getCurrentWindowsAccentColor(): string | null {
-  if (process.platform !== "win32") return null;
+function getSystemAccentColor(): string | null {
+  if (process.platform !== "win32" && process.platform !== "darwin")
+    return null;
   try {
     return normalizeAccentColor(systemPreferences.getAccentColor());
   } catch {
@@ -248,15 +249,15 @@ export function registerIpcHandlers(
     },
   );
 
-  // Windows accent color
+  // System accent color (Windows & macOS)
   ipcMain.handle("accent:getWindowsColor", () => {
-    return getCurrentWindowsAccentColor();
+    return getSystemAccentColor();
   });
 
-  if (process.platform === "win32") {
+  if (process.platform === "win32" || process.platform === "darwin") {
     systemPreferences.on("accent-color-changed", () => {
       const win = getMainWindow();
-      const currentColor = getCurrentWindowsAccentColor();
+      const currentColor = getSystemAccentColor();
       if (win && !win.isDestroyed() && currentColor) {
         win.webContents.send("accent:changed", currentColor);
       }

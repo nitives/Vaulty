@@ -36,10 +36,16 @@ function createWindow() {
         title: "Vaulty",
         icon: (0, icon_1.getWindowIcon)(settings.iconTheme),
         titleBarStyle: "hidden",
-        ...(process.platform === "darwin" ? { trafficLightPosition: { x: 12, y: 10 } } : {}),
+        ...(process.platform === "darwin"
+            ? { trafficLightPosition: { x: 12, y: 10 } }
+            : {}),
         backgroundColor: "#1a1a1a",
-        ...(process.platform === "win32" ? { backgroundMaterial: "mica" } : {}),
-        ...(process.platform === "darwin" && settings.transparency ? { vibrancy: "under-window" } : {}),
+        ...(process.platform === "win32"
+            ? { backgroundMaterial: "mica" }
+            : {}),
+        ...(process.platform === "darwin" && settings.transparency
+            ? { vibrancy: "under-window" }
+            : {}),
         webPreferences: {
             nodeIntegration: false,
             contextIsolation: true,
