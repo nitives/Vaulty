@@ -83,7 +83,7 @@
           ]
         }
       ],
-      "icon": "icons/png/icon-rounded.png",
+      "icon": "icons/macos/icon-rounded-macos.png",
       "category": "public.app-category.productivity"
     },
     "dmg": {

@@ -64,6 +64,13 @@ function getIconCandidates(theme) {
             path_1.default.join(baseDir, "png", `${baseName}.png`),
         ];
     }
+    // On macOS, try macos-specific icon first
+    if (process.platform === "darwin") {
+        return [
+            path_1.default.join(baseDir, "macos", `${baseName}-macos.png`),
+            path_1.default.join(baseDir, "png", `${baseName}.png`),
+        ];
+    }
     return [path_1.default.join(baseDir, "png", `${baseName}.png`)];
 }
 function getGenericIconCandidates() {
@@ -71,6 +78,12 @@ function getGenericIconCandidates() {
     if (process.platform === "win32") {
         return [
             path_1.default.join(baseDir, "ico", "icon.ico"),
+            path_1.default.join(baseDir, "png", "icon.png"),
+        ];
+    }
+    if (process.platform === "darwin") {
+        return [
+            path_1.default.join(baseDir, "macos", "icon-rounded-macos.png"),
             path_1.default.join(baseDir, "png", "icon.png"),
         ];
     }

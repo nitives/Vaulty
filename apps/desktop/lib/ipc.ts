@@ -158,6 +158,9 @@ export function registerIpcHandlers(
       const icon = getWindowIcon(updated.iconTheme);
       if (icon) {
         win.setIcon(icon);
+        if (process.platform === "darwin" && app.dock) {
+          app.dock.setIcon(icon);
+        }
       }
     }
 

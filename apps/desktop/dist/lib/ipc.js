@@ -109,6 +109,9 @@ function registerIpcHandlers(getMainWindow) {
             const icon = (0, icon_1.getWindowIcon)(updated.iconTheme);
             if (icon) {
                 win.setIcon(icon);
+                if (process.platform === "darwin" && electron_1.app.dock) {
+                    electron_1.app.dock.setIcon(icon);
+                }
             }
         }
         return updated;

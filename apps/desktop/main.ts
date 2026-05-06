@@ -87,6 +87,10 @@ function createWindow(): void {
     if (settings.theme) {
       nativeTheme.themeSource = settings.theme;
     }
+    if (process.platform === "darwin" && app.dock) {
+      const icon = getWindowIcon(settings.iconTheme);
+      if (icon) app.dock.setIcon(icon);
+    }
   };
 
   // Apply on initial creation

@@ -66,6 +66,11 @@ function createWindow() {
         if (settings.theme) {
             electron_1.nativeTheme.themeSource = settings.theme;
         }
+        if (process.platform === "darwin" && electron_1.app.dock) {
+            const icon = (0, icon_1.getWindowIcon)(settings.iconTheme);
+            if (icon)
+                electron_1.app.dock.setIcon(icon);
+        }
     };
     // Apply on initial creation
     applySettings();
