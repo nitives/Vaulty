@@ -137,10 +137,11 @@ export function Titlebar({
     <header
       className={clsx(
         "titlebar",
-        "flex h-9 select-none items-center justify-between",
+        "flex select-none items-center justify-between",
         "border-b",
         "border-[var(--edge-border-color-light)] dark:border-[var(--edge-border-color-dark)]",
         "bg-white dark:bg-neutral-900",
+        isMac ? "h-[33px]" : "h-9",
       )}
       style={{ WebkitAppRegion: "drag" } as React.CSSProperties}
     >
@@ -148,7 +149,7 @@ export function Titlebar({
       <div
         className={clsx(
           "flex h-full items-center",
-          isMac ? "ml-[68px]" : "-ml-1.5",
+          isMac ? "ml-[57px]" : "-ml-1.5",
         )}
         style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
       >
