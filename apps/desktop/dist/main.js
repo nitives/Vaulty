@@ -25,6 +25,20 @@ const PROD_SERVER_PORT = 3000;
 let startupUpdateCheckRan = false;
 let tray = null;
 let isQuitting = false;
+function applyAppIcon(theme) {
+    const icon = (0, icon_1.getWindowIcon)(theme);
+    if (!icon)
+        return;
+    if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.setIcon(icon);
+    }
+    if (process.platform === "darwin" && electron_1.app.dock) {
+        electron_1.app.dock.setIcon(icon);
+    }
+    if (tray && !tray.isDestroyed()) {
+        tray.setImage(icon);
+    }
+}
 function createWindow() {
     const settings = (0, settings_1.loadSettings)();
     mainWindow = new electron_1.BrowserWindow({
@@ -66,11 +80,7 @@ function createWindow() {
         if (settings.theme) {
             electron_1.nativeTheme.themeSource = settings.theme;
         }
-        if (process.platform === "darwin" && electron_1.app.dock) {
-            const icon = (0, icon_1.getWindowIcon)(settings.iconTheme);
-            if (icon)
-                electron_1.app.dock.setIcon(icon);
-        }
+        applyAppIcon(settings.iconTheme);
     };
     // Apply on initial creation
     applySettings();
@@ -274,7 +284,7 @@ electron_1.app.whenReady().then(async () => {
     // Cleanup old trash items (older than 60 days)
     (0, storage_1.cleanupOldTrash)();
     (0, protocol_1.registerProtocolHandler)();
-    (0, ipc_1.registerIpcHandlers)(() => mainWindow);
+    (0, ipc_1.registerIpcHandlers)(() => mainWindow, applyAppIcon);
     registerUpdateIpcHandlers();
     createWindow();
     createTray();

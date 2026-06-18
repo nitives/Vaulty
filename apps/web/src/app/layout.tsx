@@ -40,6 +40,9 @@ const themeScript = `
       if (settings.startCollapsed) {
         document.documentElement.classList.add('sidebar-start-collapsed');
       }
+      if (settings.usePointerCursors !== false) {
+        document.documentElement.classList.add('pointer-cursors');
+      }
       // Apply accent color
       var accentColor = settings.accentColor || 'blue';
       document.documentElement.setAttribute('data-accent', accentColor);
@@ -48,10 +51,12 @@ const themeScript = `
       if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
         document.documentElement.classList.add('dark');
       }
+      document.documentElement.classList.add('pointer-cursors');
       document.documentElement.setAttribute('data-accent', 'blue');
     }
   } catch (e) {
     window.__VAULTY_SETTINGS__ = null;
+    document.documentElement.classList.add('pointer-cursors');
     document.documentElement.setAttribute('data-accent', 'blue');
   }
 })();

@@ -14,8 +14,10 @@ export { Titlebar } from "./layout/Titlebar";
 export { UpdateNotification } from "./layout/UpdateNotification";
 export { VaultyMotionConfig } from "./layout/VaultyMotionConfig";
 
+// -- Screens --
+export { SettingsScreen } from "./SettingsScreen";
+
 // -- Modals --
-export { SettingsModal } from "./modals/SettingsModal";
 export * from "./modals/ConfirmModal";
 export * from "./modals/MoveModal";
 

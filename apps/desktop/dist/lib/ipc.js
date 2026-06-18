@@ -10,7 +10,6 @@ const path_1 = __importDefault(require("path"));
 const storage_1 = require("./storage");
 const settings_1 = require("./settings");
 const paths_1 = require("./paths");
-const icon_1 = require("./icon");
 const opengraph_1 = require("./opengraph");
 function normalizeAccentColor(color) {
     if (!color)
@@ -68,7 +67,7 @@ function extensionFromUrl(rawUrl) {
     }
     return null;
 }
-function registerIpcHandlers(getMainWindow) {
+function registerIpcHandlers(getMainWindow, applyAppIcon) {
     // App info
     electron_1.ipcMain.handle("app:version", () => electron_1.app.getVersion());
     electron_1.ipcMain.handle("app:name", () => electron_1.app.getName());
@@ -105,14 +104,8 @@ function registerIpcHandlers(getMainWindow) {
                 settings.backgroundMaterial !== updated.backgroundMaterial)) {
             (0, settings_1.applyTransparency)(win, updated.transparency ?? false, updated.backgroundMaterial);
         }
-        if (win && "iconTheme" in patch) {
-            const icon = (0, icon_1.getWindowIcon)(updated.iconTheme);
-            if (icon) {
-                win.setIcon(icon);
-                if (process.platform === "darwin" && electron_1.app.dock) {
-                    electron_1.app.dock.setIcon(icon);
-                }
-            }
+        if ("iconTheme" in patch) {
+            applyAppIcon?.(updated.iconTheme);
         }
         return updated;
     });

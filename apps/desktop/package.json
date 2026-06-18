@@ -65,7 +65,7 @@
           ]
         }
       ],
-      "icon": "icons/ico/icon-rounded.ico"
+      "icon": "icons/ico/icon-default-rounded.ico"
     },
     "nsis": {
       "oneClick": false,
@@ -83,7 +83,7 @@
           ]
         }
       ],
-      "icon": "icons/macos/icon-rounded-macos.png",
+      "icon": "icons/macos/icon-macos-default.png",
       "category": "public.app-category.productivity"
     },
     "dmg": {

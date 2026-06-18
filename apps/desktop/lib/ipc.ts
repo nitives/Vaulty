@@ -47,7 +47,6 @@ import {
   getAudiosPath,
   getTrashPath,
 } from "./paths";
-import { getWindowIcon } from "./icon";
 import { fetchOpenGraph } from "./opengraph";
 
 function normalizeAccentColor(color: string | null | undefined): string | null {
@@ -105,6 +104,7 @@ function extensionFromUrl(rawUrl: string): string | null {
 
 export function registerIpcHandlers(
   getMainWindow: () => BrowserWindow | null,
+  applyAppIcon?: (theme?: string) => void,
 ): void {
   // App info
   ipcMain.handle("app:version", () => app.getVersion());
@@ -154,14 +154,8 @@ export function registerIpcHandlers(
         updated.backgroundMaterial,
       );
     }
-    if (win && "iconTheme" in patch) {
-      const icon = getWindowIcon(updated.iconTheme);
-      if (icon) {
-        win.setIcon(icon);
-        if (process.platform === "darwin" && app.dock) {
-          app.dock.setIcon(icon);
-        }
-      }
+    if ("iconTheme" in patch) {
+      applyAppIcon?.(updated.iconTheme);
     }
 
     return updated;

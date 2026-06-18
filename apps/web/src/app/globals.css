@@ -8,6 +8,7 @@
 @custom-variant transparent (&:is(.transparent-mode *));
 @custom-variant compact (&:is(.compact-mode *));
 @custom-variant sidebar-transparent (&:is(.sidebar-transparent *));
+@custom-variant pointer-cursors (&:is(.pointer-cursors *));
 
 :root {
   --background: #fafafa;
@@ -79,6 +80,89 @@ html:not(.input-bar-top) .content-area {
 button,
 [role="button"] {
   user-select: none;
+}
+
+html.pointer-cursors
+  :is(
+    a[href],
+    button:not(:disabled),
+    select:not(:disabled),
+    summary,
+    label,
+    [role="button"]:not([aria-disabled="true"]),
+    [role="menuitem"]:not([aria-disabled="true"]),
+    input[type="button"]:not(:disabled),
+    input[type="checkbox"]:not(:disabled),
+    input[type="radio"]:not(:disabled),
+    input[type="range"]:not(:disabled),
+    input[type="reset"]:not(:disabled),
+    input[type="submit"]:not(:disabled),
+    .cursor-pointer:not(:disabled):not([aria-disabled="true"])
+  ) {
+  cursor: pointer;
+}
+
+html.pointer-cursors :is(:disabled, [aria-disabled="true"]) {
+  cursor: default;
+}
+
+html.pointer-cursors .cursor-not-allowed {
+  cursor: not-allowed;
+}
+
+html:not(.pointer-cursors)
+  :is(
+    a[href],
+    button,
+    select,
+    summary,
+    label,
+    [role="button"],
+    [role="menuitem"],
+    input[type="button"],
+    input[type="checkbox"],
+    input[type="radio"],
+    input[type="range"],
+    input[type="reset"],
+    input[type="submit"],
+    .cursor-pointer
+  ) {
+  cursor: default !important;
+}
+
+html:not(.pointer-cursors)
+  :is(
+    input:not([type]),
+    input[type="email"],
+    input[type="number"],
+    input[type="password"],
+    input[type="search"],
+    input[type="text"],
+    input[type="url"],
+    textarea,
+    [contenteditable="true"]
+  ) {
+  cursor: text !important;
+}
+
+html:not(.pointer-cursors) .cursor-not-allowed {
+  cursor: not-allowed !important;
+}
+
+html:not(.pointer-cursors) .cursor-grab {
+  cursor: grab !important;
+}
+
+html:not(.pointer-cursors) .cursor-grabbing {
+  cursor: grabbing !important;
+}
+
+html:not(.pointer-cursors) .cursor-zoom-in {
+  cursor: zoom-in !important;
+}
+
+html:not(.pointer-cursors) .cursor-zoom-out {
+  cursor: zoom-out !important;
 }
 
 /* ------------- */

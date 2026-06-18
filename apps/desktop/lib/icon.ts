@@ -11,15 +11,6 @@ export type AppIconTheme =
 
 const DEFAULT_ICON_THEME: AppIconTheme = "default";
 
-const ICON_BASE_NAME_BY_THEME: Record<AppIconTheme, string> = {
-  default: "icon-rounded",
-  dev: "icon-dev-rounded",
-  dawn: "icon-dawn-rounded",
-  sunset: "icon-sunset-rounded",
-  midnight: "icon-midnight-rounded",
-  inverted: "icon-inverted-rounded",
-};
-
 /**
  * In production the icons live in the asarUnpack directory on the real
  * filesystem, NOT inside the asar archive.  nativeImage.createFromPath
@@ -29,9 +20,10 @@ const ICON_BASE_NAME_BY_THEME: Record<AppIconTheme, string> = {
 function getIconsBaseDir(): string {
   const appPath = app.getAppPath();
   // When packaged the appPath is e.g. "…/resources/app.asar"
-  const resolvedPath = app.isPackaged
-    ? appPath.replace("app.asar", "app.asar.unpacked")
-    : appPath;
+  const resolvedPath =
+    app.isPackaged && appPath.endsWith("app.asar")
+      ? path.join(path.dirname(appPath), "app.asar.unpacked")
+      : appPath;
   return path.join(resolvedPath, "icons");
 }
 
@@ -57,52 +49,63 @@ export function resolveIconTheme(theme?: string): AppIconTheme {
 }
 
 function getIconCandidates(theme: AppIconTheme): string[] {
-  const baseName = ICON_BASE_NAME_BY_THEME[theme];
   const baseDir = getIconsBaseDir();
+  const themeName = `icon-${theme}`;
+  const roundedThemeName = `${themeName}-rounded`;
 
-  // On Windows, try ICO first, then PNG fallback.
   if (process.platform === "win32") {
     return [
-      path.join(baseDir, "ico", `${baseName}.ico`),
-      path.join(baseDir, "png", `${baseName}.png`),
+      path.join(baseDir, "ico", `${roundedThemeName}.ico`),
+      path.join(baseDir, "ico", `${themeName}.ico`),
+      path.join(baseDir, "png", `${roundedThemeName}.png`),
+      path.join(baseDir, "png", `${themeName}.png`),
     ];
   }
 
-  // On macOS, try macos-specific icon first
   if (process.platform === "darwin") {
     return [
-      path.join(baseDir, "macos", `${baseName}-macos.png`),
-      path.join(baseDir, "png", `${baseName}.png`),
+      path.join(baseDir, "macos", `icon-macos-${theme}.png`),
+      path.join(baseDir, "png", `${roundedThemeName}.png`),
+      path.join(baseDir, "png", `${themeName}.png`),
     ];
   }
 
-  return [path.join(baseDir, "png", `${baseName}.png`)];
+  return [
+    path.join(baseDir, "png", `${roundedThemeName}.png`),
+    path.join(baseDir, "png", `${themeName}.png`),
+  ];
 }
 
 function getGenericIconCandidates(): string[] {
   const baseDir = getIconsBaseDir();
   if (process.platform === "win32") {
     return [
-      path.join(baseDir, "ico", "icon.ico"),
-      path.join(baseDir, "png", "icon.png"),
+      path.join(baseDir, "ico", "icon-default-rounded.ico"),
+      path.join(baseDir, "ico", "icon-default.ico"),
+      path.join(baseDir, "png", "icon-default-rounded.png"),
+      path.join(baseDir, "png", "icon-default.png"),
     ];
   }
   if (process.platform === "darwin") {
     return [
-      path.join(baseDir, "macos", "icon-rounded-macos.png"),
-      path.join(baseDir, "png", "icon.png"),
+      path.join(baseDir, "macos", "icon-macos-default.png"),
+      path.join(baseDir, "png", "icon-default-rounded.png"),
+      path.join(baseDir, "png", "icon-default.png"),
     ];
   }
-  return [path.join(baseDir, "png", "icon.png")];
+  return [
+    path.join(baseDir, "png", "icon-default-rounded.png"),
+    path.join(baseDir, "png", "icon-default.png"),
+  ];
 }
 
 export function getWindowIcon(theme?: string) {
   const resolvedTheme = resolveIconTheme(theme);
-  const iconPaths = [
+  const iconPaths = Array.from(new Set([
     ...getIconCandidates(resolvedTheme),
     ...getIconCandidates(DEFAULT_ICON_THEME),
     ...getGenericIconCandidates(),
-  ];
+  ]));
 
   for (const iconPath of iconPaths) {
     const icon = nativeImage.createFromPath(iconPath);

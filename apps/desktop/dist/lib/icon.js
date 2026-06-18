@@ -8,14 +8,6 @@ exports.getWindowIcon = getWindowIcon;
 const electron_1 = require("electron");
 const path_1 = __importDefault(require("path"));
 const DEFAULT_ICON_THEME = "default";
-const ICON_BASE_NAME_BY_THEME = {
-    default: "icon-rounded",
-    dev: "icon-dev-rounded",
-    dawn: "icon-dawn-rounded",
-    sunset: "icon-sunset-rounded",
-    midnight: "icon-midnight-rounded",
-    inverted: "icon-inverted-rounded",
-};
 /**
  * In production the icons live in the asarUnpack directory on the real
  * filesystem, NOT inside the asar archive.  nativeImage.createFromPath
@@ -25,8 +17,8 @@ const ICON_BASE_NAME_BY_THEME = {
 function getIconsBaseDir() {
     const appPath = electron_1.app.getAppPath();
     // When packaged the appPath is e.g. "…/resources/app.asar"
-    const resolvedPath = electron_1.app.isPackaged
-        ? appPath.replace("app.asar", "app.asar.unpacked")
+    const resolvedPath = electron_1.app.isPackaged && appPath.endsWith("app.asar")
+        ? path_1.default.join(path_1.default.dirname(appPath), "app.asar.unpacked")
         : appPath;
     return path_1.default.join(resolvedPath, "icons");
 }
@@ -55,47 +47,58 @@ function resolveIconTheme(theme) {
     return DEFAULT_ICON_THEME;
 }
 function getIconCandidates(theme) {
-    const baseName = ICON_BASE_NAME_BY_THEME[theme];
     const baseDir = getIconsBaseDir();
-    // On Windows, try ICO first, then PNG fallback.
+    const themeName = `icon-${theme}`;
+    const roundedThemeName = `${themeName}-rounded`;
     if (process.platform === "win32") {
         return [
-            path_1.default.join(baseDir, "ico", `${baseName}.ico`),
-            path_1.default.join(baseDir, "png", `${baseName}.png`),
+            path_1.default.join(baseDir, "ico", `${roundedThemeName}.ico`),
+            path_1.default.join(baseDir, "ico", `${themeName}.ico`),
+            path_1.default.join(baseDir, "png", `${roundedThemeName}.png`),
+            path_1.default.join(baseDir, "png", `${themeName}.png`),
         ];
     }
-    // On macOS, try macos-specific icon first
     if (process.platform === "darwin") {
         return [
-            path_1.default.join(baseDir, "macos", `${baseName}-macos.png`),
-            path_1.default.join(baseDir, "png", `${baseName}.png`),
+            path_1.default.join(baseDir, "macos", `icon-macos-${theme}.png`),
+            path_1.default.join(baseDir, "png", `${roundedThemeName}.png`),
+            path_1.default.join(baseDir, "png", `${themeName}.png`),
         ];
     }
-    return [path_1.default.join(baseDir, "png", `${baseName}.png`)];
+    return [
+        path_1.default.join(baseDir, "png", `${roundedThemeName}.png`),
+        path_1.default.join(baseDir, "png", `${themeName}.png`),
+    ];
 }
 function getGenericIconCandidates() {
     const baseDir = getIconsBaseDir();
     if (process.platform === "win32") {
         return [
-            path_1.default.join(baseDir, "ico", "icon.ico"),
-            path_1.default.join(baseDir, "png", "icon.png"),
+            path_1.default.join(baseDir, "ico", "icon-default-rounded.ico"),
+            path_1.default.join(baseDir, "ico", "icon-default.ico"),
+            path_1.default.join(baseDir, "png", "icon-default-rounded.png"),
+            path_1.default.join(baseDir, "png", "icon-default.png"),
         ];
     }
     if (process.platform === "darwin") {
         return [
-            path_1.default.join(baseDir, "macos", "icon-rounded-macos.png"),
-            path_1.default.join(baseDir, "png", "icon.png"),
+            path_1.default.join(baseDir, "macos", "icon-macos-default.png"),
+            path_1.default.join(baseDir, "png", "icon-default-rounded.png"),
+            path_1.default.join(baseDir, "png", "icon-default.png"),
         ];
     }
-    return [path_1.default.join(baseDir, "png", "icon.png")];
+    return [
+        path_1.default.join(baseDir, "png", "icon-default-rounded.png"),
+        path_1.default.join(baseDir, "png", "icon-default.png"),
+    ];
 }
 function getWindowIcon(theme) {
     const resolvedTheme = resolveIconTheme(theme);
-    const iconPaths = [
+    const iconPaths = Array.from(new Set([
         ...getIconCandidates(resolvedTheme),
         ...getIconCandidates(DEFAULT_ICON_THEME),
         ...getGenericIconCandidates(),
-    ];
+    ]));
     for (const iconPath of iconPaths) {
         const icon = electron_1.nativeImage.createFromPath(iconPath);
         if (!icon.isEmpty()) {

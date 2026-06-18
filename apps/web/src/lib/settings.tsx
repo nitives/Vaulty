@@ -44,6 +44,7 @@ export interface AppSettings {
   confirmBeforeDelete?: boolean;
   inputBarPosition?: "top" | "bottom";
   showSidebarIcons?: boolean;
+  usePointerCursors?: boolean;
   backgroundTintOpacityLight?: number;
   backgroundTintOpacityDark?: number;
   reduceMotion?: boolean;
@@ -75,6 +76,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   confirmBeforeDelete: true,
   inputBarPosition: "bottom",
   showSidebarIcons: true,
+  usePointerCursors: true,
   backgroundTintOpacityLight: 1,
   backgroundTintOpacityDark: 1.5,
   reduceMotion: false,

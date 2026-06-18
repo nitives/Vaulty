@@ -47,6 +47,14 @@ export function useThemeClasses(settings: AppSettings) {
     }
   }, [settings.inputBarPosition]);
 
+  // Sync pointer cursor preference with settings
+  useEffect(() => {
+    document.documentElement.classList.toggle(
+      "pointer-cursors",
+      settings.usePointerCursors ?? true,
+    );
+  }, [settings.usePointerCursors]);
+
   // Sync accent color attribute with settings
   useEffect(() => {
     const root = document.documentElement;

@@ -8,7 +8,7 @@ import {
   ItemList,
   Feed,
   Titlebar,
-  SettingsModal,
+  SettingsScreen,
   ConfirmModal,
   MoveModal,
   FloatingSearchBar,
@@ -295,7 +295,7 @@ export default function Home() {
       />
 
       {/* Settings Modal */}
-      <SettingsModal
+      <SettingsScreen
         isOpen={settingsOpen}
         onClose={() => setSettingsOpen(false)}
       />

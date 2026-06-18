@@ -1,11 +1,11 @@
 /* Toggle switch */
 
 :root {
-  --toggle-thumb-height: 18px;
-  --toggle-thumb-width: 18px;
+  --toggle-thumb-height: 16px;
+  --toggle-thumb-width: 24px;
   --toggle-thumb-radius: calc(var(--toggle-thumb-height) / 2);
   --toggle-border-width: 2px;
-  --toggle-width: 40px;
+  --toggle-width: 44px;
   --toggle-radius: 9999px;
   --toggle-bg: #d4d4d4;
   --toggle-bg-on: var(--accent-500, #3b82f6);

@@ -44,6 +44,21 @@ let startupUpdateCheckRan = false;
 let tray: Tray | null = null;
 let isQuitting = false;
 
+function applyAppIcon(theme?: string): void {
+  const icon = getWindowIcon(theme);
+  if (!icon) return;
+
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.setIcon(icon);
+  }
+  if (process.platform === "darwin" && app.dock) {
+    app.dock.setIcon(icon);
+  }
+  if (tray && !tray.isDestroyed()) {
+    tray.setImage(icon);
+  }
+}
+
 function createWindow(): void {
   const settings = loadSettings();
 
@@ -87,10 +102,7 @@ function createWindow(): void {
     if (settings.theme) {
       nativeTheme.themeSource = settings.theme;
     }
-    if (process.platform === "darwin" && app.dock) {
-      const icon = getWindowIcon(settings.iconTheme);
-      if (icon) app.dock.setIcon(icon);
-    }
+    applyAppIcon(settings.iconTheme);
   };
 
   // Apply on initial creation
@@ -328,7 +340,7 @@ app.whenReady().then(async () => {
   cleanupOldTrash();
 
   registerProtocolHandler();
-  registerIpcHandlers(() => mainWindow);
+  registerIpcHandlers(() => mainWindow, applyAppIcon);
   registerUpdateIpcHandlers();
 
   createWindow();
