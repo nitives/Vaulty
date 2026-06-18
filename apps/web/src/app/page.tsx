@@ -76,6 +76,17 @@ export default function Home() {
     isLoading: isFeedLoading,
     markSeen: markFeedItemSeen,
   } = useFeed();
+  const inputBarPosition = settings.inputBarPosition ?? "bottom";
+  const preserveSectionScroll = Boolean(
+    settings.experiments?.["preserve-section-scroll"],
+  );
+  const sectionScrollPositionsRef = useRef<Map<string, number>>(new Map());
+  const previousScrollStateRef = useRef({
+    activeFilter,
+    inputBarPosition,
+    isLoading,
+    preserveSectionScroll,
+  });
 
   const visibleFeedItems = useMemo(() => {
     if (!searchQuery.trim()) {
@@ -121,60 +132,148 @@ export default function Home() {
     });
   }, [handleSearch]);
 
-  // NEW: Track whether user is near bottom (only in bottom mode)
+  const getSectionStartScrollTop = useCallback(
+    (el: HTMLDivElement) => {
+      if (inputBarPosition === "bottom") {
+        return Math.max(0, el.scrollHeight - el.clientHeight);
+      }
+      return 0;
+    },
+    [inputBarPosition],
+  );
+
+  const updateScrollAffordances = useCallback(
+    (el: HTMLDivElement) => {
+      if (inputBarPosition === "bottom") {
+        const distanceFromBottom =
+          el.scrollHeight - el.scrollTop - el.clientHeight;
+        stickToBottomRef.current = distanceFromBottom < 48;
+        setShowScrollButton(distanceFromBottom > 150);
+      } else {
+        setShowScrollButton(el.scrollTop > 150);
+      }
+    },
+    [inputBarPosition],
+  );
+
+  const setSectionScrollTop = useCallback(
+    (top: number) => {
+      const el = scrollRef.current;
+      if (!el) return;
+
+      const maxScrollTop = Math.max(0, el.scrollHeight - el.clientHeight);
+      el.scrollTop = Math.min(Math.max(top, 0), maxScrollTop);
+      updateScrollAffordances(el);
+    },
+    [updateScrollAffordances],
+  );
+
+  const saveSectionScroll = useCallback((filter: string) => {
+    const el = scrollRef.current;
+    if (!el) return;
+    sectionScrollPositionsRef.current.set(filter, el.scrollTop);
+  }, []);
+
+  const handleFilterChange = useCallback(
+    (nextFilter: string) => {
+      if (nextFilter === activeFilter) return;
+      saveSectionScroll(activeFilter);
+      setActiveFilter(nextFilter);
+    },
+    [activeFilter, saveSectionScroll, setActiveFilter],
+  );
+
   const handleScroll = useCallback(() => {
     const el = scrollRef.current;
     if (!el) return;
 
-    if (settings.inputBarPosition === "bottom") {
-      const distanceFromBottom =
-        el.scrollHeight - el.scrollTop - el.clientHeight;
-      stickToBottomRef.current = distanceFromBottom < 48;
-      setShowScrollButton(distanceFromBottom > 150);
-    } else {
-      setShowScrollButton(el.scrollTop > 150);
-    }
-  }, [settings.inputBarPosition]);
+    sectionScrollPositionsRef.current.set(activeFilter, el.scrollTop);
+    updateScrollAffordances(el);
+  }, [activeFilter, updateScrollAffordances]);
 
   const scrollToStart = useCallback(() => {
     const el = scrollRef.current;
     if (!el) return;
 
-    if (settings.inputBarPosition === "bottom") {
+    if (inputBarPosition === "bottom") {
       el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
     } else {
       el.scrollTo({ top: 0, behavior: "smooth" });
     }
-  }, [settings.inputBarPosition]);
+  }, [inputBarPosition]);
 
-  // NEW: On first load or switching to bottom, jump to bottom
   useEffect(() => {
-    if (!isLoading && settings.inputBarPosition === "bottom") {
+    const previous = previousScrollStateRef.current;
+    const filterChanged = previous.activeFilter !== activeFilter;
+    const positionChanged = previous.inputBarPosition !== inputBarPosition;
+    const justLoaded = previous.isLoading && !isLoading;
+    const preserveTurnedOff =
+      previous.preserveSectionScroll && !preserveSectionScroll;
+
+    if (positionChanged) {
+      sectionScrollPositionsRef.current.clear();
+    }
+
+    previousScrollStateRef.current = {
+      activeFilter,
+      inputBarPosition,
+      isLoading,
+      preserveSectionScroll,
+    };
+
+    if (
+      isLoading ||
+      (!filterChanged && !positionChanged && !justLoaded && !preserveTurnedOff)
+    ) {
+      return;
+    }
+
+    const frame = requestAnimationFrame(() => {
       const el = scrollRef.current;
       if (!el) return;
 
-      requestAnimationFrame(() => {
-        el.scrollTop = el.scrollHeight;
-      });
-    }
-  }, [isLoading, settings.inputBarPosition]);
-  // NEW: When list/filters change in bottom mode, keep pinned only if user was near bottom
+      const savedTop =
+        preserveSectionScroll && !positionChanged
+          ? sectionScrollPositionsRef.current.get(activeFilter)
+          : undefined;
+
+      setSectionScrollTop(
+        typeof savedTop === "number" ? savedTop : getSectionStartScrollTop(el),
+      );
+    });
+
+    return () => cancelAnimationFrame(frame);
+  }, [
+    activeFilter,
+    getSectionStartScrollTop,
+    inputBarPosition,
+    isLoading,
+    preserveSectionScroll,
+    setSectionScrollTop,
+  ]);
+
+  // When the list changes in bottom mode, stay pinned only if the user was near bottom.
   useEffect(() => {
-    if (settings.inputBarPosition !== "bottom") return;
+    if (inputBarPosition !== "bottom") return;
     const el = scrollRef.current;
     if (!el) return;
     if (!stickToBottomRef.current) return;
 
-    requestAnimationFrame(() => {
-      el.scrollTop = el.scrollHeight;
+    const frame = requestAnimationFrame(() => {
+      const current = scrollRef.current;
+      if (!current) return;
+      setSectionScrollTop(getSectionStartScrollTop(current));
     });
+
+    return () => cancelAnimationFrame(frame);
   }, [
-    settings.inputBarPosition,
-    items.length,
-    activeFilter,
     activeTagFilter,
-    searchQuery,
+    getSectionStartScrollTop,
+    inputBarPosition,
     isLoading,
+    items.length,
+    searchQuery,
+    setSectionScrollTop,
   ]);
 
   return (
@@ -225,7 +324,7 @@ export default function Home() {
         {/* Sidebar */}
         <Sidebar
           activeFilter={activeFilter}
-          onFilterChange={setActiveFilter}
+          onFilterChange={handleFilterChange}
           isCollapsed={sidebarCollapsed}
           items={items}
           unseenPulseCount={unseenCount}

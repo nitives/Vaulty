@@ -1081,6 +1081,20 @@ function ExperimentsSection() {
           }
         />
       </SettingsRow>
+      <SettingsRow
+        label="Preserve section scroll"
+        description="Keep each sidebar section at its own scroll position instead of resetting to the input bar edge"
+        toggleOnRowClick
+      >
+        <Toggle
+          checked={Boolean(experiments["preserve-section-scroll"])}
+          onChange={(v) =>
+            update({
+              experiments: { ...experiments, "preserve-section-scroll": v },
+            })
+          }
+        />
+      </SettingsRow>
     </div>
   );
 }
