@@ -167,9 +167,8 @@ export function InputBar({ onSubmit }: InputBarProps) {
     const textarea = inputRef.current;
     if (!textarea) return;
     textarea.style.height = "auto";
-    const minHeight = isCompact ? 22 : 58;
     const maxHeight = 280;
-    textarea.style.height = `${Math.min(Math.max(textarea.scrollHeight, minHeight), maxHeight)}px`;
+    textarea.style.height = `${Math.min(Math.max(textarea.scrollHeight, 22), maxHeight)}px`;
     textarea.style.overflowY =
       textarea.scrollHeight > maxHeight ? "auto" : "hidden";
   }, [content, isCompact]);
@@ -658,14 +657,14 @@ export function InputBar({ onSubmit }: InputBarProps) {
                         "absolute top-1.5 right-1.5 transition-all",
                         "opacity-0 group-hover/img:opacity-100",
                         "flex items-center justify-center",
-                        "rounded-full p-1 size-5",
+                        "rounded-full size-4.5",
                         "backdrop-blur-xl backdrop-saturate-150",
                         "bg-black/10 hover:bg-black/25 dark:bg-white/10 dark:hover:bg-white/25",
                         "text-black/25 hover:text-black/50 dark:text-white/25 dark:hover:text-white/50",
                       )}
                       aria-label={`Remove ${item.name}`}
                     >
-                      <SFIcon icon={sfXmark} size={8} weight={2} />
+                      <SFIcon icon={sfXmark} size={8} />
                     </button>
                   </div>
                 ))}

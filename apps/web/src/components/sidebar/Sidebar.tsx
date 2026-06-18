@@ -473,7 +473,7 @@ export function Sidebar({
                 key={filter.id}
                 onClick={() => onFilterChange(filter.id)}
                 className={clsx(
-                  "flex w-full items-center gap-3 rounded-lg px-2 py-1 compact:text-xs text-sm transition-colors duration-[250ms] hover:duration-0",
+                  "flex w-full items-center gap-2 rounded-lg px-2 py-1 compact:text-xs text-sm transition-colors duration-[250ms] hover:duration-0",
                   activeFilter === filter.id
                     ? `text-black/90 dark:text-white/90
                        bg-black/10 dark:bg-white/5`

@@ -80,10 +80,21 @@ export const LinkWidget = ({ item }: LinkWidgetProps) => {
         style={{ backgroundColor: getBackgroundColor(isDark, extractedColor) }}
         className="p-4 transition-colors duration-300"
       >
-        <h2 className="text-lg font-bold text-neutral-900 dark:text-white">
+        <h2
+          style={{
+            color: isDark ? "rgba(255, 255, 255, 1)" : "rgba(0, 0, 0, 0.9)",
+          }}
+          className="compact:text-base text-lg font-bold tracking-tight"
+        >
           {title}
         </h2>
-        <p className="text-sm mix-blend-plus-lighter text-neutral-600">
+        <p
+          style={{
+            color: isDark ? "rgba(100, 100, 100, 1)" : "rgba(130, 130, 130, 1)",
+            mixBlendMode: isDark ? "plus-lighter" : "multiply",
+          }}
+          className="compact:text-xs text-sm mix-blend-plus-lighter"
+        >
           {description}
         </p>
       </div>
