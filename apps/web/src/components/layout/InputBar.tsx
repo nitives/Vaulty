@@ -14,6 +14,7 @@ import SFIcon from "@bradleyhodges/sfsymbols-react";
 import {
   sfBold,
   sfChevronLeftForwardslashChevronRight,
+  sfArrowUp,
   sfItalic,
   sfPlus,
   sfStrikethrough,
@@ -158,15 +159,16 @@ export function InputBar({ onSubmit }: InputBarProps) {
     settings.compactMode &&
     !isMultiLine &&
     !hasMedia &&
-    !showTagInput;
+    !showTagInput &&
+    tags.length === 0;
 
   // Auto-resize textarea based on content
   useEffect(() => {
     const textarea = inputRef.current;
     if (!textarea) return;
     textarea.style.height = "auto";
-    const minHeight = isCompact ? 20 : 28;
-    const maxHeight = 600;
+    const minHeight = isCompact ? 22 : 58;
+    const maxHeight = 280;
     textarea.style.height = `${Math.min(Math.max(textarea.scrollHeight, minHeight), maxHeight)}px`;
     textarea.style.overflowY =
       textarea.scrollHeight > maxHeight ? "auto" : "hidden";
@@ -407,7 +409,7 @@ export function InputBar({ onSubmit }: InputBarProps) {
     });
   };
 
-  const hasContent = content.trim() || hasMedia;
+  const hasContent = Boolean(content.trim() || hasMedia);
 
   const hideSelectionToolbar = useCallback(() => {
     setSelectionToolbar((prev) =>
@@ -512,36 +514,41 @@ export function InputBar({ onSubmit }: InputBarProps) {
   // Add button
   const addButton = (
     <button
+      type="button"
       onClick={openFilePicker}
       className={clsx(
-        "cursor-pointer shrink-0",
+        "shrink-0",
         "flex items-center justify-center",
-        "transition-colors",
-        "text-black/30 hover:text-black/60",
-        "dark:text-white/15 dark:hover:text-white/30",
+        "size-6 rounded-full transition-colors",
+        "text-black/50 hover:bg-black/5",
+        "dark:text-white/50 dark:hover:bg-white/10",
       )}
       title="Add image or file"
       aria-label="Add image or file"
     >
-      <SFIcon icon={sfPlus} size={16} weight={1.5} />
+      <SFIcon icon={sfPlus} size={12} />
     </button>
   );
 
-  // Save button
-  const saveButton = (
+  // Submit button
+  const sendButton = (
     <button
+      type="button"
       onClick={handleSubmit}
       disabled={!hasContent}
       className={clsx(
-        "shrink-0 cursor-pointer",
-        "rounded-full px-4 py-1.5",
-        "text-sm font-medium text-white",
-        "transition-colors",
-        "bg-[var(--accent-600)] hover:bg-[var(--accent-700)]",
-        "disabled:opacity-50 disabled:hover:bg-[var(--accent-600)] disabled:cursor-default",
+        "shrink-0",
+        "flex items-center justify-center",
+        "size-6 rounded-full transition-colors",
+        "bg-neutral-900 text-white hover:bg-neutral-800",
+        "dark:bg-neutral-300 dark:text-neutral-950 dark:hover:bg-neutral-200",
+        "disabled:cursor-default disabled:bg-neutral-300 disabled:text-neutral-500 disabled:hover:bg-neutral-300",
+        "dark:disabled:bg-white/20 dark:disabled:text-white/35 dark:disabled:hover:bg-white/20",
       )}
+      title="Save"
+      aria-label="Save item"
     >
-      Save
+      <SFIcon icon={sfArrowUp} size={12} />
     </button>
   );
 
@@ -590,70 +597,22 @@ export function InputBar({ onSubmit }: InputBarProps) {
         className="hidden"
       />
 
-      {/* Tag input pill — separate element above the main input bar */}
-      <AnimatePresence>
-        {showTags && (
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 10 }}
-            transition={{ duration: 0.2, ease: "easeOut" }}
-            className={clsx(
-              "mb-2 flex flex-wrap items-center gap-2",
-              "rounded-full border p-2.5",
-              "bg-white dark:bg-neutral-900/95",
-              "transparent:dark:bg-neutral-900/95",
-              "backdrop-blur-[24px] backdrop-saturate-150",
-              "border-black/10 dark:border-white/10",
-              "shadow-sm select-none",
-            )}
-          >
-            {tags.map((tag) => (
-              <motion.span
-                key={tag}
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.8 }}
-                className="inline-flex items-center gap-1 rounded-full bg-[var(--accent-100)] px-2.5 py-0.5 pr-1 text-sm font-medium text-[var(--accent-800)] dark:bg-[var(--accent-900)] dark:text-[var(--accent-200)]"
-              >
-                #{tag}
-                <button
-                  onClick={() => removeTag(tag)}
-                  className="ml-0.5 size-4 cursor-pointer flex items-center justify-center rounded-full p-0.5 hover:bg-[var(--accent-200)] dark:hover:bg-[var(--accent-800)]"
-                >
-                  <SFIcon icon={sfXmark} size={7} weight={2} />
-                </button>
-              </motion.span>
-            ))}
-            <input
-              ref={tagInputRef}
-              type="text"
-              value={tagInput}
-              onChange={(e) => setTagInput(e.target.value)}
-              onKeyDown={handleTagKeyDown}
-              placeholder="Enter tags"
-              className="flex-1 rounded-full pl-1 bg-transparent text-sm text-neutral-900 placeholder-neutral-400 outline-none dark:text-neutral-100 dark:placeholder-neutral-500"
-            />
-          </motion.div>
-        )}
-      </AnimatePresence>
-
       {/* Main input container */}
       <motion.div
         layout
         transition={{ duration: 0.25, ease: [0.25, 0.1, 0.25, 1] }}
         className={clsx(
-          "select-none border shadow-sm",
-          "bg-white dark:bg-neutral-900/95",
-          "transparent:dark:bg-neutral-900/95",
-          "backdrop-blur-[24px] backdrop-saturate-150",
+          "select-none overflow-hidden border shadow-[0_18px_50px_rgba(0,0,0,0.18)]",
+          "bg-neutral-100/95 dark:bg-[#2f2f2f]/95",
+          "transparent:bg-white/80 transparent:dark:bg-[#2f2f2f]/80",
+          "backdrop-blur-[calc(24px*10)] backdrop-saturate-300",
           isDragging
             ? "border-[var(--accent-500)] bg-[var(--accent-50)] dark:bg-[var(--accent-950)]"
-            : "border-black/10 dark:border-white/10",
+            : "border-black/[0.06] dark:border-white/[0.05]",
         )}
         style={{
-          borderRadius: isCompact ? 9999 : 25,
-          padding: isCompact ? "8px 8px 8px 16px" : 16,
+          borderRadius: 16,
+          padding: "10px 8px 8px 8px",
         }}
         suppressHydrationWarning
       >
@@ -674,12 +633,12 @@ export function InputBar({ onSubmit }: InputBarProps) {
                       <img
                         src={item.dataUrl}
                         alt={item.name}
-                        className="h-24 rounded-lg object-cover"
+                        className="h-20 rounded-lg object-cover"
                       />
                     ) : item.dataUrl.startsWith("data:video/") ? (
                       <video
                         src={item.dataUrl}
-                        className="h-24 rounded-lg object-cover bg-black"
+                        className="h-20 rounded-lg object-cover bg-black"
                         muted
                       />
                     ) : item.audioMetadata ? (
@@ -688,7 +647,7 @@ export function InputBar({ onSubmit }: InputBarProps) {
                         filename={item.name || "Audio File"}
                       />
                     ) : (
-                      <div className="h-24 px-4 py-2 flex items-center justify-center rounded-lg bg-neutral-100 dark:bg-neutral-800 text-sm font-medium">
+                      <div className="h-20 px-4 py-2 flex items-center justify-center rounded-lg bg-neutral-100 dark:bg-neutral-800 text-sm font-medium">
                         {item.name}
                       </div>
                     )}
@@ -718,15 +677,8 @@ export function InputBar({ onSubmit }: InputBarProps) {
         {/* Input row */}
         <motion.div
           layout="position"
-          className={clsx(
-            "flex",
-            isCompact ? "items-center gap-3" : "flex-col",
-          )}
+          className={clsx("flex", "flex-col gap-3")}
         >
-          {/* In compact mode: [+] before textarea */}
-          {isCompact && addButton}
-
-          {/* Textarea */}
           <textarea
             ref={inputRef}
             value={content}
@@ -743,24 +695,61 @@ export function InputBar({ onSubmit }: InputBarProps) {
               "caret-[var(--accent-500)]",
               "resize-none",
               "bg-transparent !outline-none",
-              "text-neutral-900 placeholder-neutral-400",
+              "text-black placeholder-black/25",
               "dark:text-white dark:placeholder-white/25",
-              isCompact ? "flex-1 text-sm" : "w-full text-base",
+              "w-full text-[12px] leading-5",
+              "ps-1",
             )}
             rows={1}
-            style={{ minHeight: isCompact ? 20 : 28 }}
+            style={{ minHeight: 22, fieldSizing: "content" }}
           />
 
-          {/* In compact mode: [Save] after textarea */}
-          {isCompact && saveButton}
-
-          {/* Regular mode: bottom bar */}
-          {!isCompact && (
-            <div className="mt-2 flex items-center justify-between">
+          <div className="flex items-end justify-between gap-3">
+            <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
               {addButton}
-              {saveButton}
+              <AnimatePresence>
+                {showTags && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 6 }}
+                    transition={{ duration: 0.16, ease: "easeOut" }}
+                    className="flex min-w-0 flex-1 flex-wrap items-center gap-2"
+                  >
+                    {tags.map((tag) => (
+                      <motion.span
+                        key={tag}
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.9 }}
+                        className="inline-flex min-h-7 items-center gap-1 rounded-full bg-black/5 px-2.5 py-0.5 pr-1 text-xs font-medium text-neutral-700 dark:bg-white/10 dark:text-white/75"
+                      >
+                        #{tag}
+                        <button
+                          type="button"
+                          onClick={() => removeTag(tag)}
+                          className="ml-0.5 flex size-4 cursor-pointer items-center justify-center rounded-full p-0.5 text-neutral-500 hover:bg-black/10 hover:text-neutral-700 dark:text-white/45 dark:hover:bg-white/10 dark:hover:text-white/80"
+                          aria-label={`Remove ${tag} tag`}
+                        >
+                          <SFIcon icon={sfXmark} size={8} weight={2} />
+                        </button>
+                      </motion.span>
+                    ))}
+                    <input
+                      ref={tagInputRef}
+                      type="text"
+                      value={tagInput}
+                      onChange={(e) => setTagInput(e.target.value)}
+                      onKeyDown={handleTagKeyDown}
+                      placeholder="Tags"
+                      className="min-h-7 min-w-24 flex-1 rounded-full bg-transparent px-1 text-sm text-neutral-800 outline-none placeholder:text-neutral-500 dark:text-white/85 dark:placeholder:text-white/35"
+                    />
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
-          )}
+            {sendButton}
+          </div>
         </motion.div>
       </motion.div>
 
@@ -774,8 +763,11 @@ export function InputBar({ onSubmit }: InputBarProps) {
             className={clsx(
               "fixed z-[70]",
               "rounded-xl border",
-              "bg-white/25 dark:bg-black/25 text-black dark:text-white shadow-xl backdrop-blur-3xl backdrop-saturate-150",
+              "text-black dark:text-white",
+              "bg-neutral-100/95 dark:bg-[#2f2f2f]/95",
+              "transparent:bg-white/80 transparent:dark:bg-[#2f2f2f]/80",
               "border-black/10 dark:border-white/10",
+              "shadow-xl backdrop-blur-[calc(24px*10)] backdrop-saturate-300",
             )}
             style={{
               left: selectionToolbar.left,

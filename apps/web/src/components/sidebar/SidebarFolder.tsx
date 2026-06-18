@@ -54,6 +54,7 @@ interface SidebarFolderProps {
     type: "folder" | "page",
     currentName: string,
   ) => void;
+  isCompact?: boolean;
 }
 
 export function SidebarFolder({
@@ -90,6 +91,7 @@ export function SidebarFolder({
   onRenameCancel,
   renamingTarget,
   onStartRename,
+  isCompact,
 }: SidebarFolderProps) {
   const renameInputRef = useRef<HTMLInputElement>(null);
   const isExpanded = isFolderExpanded(folder.id);
@@ -156,15 +158,15 @@ export function SidebarFolder({
           }}
           onContextMenu={(e) => onContextMenu(e, folder.id, "folder")}
           className={clsx(
-            "transition-colors rounded-lg text-sm duration-[250ms] hover:duration-0",
-            "flex flex-1 items-center gap-2.5 px-2 py-1",
+            "transition-colors rounded-lg text-sm compact:text-sm duration-[250ms] hover:duration-0",
+            "flex flex-1 items-center gap-2.5 px-2 py-1 compact:gap-1 compact:px-1 compact:py-0.5",
             "hover:bg-black/5 dark:hover:bg-white/5",
             isSortable && "touch-none cursor-grab active:cursor-grabbing",
           )}
         >
           {/* Folder icon */}
           <span className="w-5 flex justify-center text-black/30 dark:text-white/30 shrink-0">
-            <SFIcon icon={sfFolder} weight={0.5} size={16} />
+            <SFIcon className="compact:size-3 size-3.5" icon={sfFolder} />
           </span>
 
           {/* Folder name */}
@@ -191,7 +193,7 @@ export function SidebarFolder({
             />
           ) : (
             <span
-              className="truncate text-left font-medium text-black/80 dark:text-white/80"
+              className="truncate text-left text-black/75 dark:text-white/80"
               onDoubleClick={(e) => {
                 e.stopPropagation();
                 onStartRename?.(folder.id, "folder", folder.name);

@@ -49,7 +49,7 @@ interface SidebarProps {
 }
 
 const filters = [
-  { id: "all", label: "All Items" },
+  { id: "all", label: "Recent" },
   { id: "feeds", label: "Feeds" },
   { id: "notes", label: "Notes" },
   { id: "images", label: "Images" },
@@ -459,14 +459,14 @@ export function Sidebar({
         style={{ minWidth: EXPANDED_WIDTH }}
       >
         {/* Filters */}
-        <nav className="space-y-1 p-2">
+        <nav className="space-y-0.5 p-2">
           <AnimatePresence initial={false}>
             {filters.map((filter) => (
               <motion.button
                 key={filter.id}
                 onClick={() => onFilterChange(filter.id)}
                 className={clsx(
-                  "flex w-full items-center gap-3 rounded-lg px-3 py-2 compact:py-1 text-sm transition-colors duration-[250ms] hover:duration-0",
+                  "flex w-full items-center gap-3 rounded-lg px-2 py-1 compact:text-xs text-sm transition-colors duration-[250ms] hover:duration-0",
                   activeFilter === filter.id
                     ? `text-black/90 dark:text-white/90
                        bg-black/10 dark:bg-white/5`
@@ -504,11 +504,11 @@ export function Sidebar({
 
         {/* Folders & Pages Tree */}
         <div className="flex-1 px-2 pb-4 relative">
-          <div className="flex items-center justify-between px-3 py-2">
+          <div className="flex items-center justify-between px-2 py-2">
             <h3
               className={clsx(
                 "select-none",
-                "text-xs font-semibold uppercase tracking-wider",
+                "compact:text-[10px] text-xs font-semibold uppercase ",
                 "text-black/35 dark:text-white/25",
               )}
             >
@@ -667,6 +667,7 @@ export function Sidebar({
                       onRenameCancel={handleRenameCancel}
                       renamingTarget={renamingTarget}
                       onStartRename={handleStartRename}
+                      isCompact={settings.compactMode}
                     />
                   );
                 })}

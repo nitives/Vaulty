@@ -70,6 +70,12 @@ export function Titlebar({
     getIsMacServerSnapshot,
   );
   const [isMaximized, setIsMaximized] = useState(false);
+  const mounted = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
+  );
+  const isCompact = mounted && settings.compactMode;
 
   // Keep the HTML class in sync with settings changes
   // The blocking script sets the initial class, this keeps it updated
@@ -127,7 +133,7 @@ export function Titlebar({
 
   const sidebarButtonClassnames = clsx(
     "cursor-pointer",
-    "flex h-6 w-9 rounded-[5px] items-center justify-center",
+    "flex h-5 w-7 compact:h-5 compact:w-7 rounded-[5px] items-center justify-center",
     "transition-colors dark:mix-blend-plus-lighter",
     "text-neutral-900/75 dark:text-neutral-100",
     "hover:bg-black/10 dark:hover:bg-white/5",
@@ -168,7 +174,7 @@ export function Titlebar({
           className={sidebarButtonClassnames}
           aria-label="Open settings"
         >
-          <SFIcon icon={sfEllipsis} size={16} />
+          <SFIcon icon={sfEllipsis} size={isCompact ? 14 : 16} />
         </button>
         {/* Sidebar Toggle */}
         <button
@@ -178,7 +184,7 @@ export function Titlebar({
           className={sidebarButtonClassnames}
           aria-label={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
         >
-          <SidebarIcon size={18} collapsed={sidebarCollapsed} />
+          <SidebarIcon size={isCompact ? 14 : 16} collapsed={sidebarCollapsed} />
         </button>
         {/* Search Toggle Button */}
         <button
@@ -187,7 +193,7 @@ export function Titlebar({
           className={sidebarButtonClassnames}
           aria-label="Toggle search"
         >
-          <SFIcon icon={sfMagnifyingglass} size={16} />
+          <SFIcon icon={sfMagnifyingglass} size={isCompact ? 14 : 16} />
         </button>
         {isProcessing && (
           <div className="flex h-6 w-9 rounded-[5px] text-white items-center justify-center">
@@ -209,7 +215,7 @@ export function Titlebar({
             className={`${windowControlBase} ${windowControlHover}`}
             aria-label="Minimize"
           >
-            <SFIcon icon={sfMinus} size={12} weight={0.5} />
+            <SFIcon icon={sfMinus} size={isCompact ? 12 : 14} weight={0.5} />
           </button>
 
           {/* Maximize/Restore */}

@@ -388,8 +388,8 @@ export default function Home() {
               className={clsx(
                 "z-10 transition-all duration-300",
                 settings.inputBarPosition === "top"
-                  ? "shrink-0 px-6 py-4"
-                  : "pointer-events-none absolute bottom-0 left-0 right-0 px-6 py-4 pt-8 compact:pt-4",
+                  ? "shrink-0 px-4 py-4"
+                  : "pointer-events-none absolute bottom-0 left-0 right-0 px-4 py-4 pt-8 compact:pt-4",
                 activeFilter === "feeds" &&
                   persistInputBarStateOnSwitch &&
                   "h-0 overflow-hidden !p-0 opacity-0 pointer-events-none",
@@ -420,19 +420,19 @@ export default function Home() {
           <AnimatePresence>
             {showScrollButton && (
               <motion.button
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.8 }}
+                initial={{ opacity: 0, scale: 0.8, filter: "blur(4px)" }}
+                animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
+                exit={{ opacity: 0, scale: 0.8, filter: "blur(4px)" }}
                 onClick={scrollToStart}
                 className={clsx(
                   "cursor-pointer",
-                  "absolute right-8 z-40 flex h-10 w-10 items-center justify-center rounded-full shadow-lg backdrop-blur",
+                  "absolute right-4 z-40 flex size-8 items-center justify-center rounded-full shadow-lg backdrop-blur",
                   "bg-white/90 dark:bg-neutral-800/90 text-[var(--accent-600)] dark:text-[var(--accent-400)]",
                   "border border-neutral-200 dark:border-neutral-700",
-                  "hover:bg-[var(--accent-50)] dark:hover:bg-[var(--accent-950)] transition-colors",
+                  "hover:bg-neutral-200/90 dark:hover:bg-neutral-700/90 transition-colors",
                   settings.inputBarPosition === "bottom"
-                    ? "compact:bottom-18 bottom-24"
-                    : "compact:top-18 top-24",
+                    ? "bottom-[7rem]"
+                    : "top-[7rem]",
                 )}
                 aria-label="Scroll to latest"
               >
@@ -442,7 +442,7 @@ export default function Home() {
                       ? sfArrowDown
                       : sfArrowUp
                   }
-                  size={16}
+                  size={12}
                 />
               </motion.button>
             )}
@@ -452,7 +452,7 @@ export default function Home() {
           <div
             ref={scrollRef}
             onScroll={handleScroll}
-            className="content-area compact:pb-[5rem]! flex-1 overflow-y-auto px-6 py-6 flex"
+            className="content-area flex-1 overflow-y-auto px-3 py-6 flex"
           >
             <div>
               {/* Item List */}

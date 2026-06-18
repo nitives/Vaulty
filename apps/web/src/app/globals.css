@@ -65,7 +65,7 @@ body.transparent-mode {
   flex-direction: column;
 }
 html:not(.input-bar-top) .content-area {
-  padding-bottom: 8rem;
+  padding-bottom: 7rem;
   flex-direction: column;
 }
 
