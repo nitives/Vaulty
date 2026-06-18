@@ -204,19 +204,19 @@ export function SidebarFolder({
           )}
         </button>
 
-        <div className="flex gap-2.5 mr-3.5 pl-2">
+        <div className="flex gap-2.5 mr-2.5 pl-5">
           <button
             onClick={() => onStartCreateFolder(folder.id)}
             className={clsx(
               "cursor-pointer",
               "transition-colors",
               "opacity-0 group-hover:opacity-100",
-              "text-black/15 hover:text-black/35",
+              "text-black/25 hover:text-black/35",
               "dark:text-white/25 dark:hover:text-white/35",
             )}
             title="New Subfolder"
           >
-            <SFIcon icon={sfFolder} size={14} weight={1} />
+            <SFIcon icon={sfFolder} size={14} />
           </button>
           <button
             onClick={() => onStartCreatePage(folder.id)}
@@ -224,12 +224,12 @@ export function SidebarFolder({
               "cursor-pointer",
               "transition-colors",
               "opacity-0 group-hover:opacity-100",
-              "text-black/15 hover:text-black/35",
+              "text-black/25 hover:text-black/35",
               "dark:text-white/25 dark:hover:text-white/35",
             )}
             title="New Page"
           >
-            <SFIcon icon={sfPlus} size={10} weight={1} />
+            <SFIcon icon={sfPlus} size={10} />
           </button>
         </div>
       </div>

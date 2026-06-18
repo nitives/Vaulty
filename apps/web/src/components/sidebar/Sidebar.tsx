@@ -10,6 +10,12 @@ import {
   sfTextPage,
   sfPencil,
   sfTrash,
+  sfTrayFull,
+  sfNewspaper,
+  sfNoteText,
+  sfPhoto,
+  sfLink,
+  sfWaveform,
 } from "@bradleyhodges/sfsymbols";
 import { useEffect, useState, useMemo, useRef, useCallback } from "react";
 import { ContextMenu } from "../ui/ContextMenu";
@@ -49,12 +55,12 @@ interface SidebarProps {
 }
 
 const filters = [
-  { id: "all", label: "Recent" },
-  { id: "feeds", label: "Feeds" },
-  { id: "notes", label: "Notes" },
-  { id: "images", label: "Images" },
-  { id: "links", label: "Links" },
-  { id: "audio", label: "Audio" },
+  { id: "all", label: "Recent", icon: sfTrayFull },
+  { id: "feeds", label: "Feeds", icon: sfNewspaper },
+  { id: "notes", label: "Notes", icon: sfNoteText },
+  { id: "images", label: "Images", icon: sfPhoto },
+  { id: "links", label: "Links", icon: sfLink },
+  { id: "audio", label: "Audio", icon: sfWaveform },
 ];
 
 const EXPANDED_WIDTH = 224;
@@ -68,7 +74,8 @@ export function Sidebar({
   unseenPulseCount = 0,
 }: SidebarProps) {
   const { settings } = useSettings();
-  const [isLoading, setIsLoading] = useState(true);
+  const showSidebarIcons = settings.showSidebarIcons ?? true;
+  const [, setIsLoading] = useState(true);
   const [folders, setFolders] = useState<Folder[]>([]);
   const [pages, setPages] = useState<Page[]>([]);
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(
@@ -479,6 +486,18 @@ export function Sidebar({
                 transition={{ duration: 0.15, ease: "easeOut" }}
                 suppressHydrationWarning
               >
+                {showSidebarIcons && (
+                  <SFIcon
+                    icon={filter.icon}
+                    size={14}
+                    className={clsx(
+                      "shrink-0 transition-colors",
+                      activeFilter === filter.id
+                        ? "text-black/80 dark:text-white/80"
+                        : "text-black/45 dark:text-white/40",
+                    )}
+                  />
+                )}
                 <span>{filter.label}</span>
                 {filter.id === "feeds" && unseenPulseCount > 0 && (
                   <span

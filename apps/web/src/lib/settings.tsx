@@ -43,6 +43,7 @@ export interface AppSettings {
   startCollapsed?: boolean;
   confirmBeforeDelete?: boolean;
   inputBarPosition?: "top" | "bottom";
+  showSidebarIcons?: boolean;
   backgroundTintOpacityLight?: number;
   backgroundTintOpacityDark?: number;
   reduceMotion?: boolean;
@@ -73,6 +74,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   startCollapsed: false,
   confirmBeforeDelete: true,
   inputBarPosition: "bottom",
+  showSidebarIcons: true,
   backgroundTintOpacityLight: 1,
   backgroundTintOpacityDark: 1.5,
   reduceMotion: false,

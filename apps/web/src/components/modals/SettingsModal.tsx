@@ -201,6 +201,16 @@ function AppearanceSection() {
         />
       </SettingsRow>
       <SettingsRow
+        label="Sidebar icons"
+        description="Show icons next to the built-in sidebar sections"
+        toggleOnRowClick
+      >
+        <Toggle
+          checked={settings.showSidebarIcons ?? true}
+          onChange={(v) => update({ showSidebarIcons: v })}
+        />
+      </SettingsRow>
+      <SettingsRow
         label="Compact mode"
         description="Reduce spacing in the UI"
         toggleOnRowClick
