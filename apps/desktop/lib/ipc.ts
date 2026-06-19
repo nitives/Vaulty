@@ -34,6 +34,9 @@ import {
   savePulses,
   loadPulseItems,
   savePulseItems,
+  readVaultFile,
+  writeVaultFile,
+  vaultFileExists,
 } from "./storage";
 import {
   loadSettings,
@@ -41,6 +44,11 @@ import {
   applyTransparency,
   AppSettings,
 } from "./settings";
+import {
+  createVaultBackup,
+  getVaultBackupStatus,
+  pruneVaultBackupsFromSettings,
+} from "./backups";
 import {
   getVaultyDataPath,
   getImagesPath,
@@ -156,6 +164,12 @@ export function registerIpcHandlers(
     }
     if ("iconTheme" in patch) {
       applyAppIcon?.(updated.iconTheme);
+    }
+    if ("vaultBackupRetention" in patch) {
+      const pruneResult = pruneVaultBackupsFromSettings();
+      if (!pruneResult.success) {
+        console.error("Failed to prune Vaulty backups:", pruneResult.error);
+      }
     }
 
     return updated;
@@ -378,9 +392,32 @@ export function registerIpcHandlers(
     return getVaultyDataPath();
   });
 
+  ipcMain.handle("storage:fileExists", (_event, relativePath: string) => {
+    return vaultFileExists(relativePath);
+  });
+
+  ipcMain.handle("storage:readFile", (_event, relativePath: string) => {
+    return readVaultFile(relativePath);
+  });
+
+  ipcMain.handle(
+    "storage:writeFile",
+    (_event, relativePath: string, data: string) => {
+      return writeVaultFile(relativePath, data);
+    },
+  );
+
   ipcMain.handle("storage:clearAll", () => {
     clearAllData();
     return { success: true };
+  });
+
+  ipcMain.handle("backups:getStatus", () => {
+    return getVaultBackupStatus();
+  });
+
+  ipcMain.handle("backups:createNow", () => {
+    return createVaultBackup();
   });
 
   // Pulses

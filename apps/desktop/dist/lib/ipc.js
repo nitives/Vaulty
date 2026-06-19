@@ -9,6 +9,7 @@ const fs_1 = __importDefault(require("fs"));
 const path_1 = __importDefault(require("path"));
 const storage_1 = require("./storage");
 const settings_1 = require("./settings");
+const backups_1 = require("./backups");
 const paths_1 = require("./paths");
 const opengraph_1 = require("./opengraph");
 function normalizeAccentColor(color) {
@@ -106,6 +107,12 @@ function registerIpcHandlers(getMainWindow, applyAppIcon) {
         }
         if ("iconTheme" in patch) {
             applyAppIcon?.(updated.iconTheme);
+        }
+        if ("vaultBackupRetention" in patch) {
+            const pruneResult = (0, backups_1.pruneVaultBackupsFromSettings)();
+            if (!pruneResult.success) {
+                console.error("Failed to prune Vaulty backups:", pruneResult.error);
+            }
         }
         return updated;
     });
@@ -286,9 +293,24 @@ function registerIpcHandlers(getMainWindow, applyAppIcon) {
     electron_1.ipcMain.handle("storage:getPath", () => {
         return (0, paths_1.getVaultyDataPath)();
     });
+    electron_1.ipcMain.handle("storage:fileExists", (_event, relativePath) => {
+        return (0, storage_1.vaultFileExists)(relativePath);
+    });
+    electron_1.ipcMain.handle("storage:readFile", (_event, relativePath) => {
+        return (0, storage_1.readVaultFile)(relativePath);
+    });
+    electron_1.ipcMain.handle("storage:writeFile", (_event, relativePath, data) => {
+        return (0, storage_1.writeVaultFile)(relativePath, data);
+    });
     electron_1.ipcMain.handle("storage:clearAll", () => {
         (0, storage_1.clearAllData)();
         return { success: true };
+    });
+    electron_1.ipcMain.handle("backups:getStatus", () => {
+        return (0, backups_1.getVaultBackupStatus)();
+    });
+    electron_1.ipcMain.handle("backups:createNow", () => {
+        return (0, backups_1.createVaultBackup)();
     });
     // Pulses
     electron_1.ipcMain.handle("pulses:load", () => {

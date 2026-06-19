@@ -1,10 +1,12 @@
 "use client";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import clsx from "clsx";
 import {
   useSettings,
   type AccentColor,
   type AppIconTheme,
+  type VaultBackupFrequency,
+  type VaultBackupRetention,
 } from "@/lib/settings";
 import { Toggle } from "./ui/Toggle";
 import { Select } from "./ui/Select";
@@ -15,8 +17,10 @@ import SFIcon from "@bradleyhodges/sfsymbols-react";
 import {
   sfArrowLeft,
   sfBookClosed,
+  sfCheckmarkIcloud,
   sfFlask,
   sfInfoCircle,
+  sfIcloud,
   sfInternaldrive,
   sfPaintbrush,
   sfSliderHorizontal3,
@@ -24,6 +28,17 @@ import {
 import { motion, AnimatePresence } from "motion/react";
 import { IconDefinition } from "@bradleyhodges/sfsymbols-types";
 import { getElectronAPI } from "@/lib/electron";
+import { useAuth } from "@/lib/auth";
+import { syncVaultNow } from "@/lib/storage";
+import {
+  type BillingEntitlements,
+  type BillingPlanId,
+  getBillingEntitlements,
+  hasBillingSyncAccess,
+  isBillingEntitlementActive,
+  openCheckout,
+  openCustomerPortal,
+} from "@/lib/billing";
 
 interface SettingsScreenProps {
   isOpen: boolean;
@@ -35,6 +50,7 @@ interface SettingsScreenProps {
 type SectionId =
   | "appearance"
   | "behavior"
+  | "sync"
   | "storage"
   | "guide"
   | "experiments"
@@ -49,6 +65,7 @@ interface SectionDef {
 const sections: SectionDef[] = [
   { id: "appearance", label: "Appearance", icon: sfPaintbrush },
   { id: "behavior", label: "Behavior", icon: sfSliderHorizontal3 },
+  { id: "sync", label: "Sync", icon: sfIcloud },
   { id: "storage", label: "Storage", icon: sfInternaldrive },
   { id: "guide", label: "Guide", icon: sfBookClosed },
   { id: "experiments", label: "Experiments", icon: sfFlask },
@@ -56,7 +73,10 @@ const sections: SectionDef[] = [
 ];
 
 const sectionGroups: Array<{ label: string; sectionIds: SectionId[] }> = [
-  { label: "General", sectionIds: ["appearance", "behavior", "storage"] },
+  {
+    label: "General",
+    sectionIds: ["appearance", "behavior", "sync", "storage"],
+  },
   { label: "Reference", sectionIds: ["guide", "experiments", "about"] },
 ];
 
@@ -64,6 +84,7 @@ const sectionGroups: Array<{ label: string; sectionIds: SectionId[] }> = [
 
 interface SettingsRowProps {
   label: string;
+  sublabel?: string;
   description?: string;
   children: React.ReactNode;
   toggleOnRowClick?: boolean;
@@ -71,6 +92,7 @@ interface SettingsRowProps {
 
 function SettingsRow({
   label,
+  sublabel,
   description,
   children,
   toggleOnRowClick = false,
@@ -117,6 +139,11 @@ function SettingsRow({
       <div className="flex-1">
         <p className="text-sm font-medium text-neutral-900 dark:text-neutral-100">
           {label}
+          {sublabel && (
+            <span className="ml-1 text-xs font-normal text-neutral-500 dark:text-neutral-400">
+              {sublabel}
+            </span>
+          )}
         </p>
         {description && (
           <p className="text-xs text-neutral-500 w-[90%] dark:text-neutral-400">
@@ -143,7 +170,7 @@ function SettingsGroup({ children }: { children: React.ReactNode }) {
   return (
     <div
       className={clsx(
-        "overflow-hidden rounded-xl",
+        "overflow-hidden rounded-2xl",
         "bg-neutral-100/90 dark:bg-white/[0.055]",
         "divide-y divide-neutral-200/80 dark:divide-white/[0.075]",
       )}
@@ -668,13 +695,42 @@ function BehaviorSection() {
 }
 
 function StorageSection() {
+  const { settings, update } = useSettings();
   const [dataLocation, setDataLocation] = useState<string>("Loading...");
+  const [backupStatus, setBackupStatus] = useState<{
+    frequency: VaultBackupFrequency;
+    retention: VaultBackupRetention;
+    backupsPath: string;
+    lastBackupAt?: string;
+  } | null>(null);
+  const [backupMessage, setBackupMessage] = useState<string | null>(null);
+  const [backupRetentionInput, setBackupRetentionInput] = useState("5");
+  const [isBackingUp, setIsBackingUp] = useState(false);
+
+  const backupRetention =
+    backupStatus?.retention ?? settings.vaultBackupRetention ?? 5;
+  const backupRetentionIsInfinite = backupRetention === "infinite";
+
+  const loadBackupStatus = async () => {
+    try {
+      const status = await window.electronAPI?.getVaultBackupStatus?.();
+      if (status) {
+        setBackupStatus(status);
+        if (typeof status.retention === "number") {
+          setBackupRetentionInput(String(status.retention));
+        }
+      }
+    } catch {
+      setBackupStatus(null);
+    }
+  };
 
   useEffect(() => {
     window.electronAPI
       ?.getStoragePath()
       .then((path: string) => setDataLocation(path))
       .catch(() => setDataLocation("Unknown"));
+    void loadBackupStatus();
   }, []);
 
   const handleChangeLocation = async () => {
@@ -716,6 +772,82 @@ function StorageSection() {
     }
   };
 
+  const handleBackupFrequencyChange = (value: string) => {
+    const frequency = value as VaultBackupFrequency;
+    update({ vaultBackupFrequency: frequency });
+    setBackupStatus((prev) => (prev ? { ...prev, frequency } : prev));
+    setBackupMessage(null);
+  };
+
+  const updateBackupRetention = (retention: VaultBackupRetention) => {
+    update({ vaultBackupRetention: retention });
+    setBackupStatus((prev) => (prev ? { ...prev, retention } : prev));
+    setBackupMessage(null);
+  };
+
+  const normalizeBackupRetentionValue = (rawValue: string): number => {
+    const parsed = Number.parseInt(rawValue, 10);
+    return Number.isFinite(parsed) ? Math.max(1, parsed) : 5;
+  };
+
+  const handleBackupRetentionChange = (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const rawValue = event.target.value;
+    setBackupRetentionInput(rawValue);
+
+    if (!rawValue.trim()) return;
+    updateBackupRetention(normalizeBackupRetentionValue(rawValue));
+  };
+
+  const handleBackupRetentionBlur = () => {
+    const normalized = normalizeBackupRetentionValue(backupRetentionInput);
+    setBackupRetentionInput(String(normalized));
+    updateBackupRetention(normalized);
+  };
+
+  const handleInfiniteBackupRetentionChange = (checked: boolean) => {
+    if (checked) {
+      updateBackupRetention("infinite");
+      return;
+    }
+
+    const normalized = normalizeBackupRetentionValue(backupRetentionInput);
+    setBackupRetentionInput(String(normalized));
+    updateBackupRetention(normalized);
+  };
+
+  const handleBackupNow = async () => {
+    setIsBackingUp(true);
+    setBackupMessage(null);
+
+    try {
+      if (!window.electronAPI?.createVaultBackup) {
+        setBackupMessage("Restart Vaulty to finish enabling backups.");
+        return;
+      }
+
+      const result = await window.electronAPI.createVaultBackup();
+      if (result?.success) {
+        setBackupMessage("Backup complete.");
+        await loadBackupStatus();
+      } else {
+        setBackupMessage(result?.error ?? "Backup failed.");
+      }
+    } catch (err) {
+      setBackupMessage(err instanceof Error ? err.message : String(err));
+    } finally {
+      setIsBackingUp(false);
+    }
+  };
+
+  const lastBackupLabel = backupStatus?.lastBackupAt
+    ? new Date(backupStatus.lastBackupAt).toLocaleString()
+    : "No backup yet";
+  const backupRetentionDescription = backupRetentionIsInfinite
+    ? "Keeps every backup copy"
+    : `Keeps the newest ${backupRetention} backup copies`;
+
   return (
     <div className="space-y-7 pb-6">
       <SettingsSection title="Data">
@@ -751,6 +883,708 @@ function StorageSection() {
             </Button>
           </div>
         </div>
+      </SettingsSection>
+
+      <SettingsSection title="Backups">
+        <SettingsRow
+          label="Backup copies"
+          description={
+            backupStatus?.backupsPath ?? "Stored in the vault folder"
+          }
+        >
+          <Select
+            value={
+              backupStatus?.frequency ?? settings.vaultBackupFrequency ?? "off"
+            }
+            onChange={handleBackupFrequencyChange}
+            options={[
+              { value: "off", label: "Off" },
+              { value: "hourly", label: "Every hour" },
+              { value: "daily", label: "Every day" },
+              { value: "weekly", label: "Every week" },
+            ]}
+          />
+        </SettingsRow>
+        <SettingsRow
+          label="Copies to keep"
+          description={backupRetentionDescription}
+        >
+          <div className="flex items-center gap-3">
+            <input
+              type="number"
+              min={1}
+              step={1}
+              inputMode="numeric"
+              value={backupRetentionIsInfinite ? "" : backupRetentionInput}
+              onChange={handleBackupRetentionChange}
+              onBlur={handleBackupRetentionBlur}
+              disabled={backupRetentionIsInfinite}
+              className="h-8 w-20 rounded-lg border border-neutral-300 bg-white px-2 text-sm text-neutral-900 outline-none transition-colors focus:border-neutral-500 disabled:opacity-50 dark:border-white/10 dark:bg-white/[0.07] dark:text-white dark:focus:border-white/25"
+            />
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-neutral-600 dark:text-neutral-400">
+                Infinite
+              </span>
+              <Toggle
+                checked={backupRetentionIsInfinite}
+                onChange={handleInfiniteBackupRetentionChange}
+              />
+            </div>
+          </div>
+        </SettingsRow>
+        <SettingsRow
+          label="Last backup"
+          description={backupMessage ?? lastBackupLabel}
+        >
+          <Button
+            variant="base"
+            className="px-3 py-1.5 text-xs"
+            onClick={handleBackupNow}
+            disabled={isBackingUp}
+          >
+            {isBackingUp ? "Backing up..." : "Back up now"}
+          </Button>
+        </SettingsRow>
+      </SettingsSection>
+    </div>
+  );
+}
+
+const billingPlanOptions: Array<{
+  id: BillingPlanId;
+  label: string;
+  sublabel?: string;
+  price: string;
+  description: string;
+  actionLabel: string;
+  features: string[];
+}> = [
+  {
+    id: "sync_monthly",
+    label: "Vaulty Sync",
+    sublabel: "Monthly",
+    price: "$1/mo",
+    description: "Cloud sync billed monthly.",
+    actionLabel: "Subscribe",
+    features: [
+      "Live sync across signed-in devices",
+      "Images, audio, and metadata included",
+      "Cross-platform vault restore",
+    ],
+  },
+  {
+    id: "sync_yearly",
+    label: "Vaulty Sync",
+    sublabel: "Save 33%",
+    price: "$8/yr",
+    description: "Cloud sync billed yearly.",
+    actionLabel: "Subscribe",
+    features: [
+      "Everything in monthly sync",
+      "Best price for keeping sync on",
+      "Same live database updates",
+    ],
+  },
+  {
+    id: "supporter",
+    label: "Supporter role",
+    sublabel: "Role",
+    price: "$2.99",
+    description: "Support Vaulty devs.",
+    actionLabel: "Support",
+    features: [
+      "Unlocks all sync features",
+      "Support ongoing Vaulty development",
+      "Supporter role on your account",
+    ],
+  },
+];
+
+const billingPlanLabels: Record<string, string> = {
+  sync: "Vaulty Sync",
+  sync_monthly: "Vaulty Sync monthly",
+  sync_yearly: "Vaulty Sync yearly",
+  supporter: "Supporter role",
+};
+
+function formatBillingDate(value?: string | null): string | null {
+  if (!value) return null;
+
+  const parsed = Date.parse(value);
+  if (Number.isNaN(parsed)) return null;
+
+  return new Intl.DateTimeFormat(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  }).format(new Date(parsed));
+}
+
+function describeBillingEntitlements(
+  entitlements: BillingEntitlements,
+): string {
+  const active: string[] = [];
+
+  if (isBillingEntitlementActive(entitlements.sync)) {
+    const plan = entitlements.sync?.plan ?? "sync_monthly";
+    const label = billingPlanLabels[plan] ?? "Vaulty Sync";
+    const activeUntil = formatBillingDate(entitlements.sync?.active_until);
+    active.push(
+      activeUntil
+        ? `${label} active through ${activeUntil}`
+        : `${label} active`,
+    );
+  }
+
+  if (isBillingEntitlementActive(entitlements.supporter)) {
+    const activeUntil = formatBillingDate(entitlements.supporter?.active_until);
+    active.push(
+      activeUntil
+        ? `Supporter role active through ${activeUntil}`
+        : "Supporter role active",
+    );
+  }
+
+  return active.length > 0
+    ? active.join(" + ")
+    : "Choose any role below to enable sync.";
+}
+
+function isBillingPlanActive(
+  plan: BillingPlanId,
+  entitlements: BillingEntitlements,
+): boolean {
+  if (plan === "supporter") {
+    return isBillingEntitlementActive(entitlements.supporter);
+  }
+
+  if (!isBillingEntitlementActive(entitlements.sync)) return false;
+
+  const activePlan =
+    entitlements.sync?.plan === "sync_yearly" ? "sync_yearly" : "sync_monthly";
+
+  return activePlan === plan;
+}
+
+function SyncSection() {
+  const {
+    session,
+    isConfigured,
+    isLoading,
+    error: authError,
+    signIn,
+    signUp,
+    signOut,
+  } = useAuth();
+  const [mode, setMode] = useState<"sign-in" | "sign-up">("sign-in");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [status, setStatus] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [entitlements, setEntitlements] = useState<BillingEntitlements>({
+    sync: null,
+    supporter: null,
+  });
+  const [billingStatus, setBillingStatus] = useState<string | null>(null);
+  const [isBillingLoading, setIsBillingLoading] = useState(false);
+  const [isBillingBusy, setIsBillingBusy] = useState(false);
+
+  const refreshBillingEntitlements = useCallback(async () => {
+    if (!session) {
+      setEntitlements({ sync: null, supporter: null });
+      setBillingStatus(null);
+      setIsBillingLoading(false);
+      return;
+    }
+
+    setIsBillingLoading(true);
+    try {
+      const nextEntitlements = await getBillingEntitlements();
+      setEntitlements(nextEntitlements);
+      setBillingStatus(null);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      setBillingStatus(`Billing status failed to fetch: ${message}`);
+    } finally {
+      setIsBillingLoading(false);
+    }
+  }, [session]);
+
+  useEffect(() => {
+    void refreshBillingEntitlements();
+  }, [refreshBillingEntitlements]);
+
+  const handleAuthSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setStatus(null);
+    setIsSubmitting(true);
+
+    try {
+      if (mode === "sign-in") {
+        await signIn(email.trim(), password);
+        setStatus("Signed in.");
+      } else {
+        const nextSession = await signUp(email.trim(), password);
+        setStatus(
+          nextSession
+            ? "Account created."
+            : "Check your email to confirm the account, then sign in.",
+        );
+      }
+      setPassword("");
+    } catch (err) {
+      setStatus(err instanceof Error ? err.message : String(err));
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleSyncNow = async () => {
+    setStatus(null);
+
+    if (isBillingLoading) {
+      setStatus("Checking billing status.");
+      return;
+    }
+
+    if (!hasBillingSyncAccess(entitlements)) {
+      setStatus("Sync requires an active Vaulty Sync plan or Supporter role.");
+      return;
+    }
+
+    setIsSyncing(true);
+
+    try {
+      const result = await syncVaultNow();
+      if (!result.success) {
+        setStatus(result.error ?? "Sync failed.");
+        return;
+      }
+
+      setStatus(
+        `Synced ${result.pushed} records. Pulled ${result.pulled}, removed ${result.deleted}.${
+          result.mediaErrors?.length
+            ? ` Media issues: ${result.mediaErrors.length}.`
+            : ""
+        }`,
+      );
+    } catch (err) {
+      setStatus(err instanceof Error ? err.message : String(err));
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  const handleCheckout = async (plan: BillingPlanId) => {
+    setBillingStatus(null);
+    setIsBillingBusy(true);
+    try {
+      await openCheckout(plan);
+      setBillingStatus(
+        "Checkout opened. Finish in Stripe, then refresh billing.",
+      );
+    } catch (err) {
+      setBillingStatus(err instanceof Error ? err.message : String(err));
+    } finally {
+      setIsBillingBusy(false);
+    }
+  };
+
+  const handleCustomerPortal = async () => {
+    setBillingStatus(null);
+    setIsBillingBusy(true);
+    try {
+      await openCustomerPortal();
+      setBillingStatus("Billing portal opened.");
+    } catch (err) {
+      setBillingStatus(err instanceof Error ? err.message : String(err));
+    } finally {
+      setIsBillingBusy(false);
+    }
+  };
+
+  const hasSyncAccess = useMemo(
+    () => hasBillingSyncAccess(entitlements),
+    [entitlements],
+  );
+  const billingSummary = useMemo(
+    () => describeBillingEntitlements(entitlements),
+    [entitlements],
+  );
+  const billingControlClassName =
+    "px-3 py-1.5 text-xs disabled:cursor-not-allowed disabled:opacity-50";
+
+  const inputClassName = clsx(
+    "h-9 rounded-lg border px-3 text-sm outline-none transition-colors",
+    "border-neutral-300 bg-white text-neutral-900 placeholder:text-neutral-400",
+    "focus:border-neutral-500 dark:border-white/10 dark:bg-white/[0.07]",
+    "dark:text-white dark:placeholder:text-neutral-500 dark:focus:border-white/25",
+  );
+
+  const authForm = (
+    <div className="px-4 py-4">
+      <div className="mb-4 flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => setMode("sign-in")}
+          className={clsx(
+            "rounded-full px-3 py-1.5 text-xs font-medium transition-colors",
+            mode === "sign-in"
+              ? "bg-neutral-900 text-white dark:bg-white dark:text-neutral-950"
+              : "bg-neutral-200 text-neutral-700 dark:bg-white/10 dark:text-neutral-300",
+          )}
+        >
+          Sign in
+        </button>
+        <button
+          type="button"
+          onClick={() => setMode("sign-up")}
+          className={clsx(
+            "rounded-full px-3 py-1.5 text-xs font-medium transition-colors",
+            mode === "sign-up"
+              ? "bg-neutral-900 text-white dark:bg-white dark:text-neutral-950"
+              : "bg-neutral-200 text-neutral-700 dark:bg-white/10 dark:text-neutral-300",
+          )}
+        >
+          Create account
+        </button>
+      </div>
+
+      <form className="grid gap-3" onSubmit={handleAuthSubmit}>
+        <input
+          className={inputClassName}
+          type="email"
+          autoComplete="email"
+          placeholder="Email"
+          value={email}
+          onChange={(event) => setEmail(event.target.value)}
+          required
+        />
+        <input
+          className={inputClassName}
+          type="password"
+          autoComplete={
+            mode === "sign-in" ? "current-password" : "new-password"
+          }
+          placeholder="Password"
+          value={password}
+          onChange={(event) => setPassword(event.target.value)}
+          minLength={6}
+          required
+        />
+        <div className="flex items-center justify-between gap-3">
+          <p className="min-h-5 text-xs text-neutral-500 dark:text-neutral-400">
+            {status ?? authError ?? ""}
+          </p>
+          <Button
+            variant="primary"
+            className="px-3 py-1.5 text-xs"
+            disabled={isSubmitting}
+          >
+            {isSubmitting
+              ? "Working..."
+              : mode === "sign-in"
+                ? "Sign in"
+                : "Create"}
+          </Button>
+        </div>
+      </form>
+    </div>
+  );
+
+  if (!isConfigured) {
+    return (
+      <div className="space-y-7 pb-6">
+        <SettingsSection title="Account">
+          <SettingsRow
+            label="Supabase"
+            description="Add Supabase environment values before signing in"
+          >
+            <span className="text-xs text-neutral-500 dark:text-neutral-400">
+              Not configured
+            </span>
+          </SettingsRow>
+        </SettingsSection>
+      </div>
+    );
+  }
+
+  if (!session) {
+    return (
+      <div className="space-y-7 pb-6">
+        <section className="space-y-4">
+          <div className="space-y-2 px-1 text-center">
+            <h2 className="text-2xl font-semibold text-neutral-950 dark:text-white">
+              Upgrade Vaulty
+            </h2>
+            <p className="mx-auto max-w-xl text-sm text-neutral-600 dark:text-neutral-400">
+              Sign in to unlock live sync for your vault, images, audio,
+              metadata, and cross-platform restore.
+            </p>
+          </div>
+
+          <div className="grid gap-3 md:grid-cols-3">
+            {billingPlanOptions.map((plan, index) => {
+              const highlighted = index === 0;
+              const [priceAmount, priceCadence] = plan.price.split("/");
+              const displayAmount = priceAmount.replace("$", "");
+
+              return (
+                <div
+                  key={plan.id}
+                  className={clsx(
+                    "grid min-h-[24rem] grid-rows-[8rem_auto_1fr] gap-4 rounded-2xl px-4 py-4 pr-3.5 transition-colors",
+                    highlighted
+                      ? "bg-[linear-gradient(206deg,var(--accent-600)_0%,var(--accent-500)_56%,var(--accent-700)_100%)] text-white shadow-sm"
+                      : "bg-neutral-100/90 text-neutral-950 dark:bg-white/[0.065] dark:text-white",
+                  )}
+                >
+                  <div>
+                    <div className="flex items-start justify-between gap-3">
+                      <h3
+                        className={clsx(
+                          "min-w-0 text-lg font-semibold leading-tight",
+                          highlighted
+                            ? "text-white"
+                            : "text-neutral-900 dark:text-neutral-100",
+                        )}
+                      >
+                        {plan.label}
+                      </h3>
+                      {plan.sublabel && (
+                        <span
+                          className={clsx(
+                            "rounded-full px-2 py-1 text-[8px] font-semibold uppercase tracking-wide",
+                            highlighted
+                              ? "bg-white/15 text-white"
+                              : "bg-neutral-200 text-neutral-700 dark:bg-white/10 dark:text-neutral-300",
+                          )}
+                        >
+                          {plan.sublabel}
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="mt-5 flex items-end">
+                      <span
+                        className={clsx(
+                          "mb-2 text-xl font-medium",
+                          highlighted
+                            ? "text-white/70"
+                            : "text-neutral-500 dark:text-neutral-400",
+                        )}
+                      >
+                        $
+                      </span>
+                      <span className="text-5xl font-semibold leading-none">
+                        {displayAmount}
+                      </span>
+                      {priceCadence && (
+                        <span
+                          className={clsx(
+                            "mb-1.5 text-xs font-medium",
+                            highlighted
+                              ? "text-white/70"
+                              : "text-neutral-500 dark:text-neutral-400",
+                          )}
+                        >
+                          /{priceCadence}
+                        </span>
+                      )}
+                    </div>
+
+                    <p
+                      className={clsx(
+                        "mt-4 text-sm font-medium leading-5",
+                        highlighted
+                          ? "text-white/85"
+                          : "text-neutral-700 dark:text-neutral-300",
+                      )}
+                    >
+                      {plan.description}
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMode("sign-up");
+                      setStatus(null);
+                    }}
+                    className={clsx(
+                      "h-10 w-full rounded-full text-sm font-semibold transition-colors",
+                      highlighted
+                        ? "bg-white text-[var(--accent-700)] hover:bg-white/90"
+                        : "bg-neutral-900 text-white hover:bg-neutral-800 dark:bg-white dark:text-neutral-950 dark:hover:bg-neutral-200",
+                    )}
+                  >
+                    Create account
+                  </button>
+
+                  <ul className="space-y-3 pt-1">
+                    {plan.features.map((feature) => (
+                      <li
+                        key={feature}
+                        className={clsx(
+                          "flex gap-3 text-xs leading-5",
+                          highlighted
+                            ? "text-white/85"
+                            : "text-neutral-600 dark:text-neutral-400",
+                        )}
+                      >
+                        <span
+                          className={clsx(
+                            "mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-md",
+                            highlighted
+                              ? "bg-white/14 text-white"
+                              : "bg-neutral-200 text-neutral-600 dark:bg-white/10 dark:text-neutral-300",
+                          )}
+                        >
+                          <SFIcon icon={sfCheckmarkIcloud} size={12} />
+                        </span>
+                        <span>{feature}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+
+        <SettingsSection title="Account">{authForm}</SettingsSection>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-7 pb-6">
+      <SettingsSection title="Account">
+        <>
+          <SettingsRow
+            label="Signed in"
+            description={session.user.email ?? session.user.id}
+          >
+            <div className="flex items-center gap-2">
+              <Button
+                variant="base"
+                className={billingControlClassName}
+                onClick={handleSyncNow}
+                disabled={isSyncing || isBillingLoading || !hasSyncAccess}
+              >
+                {isSyncing ? "Syncing..." : "Sync now"}
+              </Button>
+              <Button
+                variant="base"
+                className="px-3 py-1.5 text-xs"
+                onClick={() => {
+                  void signOut();
+                }}
+              >
+                Sign out
+              </Button>
+            </div>
+          </SettingsRow>
+          <SettingsRow
+            label="Status"
+            description={
+              status ??
+              authError ??
+              (isLoading
+                ? "Checking account..."
+                : hasSyncAccess
+                  ? "Sync enabled"
+                  : "Subscription required")
+            }
+          >
+            <SFIcon icon={sfCheckmarkIcloud} size={18} />
+          </SettingsRow>
+        </>
+      </SettingsSection>
+
+      <SettingsSection title="Billing">
+        <SettingsRow
+          label={hasSyncAccess ? "Sync access" : "Choose a role"}
+          description={
+            billingStatus ??
+            (isBillingLoading ? "Checking billing status..." : billingSummary)
+          }
+        >
+          {hasSyncAccess ? (
+            <span className="rounded-md bg-emerald-500/15 px-2 py-1 text-xs font-medium text-emerald-700 dark:text-emerald-300">
+              Active
+            </span>
+          ) : (
+            <span className="rounded-md bg-neutral-500/15 px-2 py-1 text-xs font-medium text-neutral-600 dark:text-neutral-300">
+              Inactive
+            </span>
+          )}
+        </SettingsRow>
+        {billingPlanOptions.map((plan) => {
+          const isActive = isBillingPlanActive(plan.id, entitlements);
+          const buttonLabel = isActive
+            ? "Active"
+            : session
+              ? hasSyncAccess
+                ? "Manage"
+                : plan.actionLabel
+              : "Sign in";
+          const handlePlanAction = hasSyncAccess
+            ? handleCustomerPortal
+            : () => handleCheckout(plan.id);
+
+          return (
+            <SettingsRow
+              key={plan.id}
+              label={plan.label}
+              sublabel={`(${plan.price})`}
+              description={plan.description}
+            >
+              <Button
+                variant={isActive ? "primary" : "base"}
+                className={billingControlClassName}
+                onClick={handlePlanAction}
+                disabled={
+                  !session || isBillingBusy || isBillingLoading || isActive
+                }
+              >
+                {buttonLabel}
+              </Button>
+            </SettingsRow>
+          );
+        })}
+        <SettingsRow
+          label={hasSyncAccess ? "Manage billing" : "Billing status"}
+          description={
+            hasSyncAccess
+              ? "Cancel, update payment, or view invoices in Stripe."
+              : session
+                ? "Refresh after finishing checkout."
+                : "Sign in to subscribe."
+          }
+        >
+          <div className="flex items-center gap-2">
+            <Button
+              variant="base"
+              className={billingControlClassName}
+              onClick={() => {
+                void refreshBillingEntitlements();
+              }}
+              disabled={!session || isBillingBusy || isBillingLoading}
+            >
+              {isBillingLoading ? "Checking..." : "Refresh"}
+            </Button>
+            <Button
+              variant="base"
+              className={billingControlClassName}
+              onClick={handleCustomerPortal}
+              disabled={!session || isBillingBusy || !hasSyncAccess}
+            >
+              Manage
+            </Button>
+          </div>
+        </SettingsRow>
       </SettingsSection>
     </div>
   );
@@ -1184,6 +2018,7 @@ function ExperimentsSection() {
 const sectionContent: Record<SectionId, React.FC> = {
   appearance: AppearanceSection,
   behavior: BehaviorSection,
+  sync: SyncSection,
   storage: StorageSection,
   guide: GuideSection,
   experiments: ExperimentsSection,

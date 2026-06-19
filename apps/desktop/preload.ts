@@ -7,6 +7,7 @@ interface StoredItem {
   content: string;
   tags: string[];
   createdAt: string;
+  updatedAt?: string;
   reminder?: string;
   imageUrl?: string;
   size?: number;
@@ -25,6 +26,7 @@ interface StoredFolder {
   id: string;
   name: string;
   createdAt: string;
+  updatedAt?: string;
   parentFolderId: string | null;
 }
 
@@ -33,6 +35,7 @@ interface StoredPage {
   folderId: string | null;
   name: string;
   createdAt: string;
+  updatedAt?: string;
 }
 
 interface TrashedItem {
@@ -151,10 +154,18 @@ contextBridge.exposeInMainWorld("electronAPI", {
   getAudiosPath: () => ipcRenderer.invoke("audios:getPath"),
   // Storage path
   getStoragePath: () => ipcRenderer.invoke("storage:getPath"),
+  vaultFileExists: (relativePath: string) =>
+    ipcRenderer.invoke("storage:fileExists", relativePath),
+  readVaultFile: (relativePath: string) =>
+    ipcRenderer.invoke("storage:readFile", relativePath),
+  writeVaultFile: (relativePath: string, data: string) =>
+    ipcRenderer.invoke("storage:writeFile", relativePath, data),
   changeStoragePath: () => ipcRenderer.invoke("storage:changePath"),
   clearAllData: () => ipcRenderer.invoke("storage:clearAll"),
   openTrashFolder: () => ipcRenderer.invoke("storage:openTrash"),
   openVaultFolder: () => ipcRenderer.invoke("storage:openVault"),
+  getVaultBackupStatus: () => ipcRenderer.invoke("backups:getStatus"),
+  createVaultBackup: () => ipcRenderer.invoke("backups:createNow"),
   // Trash
   loadTrash: () => ipcRenderer.invoke("trash:load"),
   restoreFromTrash: (id: string) => ipcRenderer.invoke("trash:restore", id),
@@ -263,6 +274,32 @@ declare global {
       getAudiosPath: () => Promise<string>;
       // Storage path
       getStoragePath: () => Promise<string>;
+      vaultFileExists?: (relativePath: string) => Promise<{
+        success: boolean;
+        exists: boolean;
+        path?: string;
+        updatedAt?: string;
+        size?: number;
+        error?: string;
+      }>;
+      readVaultFile?: (relativePath: string) => Promise<{
+        success: boolean;
+        path?: string;
+        data?: string;
+        mimeType?: string;
+        size?: number;
+        updatedAt?: string;
+        error?: string;
+      }>;
+      writeVaultFile?: (
+        relativePath: string,
+        data: string,
+      ) => Promise<{
+        success: boolean;
+        path?: string;
+        size?: number;
+        error?: string;
+      }>;
       changeStoragePath: () => Promise<{
         success: boolean;
         path?: string;
@@ -272,6 +309,17 @@ declare global {
       clearAllData: () => Promise<{ success: boolean }>;
       openTrashFolder: () => Promise<{ success: boolean; error?: string }>;
       openVaultFolder: () => Promise<{ success: boolean; error?: string }>;
+      getVaultBackupStatus?: () => Promise<{
+        frequency: "off" | "hourly" | "daily" | "weekly";
+        retention: number | "infinite";
+        backupsPath: string;
+        lastBackupAt?: string;
+      }>;
+      createVaultBackup?: () => Promise<{
+        success: boolean;
+        path?: string;
+        error?: string;
+      }>;
       // Trash
       loadTrash: () => Promise<TrashedItem[]>;
       restoreFromTrash: (

@@ -24,6 +24,7 @@ import {
   loadPages,
   saveFolders,
   savePages,
+  VAULTY_SYNC_COMPLETE_EVENT,
   Folder,
   Page,
 } from "@/lib/storage";
@@ -236,6 +237,14 @@ export function Sidebar({
       }
     }
     load();
+
+    const handleSyncComplete = () => {
+      void load();
+    };
+    window.addEventListener(VAULTY_SYNC_COMPLETE_EVENT, handleSyncComplete);
+    return () => {
+      window.removeEventListener(VAULTY_SYNC_COMPLETE_EVENT, handleSyncComplete);
+    };
   }, []);
 
   const toggleFolder = (folderId: string) => {

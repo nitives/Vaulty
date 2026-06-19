@@ -53,10 +53,15 @@ electron_1.contextBridge.exposeInMainWorld("electronAPI", {
     getAudiosPath: () => electron_1.ipcRenderer.invoke("audios:getPath"),
     // Storage path
     getStoragePath: () => electron_1.ipcRenderer.invoke("storage:getPath"),
+    vaultFileExists: (relativePath) => electron_1.ipcRenderer.invoke("storage:fileExists", relativePath),
+    readVaultFile: (relativePath) => electron_1.ipcRenderer.invoke("storage:readFile", relativePath),
+    writeVaultFile: (relativePath, data) => electron_1.ipcRenderer.invoke("storage:writeFile", relativePath, data),
     changeStoragePath: () => electron_1.ipcRenderer.invoke("storage:changePath"),
     clearAllData: () => electron_1.ipcRenderer.invoke("storage:clearAll"),
     openTrashFolder: () => electron_1.ipcRenderer.invoke("storage:openTrash"),
     openVaultFolder: () => electron_1.ipcRenderer.invoke("storage:openVault"),
+    getVaultBackupStatus: () => electron_1.ipcRenderer.invoke("backups:getStatus"),
+    createVaultBackup: () => electron_1.ipcRenderer.invoke("backups:createNow"),
     // Trash
     loadTrash: () => electron_1.ipcRenderer.invoke("trash:load"),
     restoreFromTrash: (id) => electron_1.ipcRenderer.invoke("trash:restore", id),

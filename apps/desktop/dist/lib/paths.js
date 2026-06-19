@@ -11,6 +11,7 @@ exports.getImagesPath = getImagesPath;
 exports.getMetadataPath = getMetadataPath;
 exports.getAudiosPath = getAudiosPath;
 exports.getTrashPath = getTrashPath;
+exports.getBackupsPath = getBackupsPath;
 exports.getTrashFilePath = getTrashFilePath;
 exports.getTrashImagesPath = getTrashImagesPath;
 exports.getTrashAudiosPath = getTrashAudiosPath;
@@ -60,6 +61,9 @@ function getAudiosPath() {
 }
 function getTrashPath() {
     return path_1.default.join(getVaultyDataPath(), "trash");
+}
+function getBackupsPath() {
+    return path_1.default.join(getVaultyDataPath(), "backups");
 }
 function getTrashFilePath() {
     return path_1.default.join(getTrashPath(), "trash.json");

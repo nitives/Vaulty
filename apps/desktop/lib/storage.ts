@@ -24,6 +24,7 @@ export interface StoredItem {
   content: string;
   tags: string[];
   createdAt: string;
+  updatedAt?: string;
   reminder?: string;
   imageUrl?: string;
   size?: number;
@@ -46,6 +47,7 @@ export interface StoredFolder {
   id: string;
   name: string;
   createdAt: string;
+  updatedAt?: string;
   parentFolderId: string | null;
 }
 
@@ -54,6 +56,7 @@ export interface StoredPage {
   folderId: string | null;
   name: string;
   createdAt: string;
+  updatedAt?: string;
 }
 
 export interface TrashedItem {
@@ -525,6 +528,35 @@ export function savePulseItems(items: StoredPulseItem[]): void {
   }
 }
 
+function getSafeMediaFileTarget(
+  baseDirectory: string,
+  filename: string,
+): { filename: string; filePath: string } | null {
+  if (typeof filename !== "string") return null;
+
+  const safeFilename = filename.trim();
+  if (
+    !safeFilename ||
+    safeFilename === "." ||
+    safeFilename === ".." ||
+    safeFilename.includes("\0") ||
+    safeFilename.includes("/") ||
+    safeFilename.includes("\\") ||
+    /^[a-zA-Z]:/.test(safeFilename) ||
+    path.isAbsolute(safeFilename)
+  ) {
+    return null;
+  }
+
+  const basePath = path.resolve(baseDirectory);
+  const filePath = path.resolve(basePath, safeFilename);
+  if (filePath === basePath || !filePath.startsWith(`${basePath}${path.sep}`)) {
+    return null;
+  }
+
+  return { filename: safeFilename, filePath };
+}
+
 export function saveImage(
   imageData: string,
   filename: string,
@@ -532,15 +564,18 @@ export function saveImage(
   try {
     ensureDataDirectories();
     const imagesPath = getImagesPath();
-    const filePath = path.join(imagesPath, filename);
+    const target = getSafeMediaFileTarget(imagesPath, filename);
+    if (!target) {
+      return { success: false, error: "Invalid image filename." };
+    }
 
     // imageData is base64 encoded
     const base64Data = imageData.replace(/^data:image\/\w+;base64,/, "");
-    fs.writeFileSync(filePath, base64Data, "base64");
-    const size = fs.statSync(filePath).size;
+    fs.writeFileSync(target.filePath, base64Data, "base64");
+    const size = fs.statSync(target.filePath).size;
 
     // Return relative path so frontend can construct vaulty-image:// URLs correctly
-    const relativePath = `images/${filename}`;
+    const relativePath = `images/${target.filename}`;
     return { success: true, path: relativePath, size };
   } catch (err) {
     console.error("Failed to save image:", err);
@@ -555,13 +590,16 @@ export function saveMetadataImage(
   try {
     ensureDataDirectories();
     const metadataPath = getMetadataPath();
-    const filePath = path.join(metadataPath, filename);
+    const target = getSafeMediaFileTarget(metadataPath, filename);
+    if (!target) {
+      return { success: false, error: "Invalid metadata image filename." };
+    }
 
     const base64Data = imageData.replace(/^data:image\/\w+;base64,/, "");
-    fs.writeFileSync(filePath, base64Data, "base64");
-    const size = fs.statSync(filePath).size;
+    fs.writeFileSync(target.filePath, base64Data, "base64");
+    const size = fs.statSync(target.filePath).size;
 
-    const relativePath = `metadata/${filename}`;
+    const relativePath = `metadata/${target.filename}`;
     return { success: true, path: relativePath, size };
   } catch (err) {
     console.error("Failed to save metadata image:", err);
@@ -576,13 +614,16 @@ export function saveAudioImage(
   try {
     ensureDataDirectories();
     const audiosPath = getAudiosPath();
-    const filePath = path.join(audiosPath, filename);
+    const target = getSafeMediaFileTarget(audiosPath, filename);
+    if (!target) {
+      return { success: false, error: "Invalid audio image filename." };
+    }
 
     const base64Data = imageData.replace(/^data:image\/\w+;base64,/, "");
-    fs.writeFileSync(filePath, base64Data, "base64");
-    const size = fs.statSync(filePath).size;
+    fs.writeFileSync(target.filePath, base64Data, "base64");
+    const size = fs.statSync(target.filePath).size;
 
-    const relativePath = `audios/${filename}`;
+    const relativePath = `audios/${target.filename}`;
     return { success: true, path: relativePath, size };
   } catch (err) {
     console.error("Failed to save audio image:", err);
@@ -597,18 +638,185 @@ export function saveAudio(
   try {
     ensureDataDirectories();
     const audiosPath = getAudiosPath();
-    const filePath = path.join(audiosPath, filename);
+    const target = getSafeMediaFileTarget(audiosPath, filename);
+    if (!target) {
+      return { success: false, error: "Invalid audio filename." };
+    }
 
     // Strip out standard data-URI prefixes mapping audio types (audio/mp3, audio/mpeg...)
     const base64Data = audioData.replace(/^data:audio\/\w+;base64,/, "");
-    fs.writeFileSync(filePath, base64Data, "base64");
-    const size = fs.statSync(filePath).size;
+    fs.writeFileSync(target.filePath, base64Data, "base64");
+    const size = fs.statSync(target.filePath).size;
 
     // Return relative path so frontend can construct vaulty-image:// URLs correctly
-    const relativePath = `audios/${filename}`;
+    const relativePath = `audios/${target.filename}`;
     return { success: true, path: relativePath, size };
   } catch (err) {
     console.error("Failed to save audio:", err);
+    return { success: false, error: String(err) };
+  }
+}
+
+const SYNCABLE_VAULT_FOLDERS = new Set(["images", "metadata", "audios"]);
+
+function mimeTypeForPath(filePath: string): string {
+  const ext = path.extname(filePath).toLowerCase();
+  const mimeByExt: Record<string, string> = {
+    ".aac": "audio/aac",
+    ".aiff": "audio/aiff",
+    ".avif": "image/avif",
+    ".flac": "audio/flac",
+    ".gif": "image/gif",
+    ".jpeg": "image/jpeg",
+    ".jpg": "image/jpeg",
+    ".m4a": "audio/mp4",
+    ".mp3": "audio/mpeg",
+    ".mp4": "video/mp4",
+    ".ogg": "audio/ogg",
+    ".png": "image/png",
+    ".svg": "image/svg+xml",
+    ".wav": "audio/wav",
+    ".webm": "video/webm",
+    ".webp": "image/webp",
+  };
+
+  return mimeByExt[ext] ?? "application/octet-stream";
+}
+
+function normalizeVaultRelativePath(relativePath: string): string | null {
+  if (typeof relativePath !== "string") return null;
+
+  const cleaned = relativePath.trim().replace(/\\/g, "/");
+  if (!cleaned || cleaned.startsWith("/") || /^[a-zA-Z]:/.test(cleaned)) {
+    return null;
+  }
+
+  const normalized = path.posix.normalize(cleaned);
+  if (
+    normalized === "." ||
+    normalized.startsWith("../") ||
+    normalized.includes("/../")
+  ) {
+    return null;
+  }
+
+  const rootFolder = normalized.split("/")[0];
+  if (!SYNCABLE_VAULT_FOLDERS.has(rootFolder)) {
+    return null;
+  }
+
+  return normalized;
+}
+
+function getVaultFileAbsolutePath(relativePath: string): {
+  normalized: string;
+  filePath: string;
+} | null {
+  const normalized = normalizeVaultRelativePath(relativePath);
+  if (!normalized) return null;
+
+  const vaultRoot = path.resolve(getVaultyDataPath());
+  const filePath = path.resolve(vaultRoot, normalized);
+  if (filePath !== vaultRoot && filePath.startsWith(`${vaultRoot}${path.sep}`)) {
+    return { normalized, filePath };
+  }
+
+  return null;
+}
+
+export function vaultFileExists(relativePath: string): {
+  success: boolean;
+  exists: boolean;
+  path?: string;
+  updatedAt?: string;
+  size?: number;
+  error?: string;
+} {
+  try {
+    ensureDataDirectories();
+    const resolved = getVaultFileAbsolutePath(relativePath);
+    if (!resolved) {
+      return { success: false, exists: false, error: "Invalid vault file path." };
+    }
+
+    if (!fs.existsSync(resolved.filePath)) {
+      return { success: true, exists: false, path: resolved.normalized };
+    }
+
+    const stat = fs.statSync(resolved.filePath);
+    return {
+      success: true,
+      exists: stat.isFile(),
+      path: resolved.normalized,
+      updatedAt: stat.mtime.toISOString(),
+      size: stat.size,
+    };
+  } catch (err) {
+    return { success: false, exists: false, error: String(err) };
+  }
+}
+
+export function readVaultFile(relativePath: string): {
+  success: boolean;
+  path?: string;
+  data?: string;
+  mimeType?: string;
+  size?: number;
+  updatedAt?: string;
+  error?: string;
+} {
+  try {
+    ensureDataDirectories();
+    const resolved = getVaultFileAbsolutePath(relativePath);
+    if (!resolved) {
+      return { success: false, error: "Invalid vault file path." };
+    }
+
+    if (!fs.existsSync(resolved.filePath)) {
+      return { success: false, error: "Vault file does not exist." };
+    }
+
+    const stat = fs.statSync(resolved.filePath);
+    if (!stat.isFile()) {
+      return { success: false, error: "Vault path is not a file." };
+    }
+
+    const mimeType = mimeTypeForPath(resolved.filePath);
+    const buffer = fs.readFileSync(resolved.filePath);
+    return {
+      success: true,
+      path: resolved.normalized,
+      data: `data:${mimeType};base64,${buffer.toString("base64")}`,
+      mimeType,
+      size: stat.size,
+      updatedAt: stat.mtime.toISOString(),
+    };
+  } catch (err) {
+    return { success: false, error: String(err) };
+  }
+}
+
+export function writeVaultFile(
+  relativePath: string,
+  data: string,
+): { success: boolean; path?: string; size?: number; error?: string } {
+  try {
+    ensureDataDirectories();
+    const resolved = getVaultFileAbsolutePath(relativePath);
+    if (!resolved) {
+      return { success: false, error: "Invalid vault file path." };
+    }
+
+    const match = /^data:[^;]+;base64,(.*)$/s.exec(data);
+    if (!match) {
+      return { success: false, error: "Vault file data must be a base64 data URL." };
+    }
+
+    fs.mkdirSync(path.dirname(resolved.filePath), { recursive: true });
+    fs.writeFileSync(resolved.filePath, match[1], "base64");
+    const size = fs.statSync(resolved.filePath).size;
+    return { success: true, path: resolved.normalized, size };
+  } catch (err) {
     return { success: false, error: String(err) };
   }
 }

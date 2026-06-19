@@ -70,7 +70,7 @@ export function ItemList({
   }
 
   return (
-    <div className={clsx("flex flex-col gap-1", compact && "gap-0.5")}>
+    <div className={clsx("flex flex-col gap-1 scroll-feed", compact && "gap-0.5")}>
       {items.map((item) => (
         <ItemCard
           key={item.id}

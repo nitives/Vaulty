@@ -3,6 +3,8 @@ import localFont from "next/font/local";
 import "./globals.css";
 import { VaultyMotionConfig } from "@/components/layout/VaultyMotionConfig";
 import { SettingsProvider } from "@/lib/settings";
+import { AuthProvider } from "@/lib/auth";
+import { LiveSyncProvider } from "@/lib/liveSync";
 
 const SFPro = localFont({
   src: "../../public/fonts/SF-Pro.ttf",
@@ -101,12 +103,16 @@ export default function RootLayout({
         suppressHydrationWarning
         className={`${SFPro.variable} antialiased`}
       >
-        <SettingsProvider>
-          <VaultyMotionConfig>
-            <script dangerouslySetInnerHTML={{ __html: settingsScript }} />
-            {children}
-          </VaultyMotionConfig>
-        </SettingsProvider>
+        <AuthProvider>
+          <LiveSyncProvider>
+            <SettingsProvider>
+              <VaultyMotionConfig>
+                <script dangerouslySetInnerHTML={{ __html: settingsScript }} />
+                {children}
+              </VaultyMotionConfig>
+            </SettingsProvider>
+          </LiveSyncProvider>
+        </AuthProvider>
       </body>
     </html>
   );

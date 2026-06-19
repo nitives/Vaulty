@@ -18,6 +18,9 @@ exports.saveImage = saveImage;
 exports.saveMetadataImage = saveMetadataImage;
 exports.saveAudioImage = saveAudioImage;
 exports.saveAudio = saveAudio;
+exports.vaultFileExists = vaultFileExists;
+exports.readVaultFile = readVaultFile;
+exports.writeVaultFile = writeVaultFile;
 exports.loadTrash = loadTrash;
 exports.saveTrash = saveTrash;
 exports.moveToTrash = moveToTrash;
@@ -416,17 +419,41 @@ function savePulseItems(items) {
         console.error("Failed to save pulse items:", err);
     }
 }
+function getSafeMediaFileTarget(baseDirectory, filename) {
+    if (typeof filename !== "string")
+        return null;
+    const safeFilename = filename.trim();
+    if (!safeFilename ||
+        safeFilename === "." ||
+        safeFilename === ".." ||
+        safeFilename.includes("\0") ||
+        safeFilename.includes("/") ||
+        safeFilename.includes("\\") ||
+        /^[a-zA-Z]:/.test(safeFilename) ||
+        path_1.default.isAbsolute(safeFilename)) {
+        return null;
+    }
+    const basePath = path_1.default.resolve(baseDirectory);
+    const filePath = path_1.default.resolve(basePath, safeFilename);
+    if (filePath === basePath || !filePath.startsWith(`${basePath}${path_1.default.sep}`)) {
+        return null;
+    }
+    return { filename: safeFilename, filePath };
+}
 function saveImage(imageData, filename) {
     try {
         ensureDataDirectories();
         const imagesPath = (0, paths_1.getImagesPath)();
-        const filePath = path_1.default.join(imagesPath, filename);
+        const target = getSafeMediaFileTarget(imagesPath, filename);
+        if (!target) {
+            return { success: false, error: "Invalid image filename." };
+        }
         // imageData is base64 encoded
         const base64Data = imageData.replace(/^data:image\/\w+;base64,/, "");
-        fs_1.default.writeFileSync(filePath, base64Data, "base64");
-        const size = fs_1.default.statSync(filePath).size;
+        fs_1.default.writeFileSync(target.filePath, base64Data, "base64");
+        const size = fs_1.default.statSync(target.filePath).size;
         // Return relative path so frontend can construct vaulty-image:// URLs correctly
-        const relativePath = `images/${filename}`;
+        const relativePath = `images/${target.filename}`;
         return { success: true, path: relativePath, size };
     }
     catch (err) {
@@ -438,11 +465,14 @@ function saveMetadataImage(imageData, filename) {
     try {
         ensureDataDirectories();
         const metadataPath = (0, paths_1.getMetadataPath)();
-        const filePath = path_1.default.join(metadataPath, filename);
+        const target = getSafeMediaFileTarget(metadataPath, filename);
+        if (!target) {
+            return { success: false, error: "Invalid metadata image filename." };
+        }
         const base64Data = imageData.replace(/^data:image\/\w+;base64,/, "");
-        fs_1.default.writeFileSync(filePath, base64Data, "base64");
-        const size = fs_1.default.statSync(filePath).size;
-        const relativePath = `metadata/${filename}`;
+        fs_1.default.writeFileSync(target.filePath, base64Data, "base64");
+        const size = fs_1.default.statSync(target.filePath).size;
+        const relativePath = `metadata/${target.filename}`;
         return { success: true, path: relativePath, size };
     }
     catch (err) {
@@ -454,11 +484,14 @@ function saveAudioImage(imageData, filename) {
     try {
         ensureDataDirectories();
         const audiosPath = (0, paths_1.getAudiosPath)();
-        const filePath = path_1.default.join(audiosPath, filename);
+        const target = getSafeMediaFileTarget(audiosPath, filename);
+        if (!target) {
+            return { success: false, error: "Invalid audio image filename." };
+        }
         const base64Data = imageData.replace(/^data:image\/\w+;base64,/, "");
-        fs_1.default.writeFileSync(filePath, base64Data, "base64");
-        const size = fs_1.default.statSync(filePath).size;
-        const relativePath = `audios/${filename}`;
+        fs_1.default.writeFileSync(target.filePath, base64Data, "base64");
+        const size = fs_1.default.statSync(target.filePath).size;
+        const relativePath = `audios/${target.filename}`;
         return { success: true, path: relativePath, size };
     }
     catch (err) {
@@ -470,17 +503,145 @@ function saveAudio(audioData, filename) {
     try {
         ensureDataDirectories();
         const audiosPath = (0, paths_1.getAudiosPath)();
-        const filePath = path_1.default.join(audiosPath, filename);
+        const target = getSafeMediaFileTarget(audiosPath, filename);
+        if (!target) {
+            return { success: false, error: "Invalid audio filename." };
+        }
         // Strip out standard data-URI prefixes mapping audio types (audio/mp3, audio/mpeg...)
         const base64Data = audioData.replace(/^data:audio\/\w+;base64,/, "");
-        fs_1.default.writeFileSync(filePath, base64Data, "base64");
-        const size = fs_1.default.statSync(filePath).size;
+        fs_1.default.writeFileSync(target.filePath, base64Data, "base64");
+        const size = fs_1.default.statSync(target.filePath).size;
         // Return relative path so frontend can construct vaulty-image:// URLs correctly
-        const relativePath = `audios/${filename}`;
+        const relativePath = `audios/${target.filename}`;
         return { success: true, path: relativePath, size };
     }
     catch (err) {
         console.error("Failed to save audio:", err);
+        return { success: false, error: String(err) };
+    }
+}
+const SYNCABLE_VAULT_FOLDERS = new Set(["images", "metadata", "audios"]);
+function mimeTypeForPath(filePath) {
+    const ext = path_1.default.extname(filePath).toLowerCase();
+    const mimeByExt = {
+        ".aac": "audio/aac",
+        ".aiff": "audio/aiff",
+        ".avif": "image/avif",
+        ".flac": "audio/flac",
+        ".gif": "image/gif",
+        ".jpeg": "image/jpeg",
+        ".jpg": "image/jpeg",
+        ".m4a": "audio/mp4",
+        ".mp3": "audio/mpeg",
+        ".mp4": "video/mp4",
+        ".ogg": "audio/ogg",
+        ".png": "image/png",
+        ".svg": "image/svg+xml",
+        ".wav": "audio/wav",
+        ".webm": "video/webm",
+        ".webp": "image/webp",
+    };
+    return mimeByExt[ext] ?? "application/octet-stream";
+}
+function normalizeVaultRelativePath(relativePath) {
+    if (typeof relativePath !== "string")
+        return null;
+    const cleaned = relativePath.trim().replace(/\\/g, "/");
+    if (!cleaned || cleaned.startsWith("/") || /^[a-zA-Z]:/.test(cleaned)) {
+        return null;
+    }
+    const normalized = path_1.default.posix.normalize(cleaned);
+    if (normalized === "." ||
+        normalized.startsWith("../") ||
+        normalized.includes("/../")) {
+        return null;
+    }
+    const rootFolder = normalized.split("/")[0];
+    if (!SYNCABLE_VAULT_FOLDERS.has(rootFolder)) {
+        return null;
+    }
+    return normalized;
+}
+function getVaultFileAbsolutePath(relativePath) {
+    const normalized = normalizeVaultRelativePath(relativePath);
+    if (!normalized)
+        return null;
+    const vaultRoot = path_1.default.resolve((0, paths_1.getVaultyDataPath)());
+    const filePath = path_1.default.resolve(vaultRoot, normalized);
+    if (filePath !== vaultRoot && filePath.startsWith(`${vaultRoot}${path_1.default.sep}`)) {
+        return { normalized, filePath };
+    }
+    return null;
+}
+function vaultFileExists(relativePath) {
+    try {
+        ensureDataDirectories();
+        const resolved = getVaultFileAbsolutePath(relativePath);
+        if (!resolved) {
+            return { success: false, exists: false, error: "Invalid vault file path." };
+        }
+        if (!fs_1.default.existsSync(resolved.filePath)) {
+            return { success: true, exists: false, path: resolved.normalized };
+        }
+        const stat = fs_1.default.statSync(resolved.filePath);
+        return {
+            success: true,
+            exists: stat.isFile(),
+            path: resolved.normalized,
+            updatedAt: stat.mtime.toISOString(),
+            size: stat.size,
+        };
+    }
+    catch (err) {
+        return { success: false, exists: false, error: String(err) };
+    }
+}
+function readVaultFile(relativePath) {
+    try {
+        ensureDataDirectories();
+        const resolved = getVaultFileAbsolutePath(relativePath);
+        if (!resolved) {
+            return { success: false, error: "Invalid vault file path." };
+        }
+        if (!fs_1.default.existsSync(resolved.filePath)) {
+            return { success: false, error: "Vault file does not exist." };
+        }
+        const stat = fs_1.default.statSync(resolved.filePath);
+        if (!stat.isFile()) {
+            return { success: false, error: "Vault path is not a file." };
+        }
+        const mimeType = mimeTypeForPath(resolved.filePath);
+        const buffer = fs_1.default.readFileSync(resolved.filePath);
+        return {
+            success: true,
+            path: resolved.normalized,
+            data: `data:${mimeType};base64,${buffer.toString("base64")}`,
+            mimeType,
+            size: stat.size,
+            updatedAt: stat.mtime.toISOString(),
+        };
+    }
+    catch (err) {
+        return { success: false, error: String(err) };
+    }
+}
+function writeVaultFile(relativePath, data) {
+    try {
+        ensureDataDirectories();
+        const resolved = getVaultFileAbsolutePath(relativePath);
+        if (!resolved) {
+            return { success: false, error: "Invalid vault file path." };
+        }
+        const match = /^data:[^;]+;base64,(.*)$/s.exec(data);
+        if (!match) {
+            return { success: false, error: "Vault file data must be a base64 data URL." };
+        }
+        fs_1.default.mkdirSync(path_1.default.dirname(resolved.filePath), { recursive: true });
+        fs_1.default.writeFileSync(resolved.filePath, match[1], "base64");
+        const size = fs_1.default.statSync(resolved.filePath).size;
+        return { success: true, path: resolved.normalized, size };
+    }
+    catch (err) {
         return { success: false, error: String(err) };
     }
 }

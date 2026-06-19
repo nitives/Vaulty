@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useColor } from "color-thief-react";
 import { getImageUrl } from "@/lib/media";
+import { safeExternalHref } from "@/lib/urls";
 import type { Item } from "./ItemCard";
 
 interface LinkWidgetProps {
@@ -59,14 +60,9 @@ export const LinkWidget = ({ item }: LinkWidgetProps) => {
   const title = item.metadata?.title?.trim() || item.content;
   const description =
     item.metadata?.description?.trim() || "No description available.";
-
-  return (
-    <a
-      href={item.content}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="flex flex-col rounded-sm overflow-hidden max-w-lg"
-    >
+  const href = safeExternalHref(item.content);
+  const cardContent = (
+    <>
       {showImage && (
         // eslint-disable-next-line @next/next/no-img-element
         <img
@@ -98,6 +94,25 @@ export const LinkWidget = ({ item }: LinkWidgetProps) => {
           {description}
         </p>
       </div>
+    </>
+  );
+
+  if (!href) {
+    return (
+      <div className="flex flex-col rounded-sm overflow-hidden max-w-lg">
+        {cardContent}
+      </div>
+    );
+  }
+
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="flex flex-col rounded-sm overflow-hidden max-w-lg"
+    >
+      {cardContent}
     </a>
   );
 };

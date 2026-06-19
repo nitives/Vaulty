@@ -4,6 +4,8 @@ import { getSettingsPath } from "./paths";
 import { AppIconTheme } from "./icon";
 
 export type BackgroundMaterial = "mica" | "acrylic";
+export type VaultBackupFrequency = "off" | "hourly" | "daily" | "weekly";
+export type VaultBackupRetention = number | "infinite";
 
 export interface AppSettings {
   transparency?: boolean;
@@ -26,6 +28,9 @@ export interface AppSettings {
   useFlorence?: boolean;
   sidebarTransparent?: boolean;
   vaultyDataPath?: string;
+  vaultBackupFrequency?: VaultBackupFrequency;
+  vaultBackupRetention?: VaultBackupRetention;
+  lastVaultBackupAt?: string;
   openOnStartup?: boolean;
   startMinimized?: boolean;
   closeToTray?: boolean;

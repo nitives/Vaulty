@@ -1,4 +1,5 @@
 import React from "react";
+import { safeExternalHref } from "./urls";
 
 // Helper to render inline markdown (inline code, masked links, raw urls)
 function renderInline(text: string) {
@@ -31,10 +32,15 @@ function renderInline(text: string) {
     // Masked Link
     const linkMatch = part.match(/^\[([^\]]+)\]\(([^)]+)\)$/);
     if (linkMatch) {
+      const href = safeExternalHref(linkMatch[2]);
+      if (!href) {
+        return <React.Fragment key={index}>{part}</React.Fragment>;
+      }
+
       return (
         <a
           key={index}
-          href={linkMatch[2]}
+          href={href}
           target="_blank"
           rel="noopener noreferrer"
           className="text-[var(--accent-600)] hover:underline dark:text-[var(--accent-400)] !text-[var(--accent-600)] dark:!text-[var(--accent-400)] transition-colors"
@@ -47,10 +53,15 @@ function renderInline(text: string) {
 
     // Bare URL
     if (part.match(/^https?:\/\//)) {
+      const href = safeExternalHref(part);
+      if (!href) {
+        return <React.Fragment key={index}>{part}</React.Fragment>;
+      }
+
       return (
         <a
           key={index}
-          href={part}
+          href={href}
           target="_blank"
           rel="noopener noreferrer"
           className="text-[var(--accent-600)] hover:underline dark:text-[var(--accent-400)] !text-[var(--accent-600)] dark:!text-[var(--accent-400)] transition-colors"

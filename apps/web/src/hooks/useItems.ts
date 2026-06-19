@@ -12,6 +12,7 @@ import {
   saveAudio,
   saveAudioImage,
   updateItem as updateStoredItem,
+  VAULTY_SYNC_COMPLETE_EVENT,
 } from "@/lib/storage";
 
 export function useItems() {
@@ -124,6 +125,14 @@ export function useItems() {
       }
     }
     load();
+
+    const handleSyncComplete = () => {
+      void load();
+    };
+    window.addEventListener(VAULTY_SYNC_COMPLETE_EVENT, handleSyncComplete);
+    return () => {
+      window.removeEventListener(VAULTY_SYNC_COMPLETE_EVENT, handleSyncComplete);
+    };
   }, [refreshLinkMetadata]);
 
   const handleAddItem = useCallback(

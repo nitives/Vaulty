@@ -27,6 +27,7 @@ export interface Item {
   content: string;
   tags: string[];
   createdAt: Date;
+  updatedAt?: Date;
   reminder?: Date;
   imageUrl?: string;
   size?: number;

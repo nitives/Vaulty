@@ -5,6 +5,7 @@ import { formatTimeShort } from "@/lib/utils";
 import { FeedItem } from "@/hooks/useFeed";
 import { buttonStyles } from "@/styles/Button";
 import { renderMarkdown } from "@/lib/markdown";
+import { safeExternalHref } from "@/lib/urls";
 
 interface FeedProps {
   items: FeedItem[];
@@ -14,9 +15,18 @@ interface FeedProps {
 
 const HTML_LIKE_PATTERN = /<\/?[a-z][\s\S]*>/i;
 
+function escapeHtml(html: string): string {
+  return html
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 function sanitizeHtml(html: string): string {
   if (typeof window === "undefined") {
-    return html;
+    return escapeHtml(html);
   }
 
   const parser = new DOMParser();
@@ -36,11 +46,13 @@ function sanitizeHtml(html: string): string {
         continue;
       }
 
-      if (
-        (attrName === "href" || attrName === "src") &&
-        /^\s*javascript:/i.test(attrValue)
-      ) {
-        node.removeAttribute(attribute.name);
+      if (attrName === "href" || attrName === "src") {
+        const safeUrl = safeExternalHref(attrValue);
+        if (!safeUrl) {
+          node.removeAttribute(attribute.name);
+        } else {
+          node.setAttribute(attribute.name, safeUrl);
+        }
       }
     }
 
@@ -57,6 +69,7 @@ function renderPulseContent(content: string) {
   if (HTML_LIKE_PATTERN.test(content)) {
     return (
       <div
+        suppressHydrationWarning
         className="prose prose-neutral max-w-none text-sm dark:prose-invert"
         // eslint-disable-next-line react/no-danger
         dangerouslySetInnerHTML={{ __html: sanitizeHtml(content) }}
@@ -84,7 +97,7 @@ function formatExpiry(expiresAt?: Date): string | null {
 export function Feed({ items, isLoading = false, onSeen }: FeedProps) {
   if (isLoading) {
     return (
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-col gap-3">
         {[1, 2, 3].map((index) => (
           <div
             key={index}
@@ -116,6 +129,7 @@ export function Feed({ items, isLoading = false, onSeen }: FeedProps) {
     <div className="flex flex-col gap-3">
       {items.map((item) => {
         const formattedExpiry = formatExpiry(item.expiresAt);
+        const safeUrl = safeExternalHref(item.url);
 
         return (
           <article
@@ -143,9 +157,9 @@ export function Feed({ items, isLoading = false, onSeen }: FeedProps) {
             <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
               <div className="flex flex-wrap items-center gap-3 text-xs text-neutral-500 dark:text-neutral-400">
                 {formattedExpiry && <span>Expires: {formattedExpiry}</span>}
-                {item.url && (
+                {safeUrl && (
                   <a
-                    href={item.url}
+                    href={safeUrl}
                     target="_blank"
                     rel="noopener noreferrer"
                     className={clsx(

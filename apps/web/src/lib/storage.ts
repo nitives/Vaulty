@@ -1,5 +1,14 @@
 import { Item } from "@/components";
 import { getElectronAPI } from "@/lib/electron";
+import {
+  pushAssetsForItems,
+  pushCollectionRecords,
+  pushDeletedRecord,
+  pushDeletedRecords,
+  syncAssetsForItems,
+  syncVaultSnapshot,
+  type SyncResult,
+} from "@/lib/sync";
 
 // Stored item type (dates serialized as ISO strings)
 export interface StoredItem {
@@ -8,6 +17,7 @@ export interface StoredItem {
   content: string;
   tags: string[];
   createdAt: string;
+  updatedAt?: string;
   reminder?: string;
   imageUrl?: string;
   size?: number;
@@ -27,6 +37,7 @@ export interface StoredFolder {
   id: string;
   name: string;
   createdAt: string;
+  updatedAt?: string;
   parentFolderId: string | null;
 }
 
@@ -35,6 +46,7 @@ export interface StoredPage {
   folderId: string | null;
   name: string;
   createdAt: string;
+  updatedAt?: string;
 }
 
 export interface StoredPulse {
@@ -64,6 +76,7 @@ export interface Folder {
   id: string;
   name: string;
   createdAt: Date;
+  updatedAt?: Date;
   parentFolderId: string | null;
 }
 
@@ -72,6 +85,7 @@ export interface Page {
   folderId: string | null;
   name: string;
   createdAt: Date;
+  updatedAt?: Date;
 }
 
 export interface Pulse {
@@ -97,14 +111,76 @@ export interface PulseItem {
   anchorValue?: string;
 }
 
+export const VAULTY_SYNC_COMPLETE_EVENT = "vaulty:sync-complete";
+
+function asIso(value: Date | string | undefined, fallback: string): string {
+  if (!value) return fallback;
+  const parsed = value instanceof Date ? value.getTime() : Date.parse(value);
+  return Number.isNaN(parsed) ? fallback : new Date(parsed).toISOString();
+}
+
+function withoutUpdatedAt<T extends { updatedAt?: string }>(
+  record: T,
+): Omit<T, "updatedAt"> {
+  const copy = { ...record };
+  delete copy.updatedAt;
+  return copy;
+}
+
+function sameExceptUpdatedAt<T extends { updatedAt?: string }>(
+  a: T,
+  b?: T,
+): boolean {
+  if (!b) return false;
+  return JSON.stringify(withoutUpdatedAt(a)) === JSON.stringify(withoutUpdatedAt(b));
+}
+
+function touchChangedRecords<T extends { id: string; createdAt?: string; updatedAt?: string }>(
+  records: T[],
+  previousRecords: T[],
+): T[] {
+  const now = new Date().toISOString();
+  const previousById = new Map(previousRecords.map((record) => [record.id, record]));
+
+  return records.map((record) => {
+    const previous = previousById.get(record.id);
+    if (sameExceptUpdatedAt(record, previous)) {
+      return {
+        ...record,
+        updatedAt: previous?.updatedAt ?? record.updatedAt ?? record.createdAt ?? now,
+      };
+    }
+
+    return { ...record, updatedAt: now };
+  });
+}
+
+function removedIds<T extends { id: string }>(previous: T[], next: T[]): string[] {
+  const nextIds = new Set(next.map((record) => record.id));
+  return previous
+    .filter((record) => !nextIds.has(record.id))
+    .map((record) => record.id);
+}
+
+function queueSync(task: Promise<unknown>): void {
+  task.catch((err) => console.error("Vaulty sync failed:", err));
+}
+
+function notifySyncComplete(): void {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(new CustomEvent(VAULTY_SYNC_COMPLETE_EVENT));
+}
+
 // Convert Item to StoredItem (serialize dates)
-export function itemToStored(item: Item): StoredItem {
+export function itemToStored(item: Item, updatedAt?: string): StoredItem {
+  const createdAt = item.createdAt.toISOString();
   return {
     id: item.id,
     type: item.type,
     content: item.content,
     tags: item.tags,
-    createdAt: item.createdAt.toISOString(),
+    createdAt,
+    updatedAt: updatedAt ?? asIso(item.updatedAt, createdAt),
     reminder: item.reminder?.toISOString(),
     imageUrl: item.imageUrl,
     size: item.size,
@@ -122,6 +198,7 @@ export function storedToItem(stored: StoredItem): Item {
     content: stored.content,
     tags: stored.tags,
     createdAt: new Date(stored.createdAt),
+    updatedAt: stored.updatedAt ? new Date(stored.updatedAt) : undefined,
     reminder: stored.reminder ? new Date(stored.reminder) : undefined,
     imageUrl: stored.imageUrl,
     size: stored.size,
@@ -131,10 +208,12 @@ export function storedToItem(stored: StoredItem): Item {
   };
 }
 
-export function folderToStored(folder: Folder): StoredFolder {
+export function folderToStored(folder: Folder, updatedAt?: string): StoredFolder {
+  const createdAt = folder.createdAt.toISOString();
   return {
     ...folder,
-    createdAt: folder.createdAt.toISOString(),
+    createdAt,
+    updatedAt: updatedAt ?? asIso(folder.updatedAt, createdAt),
     parentFolderId: folder.parentFolderId ?? null,
   };
 }
@@ -143,6 +222,7 @@ export function storedToFolder(stored: StoredFolder): Folder {
   return {
     ...stored,
     createdAt: new Date(stored.createdAt),
+    updatedAt: stored.updatedAt ? new Date(stored.updatedAt) : undefined,
     parentFolderId:
       typeof stored.parentFolderId === "string" && stored.parentFolderId.trim()
         ? stored.parentFolderId
@@ -150,12 +230,21 @@ export function storedToFolder(stored: StoredFolder): Folder {
   };
 }
 
-export function pageToStored(page: Page): StoredPage {
-  return { ...page, createdAt: page.createdAt.toISOString() };
+export function pageToStored(page: Page, updatedAt?: string): StoredPage {
+  const createdAt = page.createdAt.toISOString();
+  return {
+    ...page,
+    createdAt,
+    updatedAt: updatedAt ?? asIso(page.updatedAt, createdAt),
+  };
 }
 
 export function storedToPage(stored: StoredPage): Page {
-  return { ...stored, createdAt: new Date(stored.createdAt) };
+  return {
+    ...stored,
+    createdAt: new Date(stored.createdAt),
+    updatedAt: stored.updatedAt ? new Date(stored.updatedAt) : undefined,
+  };
 }
 
 export function storedToPulse(stored: StoredPulse): Pulse {
@@ -202,13 +291,21 @@ export async function loadItems(): Promise<Item[]> {
 
 // Save all items to storage
 export async function saveItems(items: Item[]): Promise<void> {
-  const stored = items.map(itemToStored);
+  const stored = items.map((item) => itemToStored(item));
   const api = getElectronAPI();
 
   if (!api) {
     // Fallback: save to localStorage in browser
     try {
-      localStorage.setItem("vaulty-items", JSON.stringify(stored));
+      const previous = JSON.parse(
+        localStorage.getItem("vaulty-items") ?? "[]",
+      ) as StoredItem[];
+      const prepared = touchChangedRecords(stored, previous);
+      const deleted = removedIds(previous, prepared);
+      localStorage.setItem("vaulty-items", JSON.stringify(prepared));
+      queueSync(pushCollectionRecords("items", prepared));
+      queueSync(pushAssetsForItems(prepared));
+      queueSync(pushDeletedRecords("items", deleted));
     } catch (err) {
       console.error("Failed to save to localStorage:", err);
     }
@@ -216,7 +313,13 @@ export async function saveItems(items: Item[]): Promise<void> {
   }
 
   try {
-    await api.saveItems(stored);
+    const previous = (await api.loadItems()) as StoredItem[];
+    const prepared = touchChangedRecords(stored, previous);
+    const deleted = removedIds(previous, prepared);
+    await api.saveItems(prepared);
+    queueSync(pushCollectionRecords("items", prepared));
+    queueSync(pushAssetsForItems(prepared));
+    queueSync(pushDeletedRecords("items", deleted));
   } catch (err) {
     console.error("Failed to save items:", err);
   }
@@ -224,7 +327,7 @@ export async function saveItems(items: Item[]): Promise<void> {
 
 // Add a single item
 export async function addItem(item: Item): Promise<void> {
-  const stored = itemToStored(item);
+  const stored = itemToStored(item, new Date().toISOString());
   const api = getElectronAPI();
 
   if (!api) {
@@ -236,6 +339,8 @@ export async function addItem(item: Item): Promise<void> {
 
   try {
     await api.addItem(stored);
+    queueSync(pushCollectionRecords("items", [stored]));
+    queueSync(pushAssetsForItems([stored]));
   } catch (err) {
     console.error("Failed to add item:", err);
   }
@@ -249,11 +354,13 @@ export async function deleteItem(id: string): Promise<void> {
     const items = await loadItems();
     const filtered = items.filter((item) => item.id !== id);
     await saveItems(filtered);
+    queueSync(pushDeletedRecord("items", id));
     return;
   }
 
   try {
     await api.deleteItem(id);
+    queueSync(pushDeletedRecord("items", id));
   } catch (err) {
     console.error("Failed to delete item:", err);
   }
@@ -261,7 +368,7 @@ export async function deleteItem(id: string): Promise<void> {
 
 // Update a single item
 export async function updateItem(item: Item): Promise<void> {
-  const stored = itemToStored(item);
+  const stored = itemToStored(item, new Date().toISOString());
   const api = getElectronAPI();
 
   if (!api) {
@@ -276,6 +383,8 @@ export async function updateItem(item: Item): Promise<void> {
 
   try {
     await api.updateItem(stored);
+    queueSync(pushCollectionRecords("items", [stored]));
+    queueSync(pushAssetsForItems([stored]));
   } catch (err) {
     console.error("Failed to update item:", err);
   }
@@ -298,7 +407,13 @@ export async function saveFolders(folders: Folder[]): Promise<void> {
   const api = getElectronAPI();
   if (!api) return;
   try {
-    await api.saveFolders(folders.map(folderToStored));
+    const previous = (await api.loadFolders()) as StoredFolder[];
+    const stored = folders.map((folder) => folderToStored(folder));
+    const prepared = touchChangedRecords(stored, previous);
+    const deleted = removedIds(previous, prepared);
+    await api.saveFolders(prepared);
+    queueSync(pushCollectionRecords("folders", prepared));
+    queueSync(pushDeletedRecords("folders", deleted));
   } catch (err) {
     console.error("Failed to save folders:", err);
   }
@@ -321,7 +436,13 @@ export async function savePages(pages: Page[]): Promise<void> {
   const api = getElectronAPI();
   if (!api) return;
   try {
-    await api.savePages(pages.map(pageToStored));
+    const previous = (await api.loadPages()) as StoredPage[];
+    const stored = pages.map((page) => pageToStored(page));
+    const prepared = touchChangedRecords(stored, previous);
+    const deleted = removedIds(previous, prepared);
+    await api.savePages(prepared);
+    queueSync(pushCollectionRecords("pages", prepared));
+    queueSync(pushDeletedRecords("pages", deleted));
   } catch (err) {
     console.error("Failed to save pages:", err);
   }
@@ -488,4 +609,37 @@ export async function getStoragePath(): Promise<string | null> {
     console.error("Failed to get storage path:", err);
     return null;
   }
+}
+
+export async function syncVaultNow(): Promise<SyncResult> {
+  const api = getElectronAPI();
+  const [items, folders, pages] = await Promise.all([
+    loadItems(),
+    loadFolders(),
+    loadPages(),
+  ]);
+
+  const result = await syncVaultSnapshot({
+    items: items.map((item) => itemToStored(item)),
+    folders: folders.map((folder) => folderToStored(folder)),
+    pages: pages.map((page) => pageToStored(page)),
+  });
+
+  if (!result.success) {
+    return result;
+  }
+
+  if (api) {
+    await Promise.all([
+      api.saveItems(result.snapshot.items as StoredItem[]),
+      api.saveFolders(result.snapshot.folders as StoredFolder[]),
+      api.savePages(result.snapshot.pages as StoredPage[]),
+    ]);
+  } else {
+    localStorage.setItem("vaulty-items", JSON.stringify(result.snapshot.items));
+  }
+
+  const mediaErrors = await syncAssetsForItems(result.snapshot.items);
+  notifySyncComplete();
+  return { ...result, mediaErrors };
 }

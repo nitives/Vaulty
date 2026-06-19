@@ -32,6 +32,9 @@ export type AppIconTheme =
   | "midnight"
   | "inverted";
 
+export type VaultBackupFrequency = "off" | "hourly" | "daily" | "weekly";
+export type VaultBackupRetention = number | "infinite";
+
 export interface AppSettings {
   transparency?: boolean;
   titlebarTransparent?: boolean;
@@ -54,6 +57,9 @@ export interface AppSettings {
   persistInputBarStateOnSwitch?: boolean;
   useFlorence?: boolean;
   sidebarTransparent?: boolean;
+  vaultBackupFrequency?: VaultBackupFrequency;
+  vaultBackupRetention?: VaultBackupRetention;
+  lastVaultBackupAt?: string;
   openOnStartup?: boolean;
   startMinimized?: boolean;
   closeToTray?: boolean;
@@ -86,6 +92,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   persistInputBarStateOnSwitch: true,
   useFlorence: false,
   sidebarTransparent: false,
+  vaultBackupFrequency: "off",
+  vaultBackupRetention: 5,
   openOnStartup: false,
   startMinimized: false,
   closeToTray: true,

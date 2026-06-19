@@ -48,6 +48,10 @@ export function getTrashPath(): string {
   return path.join(getVaultyDataPath(), "trash");
 }
 
+export function getBackupsPath(): string {
+  return path.join(getVaultyDataPath(), "backups");
+}
+
 export function getTrashFilePath(): string {
   return path.join(getTrashPath(), "trash.json");
 }

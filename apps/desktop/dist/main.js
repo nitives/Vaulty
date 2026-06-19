@@ -16,6 +16,7 @@ const ipc_1 = require("./lib/ipc");
 const api_1 = require("./lib/api");
 const ventricle_1 = require("./lib/ventricle");
 const dwm_1 = require("./lib/dwm");
+const backups_1 = require("./lib/backups");
 const updates_1 = require("./lib/updates");
 const isDev = !electron_1.app.isPackaged;
 let mainWindow = null;
@@ -283,6 +284,7 @@ function registerUpdateIpcHandlers() {
 electron_1.app.whenReady().then(async () => {
     // Cleanup old trash items (older than 60 days)
     (0, storage_1.cleanupOldTrash)();
+    (0, backups_1.startVaultBackupScheduler)();
     (0, protocol_1.registerProtocolHandler)();
     (0, ipc_1.registerIpcHandlers)(() => mainWindow, applyAppIcon);
     registerUpdateIpcHandlers();
@@ -354,6 +356,7 @@ function killNextServer() {
 }
 electron_1.app.on("before-quit", () => {
     isQuitting = true;
+    (0, backups_1.stopVaultBackupScheduler)();
     (0, ventricle_1.stopVentricle)();
     killNextServer();
 });

@@ -3,6 +3,56 @@ import path from "path";
 import { protocol } from "electron";
 import { getVaultyDataPath } from "./paths";
 
+const ALLOWED_VAULT_PROTOCOL_FOLDERS = new Set([
+  "images",
+  "metadata",
+  "audios",
+]);
+
+function resolveVaultProtocolPath(requestUrl: string): string | null {
+  let url: URL;
+  try {
+    url = new URL(requestUrl);
+  } catch {
+    return null;
+  }
+
+  const hostPart = decodeURIComponent(url.hostname || "");
+  const pathPart = decodeURIComponent(url.pathname).replace(/^\//, "");
+  const rawRelativePath = hostPart ? `${hostPart}/${pathPart}` : pathPart;
+  const cleaned = rawRelativePath.trim().replace(/\\/g, "/");
+
+  if (
+    !cleaned ||
+    cleaned.startsWith("/") ||
+    /^[a-zA-Z]:/.test(cleaned)
+  ) {
+    return null;
+  }
+
+  const normalized = path.posix.normalize(cleaned);
+  if (
+    normalized === "." ||
+    normalized.startsWith("../") ||
+    normalized.includes("/../")
+  ) {
+    return null;
+  }
+
+  const rootFolder = normalized.split("/")[0];
+  if (!ALLOWED_VAULT_PROTOCOL_FOLDERS.has(rootFolder)) {
+    return null;
+  }
+
+  const vaultRoot = path.resolve(getVaultyDataPath());
+  const filePath = path.resolve(vaultRoot, normalized);
+  if (filePath === vaultRoot || !filePath.startsWith(`${vaultRoot}${path.sep}`)) {
+    return null;
+  }
+
+  return filePath;
+}
+
 // Register custom protocol scheme - must be called before app.ready
 export function registerProtocolScheme(): void {
   protocol.registerSchemesAsPrivileged([
@@ -47,16 +97,17 @@ export function registerProtocolHandler(): void {
   };
 
   protocol.handle("vaulty-image", (request) => {
-    // URL format: vaulty-image://images/filename.ext
-    // Note: In URL parsing, "images" becomes the hostname
-    const url = new URL(request.url);
-    const hostPart = url.hostname || "";
-    const pathPart = decodeURIComponent(url.pathname).replace(/^\//, "");
-    const relativePath = hostPart ? `${hostPart}/${pathPart}` : pathPart;
-    const filePath = path.join(getVaultyDataPath(), relativePath);
+    const filePath = resolveVaultProtocolPath(request.url);
+    if (!filePath) {
+      return new Response("Not found", { status: 404 });
+    }
 
     try {
       const stat = fs.statSync(filePath);
+      if (!stat.isFile()) {
+        return new Response("Not found", { status: 404 });
+      }
+
       const fileSize = stat.size;
       const ext = path.extname(filePath).toLowerCase();
       const mimeType = mimeTypes[ext] || "application/octet-stream";
@@ -68,7 +119,22 @@ export function registerProtocolHandler(): void {
         const match = rangeHeader.match(/bytes=(\d+)-(\d*)/);
         if (match) {
           const start = parseInt(match[1], 10);
-          const end = match[2] ? parseInt(match[2], 10) : fileSize - 1;
+          const requestedEnd = match[2] ? parseInt(match[2], 10) : fileSize - 1;
+          const end = Math.min(requestedEnd, fileSize - 1);
+          if (
+            Number.isNaN(start) ||
+            Number.isNaN(end) ||
+            start >= fileSize ||
+            end < start
+          ) {
+            return new Response("Range not satisfiable", {
+              status: 416,
+              headers: {
+                "Content-Range": `bytes */${fileSize}`,
+              },
+            });
+          }
+
           const chunkSize = end - start + 1;
 
           const buffer = Buffer.alloc(chunkSize);

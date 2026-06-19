@@ -24,6 +24,10 @@ import { startLocalApi } from "./lib/api";
 import { initVentricle, stopVentricle } from "./lib/ventricle";
 import { restoreDwmAttributes } from "./lib/dwm";
 import {
+  startVaultBackupScheduler,
+  stopVaultBackupScheduler,
+} from "./lib/backups";
+import {
   canCheckForUpdates,
   checkForUpdates,
   downloadUpdate,
@@ -338,6 +342,7 @@ registerProtocolScheme();
 app.whenReady().then(async () => {
   // Cleanup old trash items (older than 60 days)
   cleanupOldTrash();
+  startVaultBackupScheduler();
 
   registerProtocolHandler();
   registerIpcHandlers(() => mainWindow, applyAppIcon);
@@ -417,6 +422,7 @@ function killNextServer(): void {
 
 app.on("before-quit", () => {
   isQuitting = true;
+  stopVaultBackupScheduler();
   stopVentricle();
   killNextServer();
 });
