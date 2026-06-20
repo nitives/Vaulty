@@ -1938,6 +1938,16 @@ function GuideSection() {
               </code>
             </li>
             <li>
+              <strong>Checklists:</strong>{" "}
+              <code className="font-mono text-[11px] bg-neutral-200 dark:bg-neutral-700 px-1.5 py-0.5 rounded text-neutral-800 dark:text-neutral-200">
+                - [x] Done
+              </code>{" "}
+              or{" "}
+              <code className="font-mono text-[11px] bg-neutral-200 dark:bg-neutral-700 px-1.5 py-0.5 rounded text-neutral-800 dark:text-neutral-200">
+                - [ ] Todo
+              </code>
+            </li>
+            <li>
               <strong>Links:</strong>{" "}
               <code className="font-mono text-[11px] bg-neutral-200 dark:bg-neutral-700 px-1.5 py-0.5 rounded text-neutral-800 dark:text-neutral-200">
                 [Title](https://url.com)

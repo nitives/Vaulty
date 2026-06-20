@@ -34,6 +34,7 @@ interface InputBarProps {
     imageData?: string,
     imageName?: string,
     metadata?: Record<string, any>,
+    imageGroup?: Array<{ dataUrl: string; name: string }>,
   ) => void | Promise<void>;
 }
 
@@ -310,20 +311,41 @@ export function InputBar({ onSubmit }: InputBarProps) {
     if (!content.trim() && mediaItems.length === 0) return;
 
     if (mediaItems.length > 0) {
-      // Submit each media item with the same tags
-      for (const item of mediaItems) {
-        let type: "note" | "image" | "link" | "audio" | "video" = "image";
-        if (item.dataUrl.startsWith("data:video/")) type = "video";
-        else if (item.dataUrl.startsWith("data:audio/")) type = "audio";
+      const imageItems = mediaItems.filter((item) =>
+        item.dataUrl.startsWith("data:image/"),
+      );
+      const isImageGroup =
+        imageItems.length > 1 && imageItems.length === mediaItems.length;
 
+      if (isImageGroup) {
         onSubmit(
           content.trim(),
           tags,
-          type,
-          item.dataUrl,
-          item.name,
-          item.audioMetadata,
+          "image",
+          imageItems[0].dataUrl,
+          imageItems[0].name,
+          undefined,
+          imageItems.map((item) => ({
+            dataUrl: item.dataUrl,
+            name: item.name,
+          })),
         );
+      } else {
+        // Submit each media item with the same tags
+        for (const item of mediaItems) {
+          let type: "note" | "image" | "link" | "audio" | "video" = "image";
+          if (item.dataUrl.startsWith("data:video/")) type = "video";
+          else if (item.dataUrl.startsWith("data:audio/")) type = "audio";
+
+          onSubmit(
+            content.trim(),
+            tags,
+            type,
+            item.dataUrl,
+            item.name,
+            item.audioMetadata,
+          );
+        }
       }
     } else {
       // Text-only or link submission

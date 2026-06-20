@@ -1,5 +1,31 @@
 import React from "react";
+import { TaskCheckbox } from "@/components/ui/TaskCheckbox";
 import { safeExternalHref } from "./urls";
+
+export interface MarkdownRenderOptions {
+  onTaskToggle?: (lineIndex: number, checked: boolean) => void;
+}
+
+export function setMarkdownTaskChecked(
+  content: string,
+  lineIndex: number,
+  checked: boolean,
+): string {
+  const lines = content.split("\n");
+  if (lineIndex < 0 || lineIndex >= lines.length) return content;
+
+  const taskLinePattern = /^(\s*[-*]\s+\[)([ xX])(\]\s+.*)$/;
+  const nextLine = lines[lineIndex].replace(
+    taskLinePattern,
+    (_match, prefix: string, _state: string, suffix: string) =>
+      `${prefix}${checked ? "x" : " "}${suffix}`,
+  );
+
+  if (nextLine === lines[lineIndex]) return content;
+
+  lines[lineIndex] = nextLine;
+  return lines.join("\n");
+}
 
 // Helper to render inline markdown (inline code, masked links, raw urls)
 function renderInline(text: string) {
@@ -121,7 +147,10 @@ function renderInline(text: string) {
  * - Code Blocks (inline `code` and multiline ```)
  * - Block Quotes (> and >>>)
  */
-export function renderMarkdown(content: string) {
+export function renderMarkdown(
+  content: string,
+  options: MarkdownRenderOptions = {},
+) {
   const lines = content.split("\n");
   const elements: React.ReactNode[] = [];
 
@@ -222,6 +251,35 @@ export function renderMarkdown(content: string) {
         <p key={i} className="text-xs text-black/50 dark:text-white/50 my-0.5">
           {renderInline(line.slice(3))}
         </p>,
+      );
+      continue;
+    }
+
+    // Task lists (- [x] done, - [ ] pending)
+    const taskMatch = line.match(/^(\s*)[-*]\s+\[([ xX])\]\s+(.*)/);
+    if (taskMatch) {
+      const indent = taskMatch[1].length;
+      const checked = taskMatch[2].toLowerCase() === "x";
+      elements.push(
+        <div
+          key={i}
+          className="flex items-start gap-2 my-0.5"
+          style={{ paddingLeft: `${indent * 12}px` }}
+        >
+          <TaskCheckbox
+            checked={checked}
+            onCheckedChange={
+              options.onTaskToggle
+                ? (nextChecked) => options.onTaskToggle?.(i, nextChecked)
+                : undefined
+            }
+            className="mt-[0.25em]"
+            aria-label={checked ? "Completed task" : "Incomplete task"}
+          />
+          <span className={checked ? "opacity-65 line-through" : undefined}>
+            {renderInline(taskMatch[3])}
+          </span>
+        </div>,
       );
       continue;
     }

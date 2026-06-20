@@ -122,6 +122,14 @@ function getRecordAssetPaths(record: unknown): string[] {
     paths.add(normalizeAssetPath(data.imageUrl));
   }
 
+  if (Array.isArray(data.imageUrls)) {
+    for (const imageUrl of data.imageUrls) {
+      if (isVaultAssetPath(imageUrl)) {
+        paths.add(normalizeAssetPath(imageUrl));
+      }
+    }
+  }
+
   const metadata =
     data.metadata && typeof data.metadata === "object"
       ? (data.metadata as Record<string, unknown>)

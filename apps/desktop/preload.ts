@@ -10,6 +10,7 @@ interface StoredItem {
   updatedAt?: string;
   reminder?: string;
   imageUrl?: string;
+  imageUrls?: string[];
   size?: number;
   analyzed?: {
     tags: string[];

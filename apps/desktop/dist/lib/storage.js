@@ -199,19 +199,30 @@ function loadItems() {
         let modified = false;
         // Backfill size for images
         for (const item of items) {
-            if (item.type === "image" && item.imageUrl && item.size === undefined) {
-                const filename = item.imageUrl.split(/[\\/]/).pop();
-                if (filename) {
-                    const imgPath = path_1.default.join((0, paths_1.getImagesPath)(), filename);
-                    if (fs_1.default.existsSync(imgPath)) {
-                        try {
-                            item.size = fs_1.default.statSync(imgPath).size;
-                            modified = true;
-                        }
-                        catch (e) {
-                            // Ignore errors if file can't be stat'd
+            const imagePaths = item.type === "image" && item.imageUrls && item.imageUrls.length > 0
+                ? item.imageUrls
+                : item.type === "image" && item.imageUrl
+                    ? [item.imageUrl]
+                    : [];
+            if (imagePaths.length > 0 && item.size === undefined) {
+                let totalSize = 0;
+                for (const imagePath of imagePaths) {
+                    const filename = imagePath.split(/[\\/]/).pop();
+                    if (filename) {
+                        const imgPath = path_1.default.join((0, paths_1.getImagesPath)(), filename);
+                        if (fs_1.default.existsSync(imgPath)) {
+                            try {
+                                totalSize += fs_1.default.statSync(imgPath).size;
+                            }
+                            catch (e) {
+                                // Ignore errors if file can't be stat'd
+                            }
                         }
                     }
+                }
+                if (totalSize > 0) {
+                    item.size = totalSize;
+                    modified = true;
                 }
             }
         }
@@ -647,6 +658,31 @@ function writeVaultFile(relativePath, data) {
 }
 // Trash functions
 const TRASH_RETENTION_DAYS = 60;
+function itemMediaPaths(item) {
+    if (item.type === "image" && item.imageUrls && item.imageUrls.length > 0) {
+        return item.imageUrls;
+    }
+    return item.imageUrl ? [item.imageUrl] : [];
+}
+function moveMediaPath(relativePath, fromDirectory, toDirectory) {
+    const filename = relativePath.split(/[\\/]/).pop();
+    if (!filename)
+        return;
+    const srcPath = path_1.default.join(fromDirectory, filename);
+    const destPath = path_1.default.join(toDirectory, filename);
+    if (fs_1.default.existsSync(srcPath)) {
+        fs_1.default.renameSync(srcPath, destPath);
+    }
+}
+function deleteMediaPath(relativePath, directory) {
+    const filename = relativePath.split(/[\\/]/).pop();
+    if (!filename)
+        return;
+    const filePath = path_1.default.join(directory, filename);
+    if (fs_1.default.existsSync(filePath)) {
+        fs_1.default.unlinkSync(filePath);
+    }
+}
 function loadTrash() {
     try {
         ensureDataDirectories();
@@ -677,23 +713,12 @@ function moveToTrash(item) {
         item,
         deletedAt: new Date().toISOString(),
     };
-    if (item.imageUrl) {
-        const filename = item.imageUrl.split(/[\\/]/).pop();
-        if (filename) {
-            if (item.type === "audio") {
-                const srcPath = path_1.default.join((0, paths_1.getAudiosPath)(), filename);
-                const destPath = path_1.default.join((0, paths_1.getTrashAudiosPath)(), filename);
-                if (fs_1.default.existsSync(srcPath)) {
-                    fs_1.default.renameSync(srcPath, destPath);
-                }
-            }
-            else {
-                const srcPath = path_1.default.join((0, paths_1.getImagesPath)(), filename);
-                const destPath = path_1.default.join((0, paths_1.getTrashImagesPath)(), filename);
-                if (fs_1.default.existsSync(srcPath)) {
-                    fs_1.default.renameSync(srcPath, destPath);
-                }
-            }
+    for (const mediaPath of itemMediaPaths(item)) {
+        if (item.type === "audio") {
+            moveMediaPath(mediaPath, (0, paths_1.getAudiosPath)(), (0, paths_1.getTrashAudiosPath)());
+        }
+        else {
+            moveMediaPath(mediaPath, (0, paths_1.getImagesPath)(), (0, paths_1.getTrashImagesPath)());
         }
     }
     trash.unshift(trashedItem);
@@ -707,23 +732,12 @@ function restoreFromTrash(id) {
     const trashedItem = trash[index];
     trash.splice(index, 1);
     saveTrash(trash);
-    if (trashedItem.item.imageUrl) {
-        const filename = trashedItem.item.imageUrl.split(/[\\/]/).pop();
-        if (filename) {
-            if (trashedItem.item.type === "audio") {
-                const srcPath = path_1.default.join((0, paths_1.getTrashAudiosPath)(), filename);
-                const destPath = path_1.default.join((0, paths_1.getAudiosPath)(), filename);
-                if (fs_1.default.existsSync(srcPath)) {
-                    fs_1.default.renameSync(srcPath, destPath);
-                }
-            }
-            else {
-                const srcPath = path_1.default.join((0, paths_1.getTrashImagesPath)(), filename);
-                const destPath = path_1.default.join((0, paths_1.getImagesPath)(), filename);
-                if (fs_1.default.existsSync(srcPath)) {
-                    fs_1.default.renameSync(srcPath, destPath);
-                }
-            }
+    for (const mediaPath of itemMediaPaths(trashedItem.item)) {
+        if (trashedItem.item.type === "audio") {
+            moveMediaPath(mediaPath, (0, paths_1.getTrashAudiosPath)(), (0, paths_1.getAudiosPath)());
+        }
+        else {
+            moveMediaPath(mediaPath, (0, paths_1.getTrashImagesPath)(), (0, paths_1.getImagesPath)());
         }
     }
     // Add back to items
@@ -738,21 +752,12 @@ function permanentlyDeleteFromTrash(id) {
     if (index === -1)
         return;
     const trashedItem = trash[index];
-    if (trashedItem.item.imageUrl) {
-        const filename = trashedItem.item.imageUrl.split(/[\\/]/).pop();
-        if (filename) {
-            if (trashedItem.item.type === "audio") {
-                const filePath = path_1.default.join((0, paths_1.getTrashAudiosPath)(), filename);
-                if (fs_1.default.existsSync(filePath)) {
-                    fs_1.default.unlinkSync(filePath);
-                }
-            }
-            else {
-                const filePath = path_1.default.join((0, paths_1.getTrashImagesPath)(), filename);
-                if (fs_1.default.existsSync(filePath)) {
-                    fs_1.default.unlinkSync(filePath);
-                }
-            }
+    for (const mediaPath of itemMediaPaths(trashedItem.item)) {
+        if (trashedItem.item.type === "audio") {
+            deleteMediaPath(mediaPath, (0, paths_1.getTrashAudiosPath)());
+        }
+        else {
+            deleteMediaPath(mediaPath, (0, paths_1.getTrashImagesPath)());
         }
     }
     trash.splice(index, 1);
@@ -761,21 +766,12 @@ function permanentlyDeleteFromTrash(id) {
 function emptyTrash() {
     const trash = loadTrash();
     for (const trashedItem of trash) {
-        if (trashedItem.item.imageUrl) {
-            const filename = trashedItem.item.imageUrl.split(/[\\/]/).pop();
-            if (filename) {
-                if (trashedItem.item.type === "audio") {
-                    const filePath = path_1.default.join((0, paths_1.getTrashAudiosPath)(), filename);
-                    if (fs_1.default.existsSync(filePath)) {
-                        fs_1.default.unlinkSync(filePath);
-                    }
-                }
-                else {
-                    const filePath = path_1.default.join((0, paths_1.getTrashImagesPath)(), filename);
-                    if (fs_1.default.existsSync(filePath)) {
-                        fs_1.default.unlinkSync(filePath);
-                    }
-                }
+        for (const mediaPath of itemMediaPaths(trashedItem.item)) {
+            if (trashedItem.item.type === "audio") {
+                deleteMediaPath(mediaPath, (0, paths_1.getTrashAudiosPath)());
+            }
+            else {
+                deleteMediaPath(mediaPath, (0, paths_1.getTrashImagesPath)());
             }
         }
     }
@@ -790,21 +786,12 @@ function cleanupOldTrash() {
         const deletedAt = new Date(trashedItem.deletedAt).getTime();
         const age = now - deletedAt;
         if (age > retentionMs) {
-            if (trashedItem.item.imageUrl) {
-                const filename = trashedItem.item.imageUrl.split(/[\\/]/).pop();
-                if (filename) {
-                    if (trashedItem.item.type === "audio") {
-                        const filePath = path_1.default.join((0, paths_1.getTrashAudiosPath)(), filename);
-                        if (fs_1.default.existsSync(filePath)) {
-                            fs_1.default.unlinkSync(filePath);
-                        }
-                    }
-                    else {
-                        const filePath = path_1.default.join((0, paths_1.getTrashImagesPath)(), filename);
-                        if (fs_1.default.existsSync(filePath)) {
-                            fs_1.default.unlinkSync(filePath);
-                        }
-                    }
+            for (const mediaPath of itemMediaPaths(trashedItem.item)) {
+                if (trashedItem.item.type === "audio") {
+                    deleteMediaPath(mediaPath, (0, paths_1.getTrashAudiosPath)());
+                }
+                else {
+                    deleteMediaPath(mediaPath, (0, paths_1.getTrashImagesPath)());
                 }
             }
             deletedCount++;

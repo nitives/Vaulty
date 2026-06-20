@@ -22,6 +22,7 @@ export interface StoredItem {
   updatedAt?: string;
   reminder?: string;
   imageUrl?: string;
+  imageUrls?: string[];
   size?: number;
   analyzed?: {
     tags: string[];
@@ -250,6 +251,7 @@ export function itemToStored(item: Item, updatedAt?: string): StoredItem {
     updatedAt: updatedAt ?? asIso(item.updatedAt, createdAt),
     reminder: item.reminder?.toISOString(),
     imageUrl: item.imageUrl,
+    imageUrls: item.imageUrls,
     size: item.size,
     analyzed: item.analyzed,
     metadata: item.metadata,
@@ -268,6 +270,7 @@ export function storedToItem(stored: StoredItem): Item {
     updatedAt: stored.updatedAt ? new Date(stored.updatedAt) : undefined,
     reminder: stored.reminder ? new Date(stored.reminder) : undefined,
     imageUrl: stored.imageUrl,
+    imageUrls: stored.imageUrls,
     size: stored.size,
     analyzed: stored.analyzed,
     metadata: stored.metadata,

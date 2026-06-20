@@ -65,7 +65,7 @@ export function useThemeClasses(settings: AppSettings) {
       settings.accentColor !== "multicolor" ||
       !window.electronAPI?.getWindowsAccentColor
     ) {
-      root.style.removeProperty("--windows-accent-base");
+      root.style.removeProperty("--system-accent-base");
       return;
     }
 
@@ -84,7 +84,7 @@ export function useThemeClasses(settings: AppSettings) {
     const applyWindowsColor = (rawColor: string | null) => {
       const color = normalizeWindowsAccent(rawColor);
       if (!color || disposed) return;
-      root.style.setProperty("--windows-accent-base", color);
+      root.style.setProperty("--system-accent-base", color);
     };
 
     const refreshWindowsColor = async () => {

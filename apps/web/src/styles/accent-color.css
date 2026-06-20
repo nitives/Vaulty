@@ -140,29 +140,29 @@
 }
 
 /* Multicolor - uses system accent color via CSS oklch manipulation
- * Only --windows-accent-base is set by Electron (Windows & macOS), shades are derived via oklch
+ * Only --system-accent-base is set by Electron (Windows & macOS), shades are derived via oklch
  * Fallback to blue if system accent is not available.
  */
 [data-accent="multicolor"] {
-  --windows-accent-base: #3b82f6; /* Fallback to blue */
-  --accent-50: oklch(from var(--windows-accent-base) 0.97 calc(c * 0.3) h);
-  --accent-100: oklch(from var(--windows-accent-base) 0.93 calc(c * 0.4) h);
-  --accent-200: oklch(from var(--windows-accent-base) 0.87 calc(c * 0.5) h);
-  --accent-300: oklch(from var(--windows-accent-base) 0.79 calc(c * 0.7) h);
-  --accent-400: oklch(from var(--windows-accent-base) 0.7 calc(c * 0.85) h);
-  --accent-500: oklch(from var(--windows-accent-base) l c h);
+  --system-accent-base: #3b82f6; /* Fallback to blue */
+  --accent-50: oklch(from var(--system-accent-base) 0.97 calc(c * 0.3) h);
+  --accent-100: oklch(from var(--system-accent-base) 0.93 calc(c * 0.4) h);
+  --accent-200: oklch(from var(--system-accent-base) 0.87 calc(c * 0.5) h);
+  --accent-300: oklch(from var(--system-accent-base) 0.79 calc(c * 0.7) h);
+  --accent-400: oklch(from var(--system-accent-base) 0.7 calc(c * 0.85) h);
+  --accent-500: oklch(from var(--system-accent-base) l c h);
   --accent-600: oklch(
-    from var(--windows-accent-base) calc(l * 0.87) calc(c * 1.1) h
+    from var(--system-accent-base) calc(l * 0.87) calc(c * 1.1) h
   );
   --accent-700: oklch(
-    from var(--windows-accent-base) calc(l * 0.76) calc(c * 1.1) h
+    from var(--system-accent-base) calc(l * 0.76) calc(c * 1.1) h
   );
   --accent-800: oklch(
-    from var(--windows-accent-base) calc(l * 0.64) calc(c * 1.05) h
+    from var(--system-accent-base) calc(l * 0.64) calc(c * 1.05) h
   );
-  --accent-900: oklch(from var(--windows-accent-base) calc(l * 0.53) c h);
+  --accent-900: oklch(from var(--system-accent-base) calc(l * 0.53) c h);
   --accent-950: oklch(
-    from var(--windows-accent-base) calc(l * 0.35) calc(c * 0.9) h
+    from var(--system-accent-base) calc(l * 0.35) calc(c * 0.9) h
   );
 }
 

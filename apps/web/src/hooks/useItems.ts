@@ -143,8 +143,10 @@ export function useItems() {
       imageData?: string,
       imageName?: string,
       providedMetadata?: Record<string, any>,
+      imageGroup?: Array<{ dataUrl: string; name: string }>,
     ) => {
       let imagePath: string | undefined;
+      let imagePaths: string[] | undefined;
       let imageSize: number | undefined;
       const finalContent = content;
       const finalTags = [...tags];
@@ -155,31 +157,63 @@ export function useItems() {
         pageId = activeFilter.split(":")[1];
       }
 
+      const saveImageFile = async (
+        dataUrl: string,
+        name: string | undefined,
+        index?: number,
+      ): Promise<{ path?: string; size?: number }> => {
+        const timestamp = Date.now();
+        const safeName = (name || "image.png").replace(
+          /[^a-zA-Z0-9._-]/g,
+          "_",
+        );
+        const uniqueFilename =
+          index === undefined
+            ? `${timestamp}_${safeName}`
+            : `${timestamp}_${index}_${safeName}`;
+        const saveResult = await saveImage(dataUrl, uniqueFilename);
+        return {
+          path: saveResult?.path,
+          size: saveResult?.size,
+        };
+      };
+
       // Save media to disk and process it if present
       if (
         imageData &&
         (type === "image" || type === "audio" || type === "video")
       ) {
-        // Generate unique filename: timestamp_originalname
-        const timestamp = Date.now();
-        const safeName = (imageName || "image.png").replace(
-          /[^a-zA-Z0-9._-]/g,
-          "_",
-        );
-        const uniqueFilename = `${timestamp}_${safeName}`;
-
-        if (type === "audio") {
+        if (type === "image" && imageGroup && imageGroup.length > 1) {
+          const savedImages = await Promise.all(
+            imageGroup.map((image, index) =>
+              saveImageFile(image.dataUrl, image.name, index),
+            ),
+          );
+          imagePaths = savedImages
+            .map((image) => image.path)
+            .filter((path): path is string => Boolean(path));
+          imagePath = imagePaths[0];
+          imageSize = savedImages.reduce(
+            (total, image) => total + (image.size ?? 0),
+            0,
+          );
+        } else if (type === "audio") {
+          // Generate unique filename: timestamp_originalname
+          const timestamp = Date.now();
+          const safeName = (imageName || "audio").replace(
+            /[^a-zA-Z0-9._-]/g,
+            "_",
+          );
+          const uniqueFilename = `${timestamp}_${safeName}`;
           const saveResult = await saveAudio(imageData, uniqueFilename);
           if (saveResult && saveResult.path) {
             imagePath = saveResult.path;
             imageSize = saveResult.size;
           }
         } else {
-          const saveResult = await saveImage(imageData, uniqueFilename);
-          if (saveResult && saveResult.path) {
-            imagePath = saveResult.path;
-            imageSize = saveResult.size;
-          }
+          const saveResult = await saveImageFile(imageData, imageName);
+          imagePath = saveResult.path;
+          imageSize = saveResult.size;
         }
       }
 
@@ -227,12 +261,20 @@ export function useItems() {
         type,
         // For images/audio, use the media filename as content if no caption is provided
         content:
-          (type === "image" || type === "audio") && !finalContent && imageName
-            ? imageName
-            : finalContent,
+          type === "image" &&
+          !finalContent &&
+          imagePaths &&
+          imagePaths.length > 1
+            ? `${imagePaths.length} images`
+            : (type === "image" || type === "audio") &&
+                !finalContent &&
+                imageName
+              ? imageName
+              : finalContent,
         tags: finalTags,
         createdAt: new Date(),
         imageUrl: imagePath,
+        imageUrls: imagePaths,
         size: imageSize,
         metadata,
         pageId,

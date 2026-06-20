@@ -5,14 +5,13 @@ import {
   sfTrash,
   sfPencil,
   sfFolder,
-  sfPlus,
 } from "@bradleyhodges/sfsymbols";
 import SFIcon from "@bradleyhodges/sfsymbols-react";
 import { DropdownMenu } from "../ui/DropdownMenu";
-import { renderMarkdown } from "@/lib/markdown";
+import { renderMarkdown, setMarkdownTaskChecked } from "@/lib/markdown";
 import { useSettings } from "@/lib/settings";
 import { getImageUrl } from "@/lib/media";
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import clsx from "clsx";
 import { buttonStyles } from "@/styles/Button";
 import { Lightbox } from "../modals/Lightbox";
@@ -30,6 +29,7 @@ export interface Item {
   updatedAt?: Date;
   reminder?: Date;
   imageUrl?: string;
+  imageUrls?: string[];
   size?: number;
   analyzed?: {
     tags: string[];
@@ -56,13 +56,23 @@ export interface ItemCardProps {
 }
 
 // Check if content is meaningful text (not just a filename)
-function hasTextContent(content: string, imageUrl?: string): boolean {
+function hasTextContent(
+  content: string,
+  imageUrl?: string,
+  imageUrls?: string[],
+): boolean {
   if (!content || content.trim() === "") return false;
+  if (imageUrls && imageUrls.length > 1 && /^\d+\s+images$/i.test(content)) {
+    return false;
+  }
   // If content matches the image filename, it's not meaningful text
-  if (imageUrl) {
-    const filename = imageUrl.split(/[\\/]/).pop() || "";
+  const imagePaths = [imageUrl, ...(imageUrls ?? [])].filter(
+    (path): path is string => Boolean(path),
+  );
+  for (const imagePath of imagePaths) {
+    const filename = imagePath.split(/[\\/]/).pop() || "";
     // Remove timestamp prefix from filename for comparison
-    const cleanFilename = filename.replace(/^\d+_/, "");
+    const cleanFilename = filename.replace(/^\d+_(?:\d+_)?/, "");
     if (content === filename || content === cleanFilename) return false;
   }
   return true;
@@ -86,14 +96,24 @@ export function ItemCard({
   const { settings } = useSettings();
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState(item.content);
-  const [isLightboxOpen, setIsLightboxOpen] = useState(false);
+  const [selectedImageUrl, setSelectedImageUrl] = useState<string | null>(null);
 
   const isLink = item.type === "link";
   const isImage = item.type === "image";
   const isAudio = item.type === "audio";
   const isVideo = item.type === "video";
   const isReminder = item.type === "reminder";
-  const showContent = hasTextContent(item.content, item.imageUrl);
+  const imagePaths =
+    item.imageUrls && item.imageUrls.length > 0
+      ? item.imageUrls
+      : item.imageUrl
+        ? [item.imageUrl]
+        : [];
+  const showContent = hasTextContent(
+    item.content,
+    item.imageUrl,
+    item.imageUrls,
+  );
 
   // Tags Editing State
   const [tagInput, setTagInput] = useState("");
@@ -105,6 +125,22 @@ export function ItemCard({
       tagInputRef.current.focus();
     }
   }, [isAddingTag]);
+
+  const handleTaskToggle = useCallback(
+    (lineIndex: number, checked: boolean) => {
+      if (!onEdit) return;
+
+      const nextContent = setMarkdownTaskChecked(
+        item.content,
+        lineIndex,
+        checked,
+      );
+      if (nextContent !== item.content) {
+        onEdit(item.id, nextContent);
+      }
+    },
+    [item.content, item.id, onEdit],
+  );
 
   const handleAddTag = () => {
     if (!tagInput.trim() || !onUpdateTags) {
@@ -194,33 +230,70 @@ export function ItemCard({
               <LinkWidget item={item} />
             ) : (
               <div className="text-sm text-neutral-700 dark:text-neutral-300 break-words">
-                {renderMarkdown(item.content)}
+                {renderMarkdown(item.content, {
+                  onTaskToggle: onEdit ? handleTaskToggle : undefined,
+                })}
               </div>
             )}
           </div>
         )}
 
         {/* Image / Video / Audio */}
-        {isImage && item.imageUrl && (
-          <div className="mt-2 max-w-md">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={getImageUrl(item.imageUrl)}
-              alt="Saved image"
-              className="rounded-sm object-cover cursor-pointer transition-opacity hover:opacity-90"
-              style={{ maxHeight: "300px", maxWidth: "100%" }}
-              onClick={() => setIsLightboxOpen(true)}
-            />
+        {isImage && imagePaths.length > 0 && (
+          <div
+            className={clsx(
+              "mt-2 overflow-hidden rounded-lg",
+              imagePaths.length === 1
+                ? "max-w-md"
+                : "grid max-w-2xl grid-cols-2 gap-1",
+            )}
+          >
+            {imagePaths.slice(0, 4).map((imagePath, index) => {
+              const imageUrl = getImageUrl(imagePath);
+              const extraCount = imagePaths.length - 4;
+
+              return (
+                <button
+                  key={`${imagePath}-${index}`}
+                  type="button"
+                  onClick={() => setSelectedImageUrl(imageUrl)}
+                  className={clsx(
+                    "relative block overflow-hidden bg-black/5 text-left dark:bg-white/5",
+                    "cursor-pointer transition-opacity hover:opacity-90",
+                    imagePaths.length === 1
+                      ? "max-w-full rounded-sm"
+                      : "aspect-[4/3]",
+                  )}
+                  aria-label={`Open saved image ${index + 1}`}
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={imageUrl}
+                    alt={`Saved image ${index + 1}`}
+                    className={clsx(
+                      imagePaths.length === 1
+                        ? "block max-h-[300px] max-w-full object-contain"
+                        : "h-full w-full object-cover",
+                    )}
+                  />
+                  {index === 3 && extraCount > 0 && (
+                    <span className="absolute inset-0 grid place-items-center bg-black/55 text-xl font-semibold text-white">
+                      +{extraCount}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
             <Lightbox
-              isOpen={isLightboxOpen}
-              onClose={() => setIsLightboxOpen(false)}
-              imageUrl={getImageUrl(item.imageUrl)}
+              isOpen={selectedImageUrl !== null}
+              onClose={() => setSelectedImageUrl(null)}
+              imageUrl={selectedImageUrl ?? getImageUrl(imagePaths[0])}
               alt="Saved image"
             />
           </div>
         )}
         {/* Image Filename */}
-        {settings.showImageFileName && isImage && item.imageUrl && (
+        {settings.showImageFileName && isImage && imagePaths.length > 0 && (
           <div className="mt-2 text-sm text-black/50 dark:text-white/50 mb-2">
             {item.content}
           </div>
