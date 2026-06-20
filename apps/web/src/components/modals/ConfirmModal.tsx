@@ -47,10 +47,9 @@ export function ConfirmModal({
             aria-modal="true"
             aria-labelledby="confirm-modal-title"
             className={clsx(
-              "w-full max-w-sm overflow-hidden rounded-xl border p-6 shadow-xl",
+              "w-full max-w-xs overflow-hidden rounded-3xl p-4 shadow-xl",
               "bg-white/80 dark:bg-neutral-900/80 backdrop-blur-[24px]",
-              "border-neutral-200 dark:border-neutral-700",
-              "transparent:bg-white/60 transparent:dark:bg-neutral-900/60"
+              "transparent:bg-white/50 transparent:dark:bg-neutral-900/50",
             )}
             onClick={(e) => e.stopPropagation()}
             initial={{ opacity: 0, scale: 0.95 }}
@@ -60,29 +59,52 @@ export function ConfirmModal({
           >
             <h3
               id="confirm-modal-title"
-              className="text-lg font-semibold text-neutral-900 dark:text-neutral-100 mb-2"
+              className="text-lg compact:text-base font-semibold tracking-tight text-neutral-900 dark:text-white mb-0"
             >
               {title}
             </h3>
-            <p className="text-sm text-neutral-600 dark:text-neutral-400 mb-6">
+            <p className="text-sm compact:text-xs text-neutral-600 dark:text-white/50 mb-4">
               {message}
             </p>
 
             <div className="flex justify-end gap-3">
               <button
                 onClick={onCancel}
-                className={clsx(buttonStyles.base)}
+                className={clsx(
+                  "text-sm",
+                  "compact:text-xs",
+                  "px-3 py-2",
+                  "compact:px-3 compact:py-1.5",
+                  "rounded-lg",
+                  "h-fit",
+                  "transition-colors",
+                  "bg-white/0 hover:bg-black/5",
+                  "dark:bg-white/0 dark:hover:bg-white/5",
+                  "text-white/10 hover:text-neutral-900",
+                  "dark:text-white/75 dark:hover:text-white/50",
+                )}
               >
                 {cancelLabel}
               </button>
               <button
                 onClick={onConfirm}
                 className={clsx(
-                  "rounded-lg px-4 py-2 text-sm font-medium text-white transition-opacity",
-                  isDestructive
-                    ? buttonStyles.danger
-                    : buttonStyles.primary
+                  "text-sm",
+                  "compact:text-xs",
+                  "px-3 py-2",
+                  "compact:px-3 compact:py-1.5",
+                  "rounded-lg",
+                  "h-fit",
+                  "transition-colors",
+                  "bg-red-500/10 hover:bg-red-500/20",
+                  // "dark:bg-white/0 dark:hover:bg-white/5",
+                  "text-white/10 hover:text-neutral-900",
+                  "dark:text-red-500/75 dark:hover:text-red-500/100",
                 )}
+                // className={clsx(
+                //   "rounded-lg px-4 py-2 text-sm font-medium text-white transition-opacity",
+                //   isDestructive ? buttonStyles.danger : buttonStyles.primary,
+                // )}
               >
                 {confirmLabel}
               </button>

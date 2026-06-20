@@ -7,6 +7,7 @@ exports.getVaultyDataPath = getVaultyDataPath;
 exports.getItemsFilePath = getItemsFilePath;
 exports.getFoldersFilePath = getFoldersFilePath;
 exports.getPagesFilePath = getPagesFilePath;
+exports.getCustomCssFilePath = getCustomCssFilePath;
 exports.getImagesPath = getImagesPath;
 exports.getMetadataPath = getMetadataPath;
 exports.getAudiosPath = getAudiosPath;
@@ -49,6 +50,9 @@ function getFoldersFilePath() {
 }
 function getPagesFilePath() {
     return path_1.default.join(getVaultyDataPath(), "pages.json");
+}
+function getCustomCssFilePath() {
+    return path_1.default.join(getVaultyDataPath(), "custom.css");
 }
 function getImagesPath() {
     return path_1.default.join(getVaultyDataPath(), "images");

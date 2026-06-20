@@ -50,6 +50,10 @@ body.transparent-mode {
   --edge-border-color-dark: rgba(255, 255, 255, 0.1);
 }
 
+.titlebar {
+  background: var(--background);
+}
+
 /* Titlebar transparency - applied via class set by blocking script */
 .titlebar-transparent .titlebar {
   background: transparent !important;
@@ -112,7 +116,6 @@ html.pointer-cursors .cursor-not-allowed {
 
 html:not(.pointer-cursors)
   :is(
-    a[href],
     button,
     select,
     summary,
@@ -128,6 +131,10 @@ html:not(.pointer-cursors)
     .cursor-pointer
   ) {
   cursor: default !important;
+}
+
+html:not(.pointer-cursors) a[href] {
+  cursor: pointer !important;
 }
 
 html:not(.pointer-cursors)

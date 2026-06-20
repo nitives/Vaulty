@@ -1,5 +1,6 @@
 import { Item } from "@/components";
 import { getElectronAPI } from "@/lib/electron";
+import type { AppSettings } from "@/lib/settings";
 import {
   pushAssetsForItems,
   pushCollectionRecords,
@@ -8,6 +9,7 @@ import {
   syncAssetsForItems,
   syncVaultSnapshot,
   type SyncResult,
+  type SyncRecordBase,
 } from "@/lib/sync";
 
 // Stored item type (dates serialized as ISO strings)
@@ -112,6 +114,13 @@ export interface PulseItem {
 }
 
 export const VAULTY_SYNC_COMPLETE_EVENT = "vaulty:sync-complete";
+const CUSTOM_CSS_SYNC_RECORD_ID = "custom-css";
+
+interface CustomCssSyncRecord extends SyncRecordBase {
+  customCSS?: boolean;
+  customCSSContent?: string;
+  cssPath?: string;
+}
 
 function asIso(value: Date | string | undefined, fallback: string): string {
   if (!value) return fallback;
@@ -169,6 +178,64 @@ function queueSync(task: Promise<unknown>): void {
 function notifySyncComplete(): void {
   if (typeof window === "undefined") return;
   window.dispatchEvent(new CustomEvent(VAULTY_SYNC_COMPLETE_EVENT));
+}
+
+async function loadAppSettingsForSync(): Promise<AppSettings> {
+  const api = getElectronAPI();
+  if (api?.getSettings) {
+    return api.getSettings();
+  }
+
+  try {
+    return JSON.parse(
+      localStorage.getItem("vaulty-settings") ?? "{}",
+    ) as AppSettings;
+  } catch {
+    return {};
+  }
+}
+
+async function loadSettingsRecordsForSync(): Promise<CustomCssSyncRecord[]> {
+  const settings = await loadAppSettingsForSync();
+  return [
+    {
+      id: CUSTOM_CSS_SYNC_RECORD_ID,
+      customCSS: Boolean(settings.customCSS),
+      customCSSContent: settings.customCSSContent ?? "",
+      cssPath: "custom.css",
+      updatedAt: settings.customCSSUpdatedAt ?? new Date().toISOString(),
+    },
+  ];
+}
+
+async function applySettingsRecordsFromSync(
+  records: SyncRecordBase[] | undefined,
+): Promise<void> {
+  const customCssRecord = records?.find(
+    (record) => record.id === CUSTOM_CSS_SYNC_RECORD_ID,
+  ) as CustomCssSyncRecord | undefined;
+  if (!customCssRecord) return;
+
+  const patch: Partial<AppSettings> = {
+    customCSS: Boolean(customCssRecord.customCSS),
+    customCSSContent:
+      typeof customCssRecord.customCSSContent === "string"
+        ? customCssRecord.customCSSContent
+        : "",
+    customCSSUpdatedAt: customCssRecord.updatedAt,
+  };
+
+  const api = getElectronAPI();
+  if (api?.setSettings) {
+    await api.setSettings(patch);
+    return;
+  }
+
+  const current = await loadAppSettingsForSync();
+  localStorage.setItem(
+    "vaulty-settings",
+    JSON.stringify({ ...current, ...patch }),
+  );
 }
 
 // Convert Item to StoredItem (serialize dates)
@@ -613,16 +680,18 @@ export async function getStoragePath(): Promise<string | null> {
 
 export async function syncVaultNow(): Promise<SyncResult> {
   const api = getElectronAPI();
-  const [items, folders, pages] = await Promise.all([
+  const [items, folders, pages, settingsRecords] = await Promise.all([
     loadItems(),
     loadFolders(),
     loadPages(),
+    loadSettingsRecordsForSync(),
   ]);
 
   const result = await syncVaultSnapshot({
     items: items.map((item) => itemToStored(item)),
     folders: folders.map((folder) => folderToStored(folder)),
     pages: pages.map((page) => pageToStored(page)),
+    settings: settingsRecords,
   });
 
   if (!result.success) {
@@ -634,9 +703,11 @@ export async function syncVaultNow(): Promise<SyncResult> {
       api.saveItems(result.snapshot.items as StoredItem[]),
       api.saveFolders(result.snapshot.folders as StoredFolder[]),
       api.savePages(result.snapshot.pages as StoredPage[]),
+      applySettingsRecordsFromSync(result.snapshot.settings),
     ]);
   } else {
     localStorage.setItem("vaulty-items", JSON.stringify(result.snapshot.items));
+    await applySettingsRecordsFromSync(result.snapshot.settings);
   }
 
   const mediaErrors = await syncAssetsForItems(result.snapshot.items);

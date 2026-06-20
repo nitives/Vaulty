@@ -243,7 +243,10 @@ export function Sidebar({
     };
     window.addEventListener(VAULTY_SYNC_COMPLETE_EVENT, handleSyncComplete);
     return () => {
-      window.removeEventListener(VAULTY_SYNC_COMPLETE_EVENT, handleSyncComplete);
+      window.removeEventListener(
+        VAULTY_SYNC_COMPLETE_EVENT,
+        handleSyncComplete,
+      );
     };
   }, []);
 
@@ -480,6 +483,7 @@ export function Sidebar({
             {filters.map((filter) => (
               <motion.button
                 key={filter.id}
+                id="sidebar-button"
                 onClick={() => onFilterChange(filter.id)}
                 className={clsx(
                   "flex w-full items-center gap-2 rounded-lg px-2 py-1 compact:text-xs text-sm transition-colors duration-[250ms] hover:duration-0",
@@ -532,8 +536,9 @@ export function Sidebar({
 
         {/* Folders & Pages Tree */}
         <div className="flex-1 px-2 pb-4 relative">
-          <div className="flex items-center justify-between px-2 py-2">
+          <div id="sidebar-folder-header" className="flex items-center justify-between px-2 py-2">
             <h3
+              id="sidebar-folder-header-subtitle"
               className={clsx(
                 "select-none",
                 "compact:text-[10px] text-xs font-semibold uppercase ",
@@ -542,7 +547,7 @@ export function Sidebar({
             >
               Folders
             </h3>
-            <div className="flex gap-2.5">
+            <div id="sidebar-folder-header-buttons" className="flex gap-2.5">
               <button
                 onClick={() => startCreateFolder(null)}
                 className={clsx(
@@ -705,7 +710,7 @@ export function Sidebar({
         </div>
 
         {/* Footer */}
-        <div className="p-2 *:select-none">
+        <div id="sidebar-footer" className="p-2 *:select-none">
           {/* Tags Section */}
           <p title="Number of items" className="flex items-center gap-2">
             <SFIcon

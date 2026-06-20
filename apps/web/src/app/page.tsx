@@ -1,5 +1,12 @@
 "use client";
-import { useState, useCallback, useMemo, useEffect, useRef } from "react";
+import {
+  useState,
+  useCallback,
+  useMemo,
+  useEffect,
+  useRef,
+  useSyncExternalStore,
+} from "react";
 import { motion, AnimatePresence } from "motion/react";
 import clsx from "clsx";
 import {
@@ -21,9 +28,27 @@ import { useFeed } from "@/hooks/useFeed";
 import SFIcon from "@bradleyhodges/sfsymbols-react";
 import { sfArrowDown, sfArrowUp } from "@bradleyhodges/sfsymbols";
 import { TagFilter } from "@/components/layout/TagFilter";
+import { ProgressiveBlur } from "@/components/ui/ProgressiveBlur";
+
+function subscribeToHydration() {
+  return () => {};
+}
+
+function getClientHydrationSnapshot() {
+  return true;
+}
+
+function getServerHydrationSnapshot() {
+  return false;
+}
 
 export default function Home() {
   const { settings } = useSettings();
+  const hasHydrated = useSyncExternalStore(
+    subscribeToHydration,
+    getClientHydrationSnapshot,
+    getServerHydrationSnapshot,
+  );
   const persistInputBarStateOnSwitch =
     settings.persistInputBarStateOnSwitch ?? true;
 
@@ -80,6 +105,9 @@ export default function Home() {
   const preserveSectionScroll = Boolean(
     settings.experiments?.["preserve-section-scroll"],
   );
+  const progressiveScrollFeedBlur =
+    hasHydrated &&
+    Boolean(settings.experiments?.["progressive-scroll-feed-blur"]);
   const sectionScrollPositionsRef = useRef<Map<string, number>>(new Map());
   const previousScrollStateRef = useRef({
     activeFilter,
@@ -279,11 +307,7 @@ export default function Home() {
   return (
     <div
       suppressHydrationWarning
-      className={clsx(
-        "flex h-screen w-screen flex-col",
-        "transparent:bg-white/0 transparent:dark:bg-black/10",
-        "bg-white dark:bg-neutral-900",
-      )}
+      className={clsx("flex h-screen w-screen flex-col")}
     >
       {/* Custom Titlebar */}
       <Titlebar
@@ -317,8 +341,8 @@ export default function Home() {
       <div
         className={clsx(
           "flex flex-1 overflow-hidden",
-          "bg-white dark:bg-neutral-900",
-          "transparent:bg-white/0 transparent:dark:bg-black/0",
+          // "bg-white dark:bg-neutral-900",
+          // "transparent:bg-white/0 transparent:dark:bg-black/0",
         )}
       >
         {/* Sidebar */}
@@ -454,6 +478,14 @@ export default function Home() {
             onScroll={handleScroll}
             className="content-area flex-1 overflow-y-auto px-3 py-6 flex"
           >
+            {progressiveScrollFeedBlur && (
+              <ProgressiveBlur
+                height={140}
+                steps={10}
+                direction="to top"
+                className="absolute bottom-0 left-0 w-full z-5"
+              />
+            )}
             <div>
               {/* Item List */}
               {activeFilter === "feeds" ? (

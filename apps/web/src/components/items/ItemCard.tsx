@@ -148,7 +148,11 @@ export function ItemCard({
             icon={sfCircleFill}
             size={6}
           />
-          <span className="text-xs text-black/50 dark:text-white/50">
+          <span
+            data-vaulty-hierarchy="secondary"
+            id="item-time"
+            className="text-xs text-black/50 dark:text-white/50"
+          >
             {formatTimeShort(item.createdAt)}
             {settings.showImageSize &&
               item.type === "image" &&

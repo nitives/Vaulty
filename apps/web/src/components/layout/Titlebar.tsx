@@ -83,9 +83,9 @@ export function Titlebar({
     if (typeof document === "undefined") return;
     document.documentElement.classList.toggle(
       "titlebar-transparent",
-      !!settings.titlebarTransparent,
+      Boolean(settings.transparency && settings.titlebarTransparent),
     );
-  }, [settings.titlebarTransparent]);
+  }, [settings.titlebarTransparent, settings.transparency]);
 
   const updateMaximizedState = useCallback(async () => {
     const api = getElectronAPI();
@@ -146,7 +146,7 @@ export function Titlebar({
         "flex select-none items-center justify-between",
         "border-b",
         "border-[var(--edge-border-color-light)] dark:border-[var(--edge-border-color-dark)]",
-        "bg-white dark:bg-neutral-900",
+        // "bg-white dark:bg-neutral-900",
         isMac ? "h-[33px]" : "h-9",
       )}
       style={{ WebkitAppRegion: "drag" } as React.CSSProperties}

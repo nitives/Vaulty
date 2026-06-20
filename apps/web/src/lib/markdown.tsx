@@ -129,6 +129,7 @@ export function renderMarkdown(content: string) {
   let codeBlockContent: string[] = [];
 
   let inMultiQuote = false;
+  // eslint-disable-next-line prefer-const
   let multiQuoteContent: string[] = [];
 
   for (let i = 0; i < lines.length; i++) {
@@ -296,5 +297,5 @@ export function renderMarkdown(content: string) {
     );
   }
 
-  return <div className="markdown-content space-y-0.5">{elements}</div>;
+  return <div id="markdown-text" className="markdown-content space-y-0.5">{elements}</div>;
 }

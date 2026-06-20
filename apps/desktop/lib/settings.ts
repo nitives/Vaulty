@@ -1,6 +1,7 @@
 import fs from "fs";
+import path from "path";
 import { BrowserWindow } from "electron";
-import { getSettingsPath } from "./paths";
+import { getCustomCssFilePath, getSettingsPath } from "./paths";
 import { AppIconTheme } from "./icon";
 
 export type BackgroundMaterial = "mica" | "acrylic";
@@ -34,10 +35,15 @@ export interface AppSettings {
   openOnStartup?: boolean;
   startMinimized?: boolean;
   closeToTray?: boolean;
+  customCSS?: boolean;
+  customCSSContent?: string;
+  customCSSUpdatedAt?: string;
+  customFont?: boolean;
+  customFontFamily?: string;
   experiments?: Record<string, unknown>;
 }
 
-export function loadSettings(): AppSettings {
+function readSettingsFile(): AppSettings {
   try {
     return JSON.parse(fs.readFileSync(getSettingsPath(), "utf-8"));
   } catch {
@@ -45,8 +51,59 @@ export function loadSettings(): AppSettings {
   }
 }
 
+function readCustomCssContent(): string {
+  try {
+    const customCssPath = getCustomCssFilePath();
+    if (!fs.existsSync(customCssPath)) {
+      return "";
+    }
+    return fs.readFileSync(customCssPath, "utf-8");
+  } catch {
+    return "";
+  }
+}
+
+function writeCustomCssContent(content: string): void {
+  const customCssPath = getCustomCssFilePath();
+  fs.mkdirSync(path.dirname(customCssPath), { recursive: true });
+  fs.writeFileSync(customCssPath, content);
+}
+
+function withoutCustomCssContent(settings: AppSettings): AppSettings {
+  const copy = { ...settings };
+  delete copy.customCSSContent;
+  return copy;
+}
+
+export function loadSettings(): AppSettings {
+  const settings = readSettingsFile();
+  const legacyCustomCss =
+    typeof settings.customCSSContent === "string" ? settings.customCSSContent : "";
+  const customCssContent = readCustomCssContent() || legacyCustomCss;
+
+  if (legacyCustomCss && !readCustomCssContent()) {
+    try {
+      writeCustomCssContent(legacyCustomCss);
+    } catch {
+      // Leave migration best-effort; the legacy value is still returned below.
+    }
+  }
+
+  return {
+    ...withoutCustomCssContent(settings),
+    customCSSContent: customCssContent,
+  };
+}
+
 export function saveSettings(settings: AppSettings): void {
-  fs.writeFileSync(getSettingsPath(), JSON.stringify(settings, null, 2));
+  fs.writeFileSync(
+    getSettingsPath(),
+    JSON.stringify(withoutCustomCssContent(settings), null, 2),
+  );
+
+  if (typeof settings.customCSSContent === "string") {
+    writeCustomCssContent(settings.customCSSContent);
+  }
 }
 
 export function applyTransparency(

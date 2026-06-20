@@ -598,6 +598,7 @@ export function InputBar({ onSubmit }: InputBarProps) {
 
       {/* Main input container */}
       <motion.div
+        id="vaulty-input"
         layout
         transition={{ duration: 0.25, ease: [0.25, 0.1, 0.25, 1] }}
         className={clsx(

@@ -42,6 +42,10 @@ yarn-error.log*
 
 # supabase
 supabase/.temp/
+supabase/**/.temp/
+
+# local tool config
+.mcp.json
 
 # typescript
 *.tsbuildinfo
@@ -55,3 +59,14 @@ next-env.d.ts
 .venv
 .venv/
 scripts
+
+# stripe
+supabase/stripe_setup.md
+
+# personal notes / scratch
+*.local.md
+*.local.txt
+NOTES.local.md
+notes.local.md
+.scratch/
+scratch/

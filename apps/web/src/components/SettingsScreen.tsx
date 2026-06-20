@@ -315,7 +315,7 @@ function AppearanceSection() {
         )}
         <SettingsRow
           label="Custom CSS"
-          description="Inject your own CSS styles into the app"
+          description="Inject your own CSS styles from custom.css in your Vaulty folder"
           toggleOnRowClick
         >
           <Toggle
@@ -2010,6 +2010,23 @@ function ExperimentsSection() {
             }
           />
         </SettingsRow>
+        <SettingsRow
+          label="Progressive blur in scroll feed"
+          description="Add a soft progressive blur at the bottom edge of the main scroll area"
+          toggleOnRowClick
+        >
+          <Toggle
+            checked={Boolean(experiments["progressive-scroll-feed-blur"])}
+            onChange={(v) =>
+              update({
+                experiments: {
+                  ...experiments,
+                  "progressive-scroll-feed-blur": v,
+                },
+              })
+            }
+          />
+        </SettingsRow>
       </SettingsSection>
     </div>
   );
@@ -2092,6 +2109,7 @@ export function SettingsScreen({ isOpen, onClose }: SettingsScreenProps) {
     <AnimatePresence>
       {isOpen && (
         <motion.div
+          id="settings-screen"
           key="settings-backdrop"
           ref={screenRef}
           className={clsx(
@@ -2112,7 +2130,7 @@ export function SettingsScreen({ isOpen, onClose }: SettingsScreenProps) {
         >
           <aside
             className={clsx(
-              "flex w-[14rem] shrink-0 flex-col border-r",
+              "flex w-[14rem] shrink-0 flex-col border-r z-10",
               "border-neutral-200 bg-neutral-50/95 dark:border-white/10 dark:bg-neutral-950",
             )}
           >

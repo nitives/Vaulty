@@ -118,7 +118,7 @@ export function Feed({ items, isLoading = false, onSeen }: FeedProps) {
         <h1 className="font-bold text-black/90 dark:text-white/90">
           You have no unseen pulse updates
         </h1>
-        <p className="text-sm text-black/50 dark:text-white/50">
+        <p data-vaulty-hierarchy="secondary" className="text-sm text-black/50 dark:text-white/50">
           Check back here for updates from your vaults and the community
         </p>
       </div>

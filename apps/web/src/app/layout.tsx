@@ -33,7 +33,7 @@ const themeScript = `
       if (isDark) {
         document.documentElement.classList.add('dark');
       }
-      if (settings.titlebarTransparent) {
+      if (settings.transparency && settings.titlebarTransparent) {
         document.documentElement.classList.add('titlebar-transparent');
       }
       if (settings.inputBarPosition === 'top') {

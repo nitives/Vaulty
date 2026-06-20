@@ -17,6 +17,7 @@ export const Tags = ({
   return (
     <div
       key={tag}
+      id="feed-item-tag"
       className={clsx(
         "group/tag relative inline-flex items-center",
         "rounded-full px-1.5 py-0.5",
@@ -68,6 +69,7 @@ export const AddTagButton = ({
     <button
       onClick={() => setIsAddingTag(true)}
       title="Add tag"
+      id="item-add-tag-button"
       className={clsx(
         "cursor-pointer flex size-4.5 items-center justify-center rounded-full bg-black/5 text-neutral-500 dark:bg-white/5 dark:text-neutral-400 transition-all hover:bg-black/10 hover:text-neutral-700 dark:hover:bg-white/10 dark:hover:text-neutral-200",
         isEditing ? "opacity-100" : "opacity-0 group-hover:opacity-100",

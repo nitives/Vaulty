@@ -3,13 +3,20 @@
 
 create table if not exists public.vault_records (
   user_id uuid not null references auth.users(id) on delete cascade,
-  collection text not null check (collection in ('items', 'folders', 'pages')),
+  collection text not null check (collection in ('items', 'folders', 'pages', 'settings')),
   record_id text not null,
   payload jsonb not null default '{}'::jsonb,
   updated_at timestamptz not null default now(),
   deleted_at timestamptz,
   primary key (user_id, collection, record_id)
 );
+
+alter table public.vault_records
+drop constraint if exists vault_records_collection_check;
+
+alter table public.vault_records
+add constraint vault_records_collection_check
+check (collection in ('items', 'folders', 'pages', 'settings'));
 
 alter table public.vault_records enable row level security;
 

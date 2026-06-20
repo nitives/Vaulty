@@ -32,6 +32,10 @@ export function getPagesFilePath(): string {
   return path.join(getVaultyDataPath(), "pages.json");
 }
 
+export function getCustomCssFilePath(): string {
+  return path.join(getVaultyDataPath(), "custom.css");
+}
+
 export function getImagesPath(): string {
   return path.join(getVaultyDataPath(), "images");
 }

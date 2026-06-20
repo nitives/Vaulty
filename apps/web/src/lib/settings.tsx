@@ -8,6 +8,7 @@ import {
   useMemo,
   useState,
 } from "react";
+import { pushCollectionRecords } from "@/lib/sync";
 
 // -- Settings schema --
 // Add new settings fields here. Every field must be optional so the
@@ -67,6 +68,7 @@ export interface AppSettings {
   customFontFamily?: string;
   customCSS?: boolean;
   customCSSContent?: string;
+  customCSSUpdatedAt?: string;
   experiments?: Record<string, unknown>;
 }
 
@@ -106,6 +108,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
 // -- localStorage helpers (for fast sync access on page load) --
 
 const STORAGE_KEY = "vaulty-settings";
+const VAULTY_SYNC_COMPLETE_EVENT = "vaulty:sync-complete";
+const CUSTOM_CSS_SYNC_RECORD_ID = "custom-css";
 
 function normalizeIconTheme(theme: unknown): AppIconTheme {
   if (
@@ -153,13 +157,36 @@ function getCachedSettings(): AppSettings | null {
   return getPreloadedSettings() || loadFromLocalStorage();
 }
 
+function settingsForLocalStorage(settings: AppSettings): AppSettings {
+  const copy = { ...settings };
+  delete copy.customCSSContent;
+  return copy;
+}
+
 function saveToLocalStorage(settings: AppSettings): void {
   if (typeof window === "undefined") return;
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify(settingsForLocalStorage(settings)),
+    );
   } catch {
     // Ignore storage errors
   }
+}
+
+function queueCustomCssSync(settings: AppSettings): void {
+  const updatedAt = settings.customCSSUpdatedAt ?? new Date().toISOString();
+  const record = {
+    id: CUSTOM_CSS_SYNC_RECORD_ID,
+    customCSS: Boolean(settings.customCSS),
+    customCSSContent: settings.customCSSContent ?? "",
+    cssPath: "custom.css",
+    updatedAt,
+  };
+  pushCollectionRecords("settings", [record]).catch((err) =>
+    console.error("Vaulty custom CSS sync failed:", err),
+  );
 }
 
 // -- Electron bridge helpers --
@@ -229,23 +256,32 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
   });
   const [loading, setLoading] = useState(true);
 
+  const mergeSavedSettings = useCallback((saved: AppSettings): AppSettings => {
+    return {
+      ...DEFAULT_SETTINGS,
+      ...saved,
+      iconTheme: normalizeIconTheme(saved.iconTheme),
+    };
+  }, []);
+
+  const reloadPersistedSettings = useCallback(async () => {
+    const api = getElectronAPI();
+    if (!api?.getSettings) return null;
+
+    const merged = mergeSavedSettings(await api.getSettings());
+    setSettings(merged);
+    saveToLocalStorage(merged);
+    applyTheme(merged.theme ?? "system");
+    return merged;
+  }, [mergeSavedSettings]);
+
   // Load persisted settings from Electron on mount (source of truth)
   useEffect(() => {
-    const api = getElectronAPI();
-    if (api?.getSettings) {
-      api
-        .getSettings()
-        .then((saved) => {
-          const merged = {
-            ...DEFAULT_SETTINGS,
-            ...saved,
-            iconTheme: normalizeIconTheme(saved.iconTheme),
-          };
-          setSettings(merged);
-          saveToLocalStorage(merged); // Keep localStorage in sync
-          applyTheme(merged.theme ?? "system");
-        })
-        .finally(() => setLoading(false));
+    if (getElectronAPI()?.getSettings) {
+      const timer = window.setTimeout(() => {
+        void reloadPersistedSettings().finally(() => setLoading(false));
+      }, 0);
+      return () => window.clearTimeout(timer);
     } else {
       // Not in Electron -- settings already initialized from cached settings
       // Just apply the theme and mark as loaded
@@ -254,7 +290,18 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
       applyTheme(theme);
       queueMicrotask(() => setLoading(false));
     }
-  }, []);
+  }, [reloadPersistedSettings]);
+
+  useEffect(() => {
+    const handleSyncComplete = () => {
+      void reloadPersistedSettings();
+    };
+
+    window.addEventListener(VAULTY_SYNC_COMPLETE_EVENT, handleSyncComplete);
+    return () => {
+      window.removeEventListener(VAULTY_SYNC_COMPLETE_EVENT, handleSyncComplete);
+    };
+  }, [reloadPersistedSettings]);
 
   // Sync dark class + native theme whenever settings.theme changes
   useEffect(() => {
@@ -327,10 +374,17 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
   }, [settings.customCSS, settings.customCSSContent]);
 
   const update = useCallback((patch: Partial<AppSettings>) => {
-    const normalizedPatch =
-      "iconTheme" in patch
-        ? { ...patch, iconTheme: normalizeIconTheme(patch.iconTheme) }
-        : patch;
+    const updatesCustomCss =
+      "customCSS" in patch || "customCSSContent" in patch;
+    const normalizedPatch = {
+      ...patch,
+      ...("iconTheme" in patch
+        ? { iconTheme: normalizeIconTheme(patch.iconTheme) }
+        : {}),
+      ...(updatesCustomCss && !("customCSSUpdatedAt" in patch)
+        ? { customCSSUpdatedAt: new Date().toISOString() }
+        : {}),
+    };
 
     setSettings((prev) => {
       const next = { ...prev, ...normalizedPatch };
@@ -340,6 +394,9 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
       const api = getElectronAPI();
       if (api?.setSettings) {
         api.setSettings(next);
+      }
+      if (updatesCustomCss) {
+        queueCustomCssSync(next);
       }
       return next;
     });

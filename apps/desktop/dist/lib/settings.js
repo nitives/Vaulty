@@ -7,8 +7,9 @@ exports.loadSettings = loadSettings;
 exports.saveSettings = saveSettings;
 exports.applyTransparency = applyTransparency;
 const fs_1 = __importDefault(require("fs"));
+const path_1 = __importDefault(require("path"));
 const paths_1 = require("./paths");
-function loadSettings() {
+function readSettingsFile() {
     try {
         return JSON.parse(fs_1.default.readFileSync((0, paths_1.getSettingsPath)(), "utf-8"));
     }
@@ -16,8 +17,50 @@ function loadSettings() {
         return {};
     }
 }
+function readCustomCssContent() {
+    try {
+        const customCssPath = (0, paths_1.getCustomCssFilePath)();
+        if (!fs_1.default.existsSync(customCssPath)) {
+            return "";
+        }
+        return fs_1.default.readFileSync(customCssPath, "utf-8");
+    }
+    catch {
+        return "";
+    }
+}
+function writeCustomCssContent(content) {
+    const customCssPath = (0, paths_1.getCustomCssFilePath)();
+    fs_1.default.mkdirSync(path_1.default.dirname(customCssPath), { recursive: true });
+    fs_1.default.writeFileSync(customCssPath, content);
+}
+function withoutCustomCssContent(settings) {
+    const copy = { ...settings };
+    delete copy.customCSSContent;
+    return copy;
+}
+function loadSettings() {
+    const settings = readSettingsFile();
+    const legacyCustomCss = typeof settings.customCSSContent === "string" ? settings.customCSSContent : "";
+    const customCssContent = readCustomCssContent() || legacyCustomCss;
+    if (legacyCustomCss && !readCustomCssContent()) {
+        try {
+            writeCustomCssContent(legacyCustomCss);
+        }
+        catch {
+            // Leave migration best-effort; the legacy value is still returned below.
+        }
+    }
+    return {
+        ...withoutCustomCssContent(settings),
+        customCSSContent: customCssContent,
+    };
+}
 function saveSettings(settings) {
-    fs_1.default.writeFileSync((0, paths_1.getSettingsPath)(), JSON.stringify(settings, null, 2));
+    fs_1.default.writeFileSync((0, paths_1.getSettingsPath)(), JSON.stringify(withoutCustomCssContent(settings), null, 2));
+    if (typeof settings.customCSSContent === "string") {
+        writeCustomCssContent(settings.customCSSContent);
+    }
 }
 function applyTransparency(win, enabled, material) {
     const mat = material ?? "mica";

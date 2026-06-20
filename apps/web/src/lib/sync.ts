@@ -11,7 +11,7 @@ import {
   VAULT_ASSETS_BUCKET,
 } from "@/lib/supabase";
 
-export type SyncCollection = "items" | "folders" | "pages";
+export type SyncCollection = "items" | "folders" | "pages" | "settings";
 
 export interface SyncRecordBase {
   id: string;
@@ -25,6 +25,7 @@ export interface SyncSnapshot {
   items: SyncRecordBase[];
   folders: SyncRecordBase[];
   pages: SyncRecordBase[];
+  settings?: SyncRecordBase[];
 }
 
 interface VaultRecordRow {
@@ -73,6 +74,10 @@ function describeSyncError(error: unknown): string {
 
   if (lower.includes("vault_records") && lower.includes("schema cache")) {
     return "Vaulty sync tables are missing. Run supabase/vaulty_sync.sql in your Supabase SQL editor, then try Sync now again.";
+  }
+
+  if (lower.includes("vault_records_collection_check")) {
+    return "Vaulty sync needs the updated schema for settings sync. Run the latest supabase/vaulty_sync.sql in your Supabase SQL editor, then try Sync now again.";
   }
 
   if (
@@ -474,16 +479,23 @@ export async function syncVaultSnapshot(
     const items = mergeCollection("items", snapshot.items, remoteRows);
     const folders = mergeCollection("folders", snapshot.folders, remoteRows);
     const pages = mergeCollection("pages", snapshot.pages, remoteRows);
+    const settings = mergeCollection(
+      "settings",
+      snapshot.settings ?? [],
+      remoteRows,
+    );
     const mergedSnapshot: SyncSnapshot = {
       items: sortItems(items.records),
       folders: folders.records,
       pages: pages.records,
+      settings: settings.records,
     };
 
     await Promise.all([
       pushCollectionRecords("items", mergedSnapshot.items),
       pushCollectionRecords("folders", mergedSnapshot.folders),
       pushCollectionRecords("pages", mergedSnapshot.pages),
+      pushCollectionRecords("settings", mergedSnapshot.settings ?? []),
     ]);
 
     return {
@@ -491,9 +503,11 @@ export async function syncVaultSnapshot(
       pushed:
         mergedSnapshot.items.length +
         mergedSnapshot.folders.length +
-        mergedSnapshot.pages.length,
-      pulled: items.pulled + folders.pulled + pages.pulled,
-      deleted: items.deleted + folders.deleted + pages.deleted,
+        mergedSnapshot.pages.length +
+        (mergedSnapshot.settings?.length ?? 0),
+      pulled: items.pulled + folders.pulled + pages.pulled + settings.pulled,
+      deleted:
+        items.deleted + folders.deleted + pages.deleted + settings.deleted,
       snapshot: mergedSnapshot,
     };
   } catch (err) {
