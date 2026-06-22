@@ -27,13 +27,17 @@ export function MoveModal({ isOpen, onClose, onMove }: MoveModalProps) {
         setFolders(f);
         setPages(p);
       });
-      setSelectedPageId(null);
     }
   }, [isOpen]);
 
+  const handleClose = () => {
+    setSelectedPageId(null);
+    onClose();
+  };
+
   const handleConfirm = () => {
     onMove(selectedPageId);
-    onClose();
+    handleClose();
   };
 
   return (
@@ -49,7 +53,7 @@ export function MoveModal({ isOpen, onClose, onMove }: MoveModalProps) {
               ? { duration: 0 }
               : { duration: 0.18, ease: [0.16, 1, 0.3, 1] }
           }
-          onClick={onClose}
+          onClick={handleClose}
         >
           <motion.div
             role="dialog"
@@ -146,7 +150,7 @@ export function MoveModal({ isOpen, onClose, onMove }: MoveModalProps) {
             </div>
 
             <div className="flex justify-end gap-3 shrink-0">
-              <button onClick={onClose} className={clsx(buttonStyles.base)}>
+              <button onClick={handleClose} className={clsx(buttonStyles.base)}>
                 Cancel
               </button>
               <button

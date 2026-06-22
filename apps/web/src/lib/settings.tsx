@@ -9,6 +9,7 @@ import {
   useState,
 } from "react";
 import { pushCollectionRecords } from "@/lib/sync";
+import { getElectronAPI as getElectronAPIBase } from "@/lib/electron";
 
 // -- Settings schema --
 // Add new settings fields here. Every field must be optional so the
@@ -189,10 +190,6 @@ function queueCustomCssSync(settings: AppSettings): void {
   );
 }
 
-// -- Electron bridge helpers --
-
-import { getElectronAPI as getElectronAPIBase } from "@/lib/electron";
-
 function getElectronAPI() {
   const api = getElectronAPIBase();
   if (!api) return undefined;
@@ -266,7 +263,15 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
 
   const reloadPersistedSettings = useCallback(async () => {
     const api = getElectronAPI();
-    if (!api?.getSettings) return null;
+    if (!api?.getSettings) {
+      const cached = loadFromLocalStorage();
+      if (!cached) return null;
+
+      const merged = mergeSavedSettings(cached);
+      setSettings(merged);
+      applyTheme(merged.theme ?? "system");
+      return merged;
+    }
 
     const merged = mergeSavedSettings(await api.getSettings());
     setSettings(merged);

@@ -29,7 +29,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { IconDefinition } from "@bradleyhodges/sfsymbols-types";
 import { getElectronAPI } from "@/lib/electron";
 import { useAuth } from "@/lib/auth";
-import { syncVaultNow } from "@/lib/storage";
+import { pullRemoteVaultNow } from "@/lib/storage";
 import {
   type BillingEntitlements,
   type BillingPlanId,
@@ -696,6 +696,7 @@ function BehaviorSection() {
 
 function StorageSection() {
   const { settings, update } = useSettings();
+  const isDesktop = Boolean(getElectronAPI());
   const [dataLocation, setDataLocation] = useState<string>("Loading...");
   const [backupStatus, setBackupStatus] = useState<{
     frequency: VaultBackupFrequency;
@@ -726,12 +727,18 @@ function StorageSection() {
   };
 
   useEffect(() => {
+    if (!isDesktop) {
+      setDataLocation("Browser cache with Vaulty Sync cloud mirror");
+      setBackupStatus(null);
+      return;
+    }
+
     window.electronAPI
       ?.getStoragePath()
       .then((path: string) => setDataLocation(path))
       .catch(() => setDataLocation("Unknown"));
     void loadBackupStatus();
-  }, []);
+  }, [isDesktop]);
 
   const handleChangeLocation = async () => {
     try {
@@ -853,98 +860,123 @@ function StorageSection() {
       <SettingsSection title="Data">
         <div className="px-4 py-3">
           <h4 className="font-semibold text-neutral-900 dark:text-neutral-100 mb-1">
-            Data Location
+            {isDesktop ? "Data Location" : "Browser Data"}
           </h4>
-          <p className="text-sm text-neutral-600 dark:text-neutral-400 mb-4 block truncate">
+          <p className="text-sm text-neutral-600 dark:text-neutral-400 mb-4">
             {dataLocation}
           </p>
 
-          <div className="flex items-center gap-2">
-            <Button
-              variant="base"
-              className="text-xs px-3 py-1.5"
-              onClick={handleChangeLocation}
-            >
-              Change location...
-            </Button>
-            <Button
-              variant="base"
-              className="text-xs px-3 py-1.5"
-              onClick={handleOpenVault}
-            >
-              Open vault folder
-            </Button>
-            <Button
-              variant="base"
-              className="text-xs px-3 py-1.5"
-              onClick={handleOpenTrash}
-            >
-              Open trash folder
-            </Button>
-          </div>
+          {isDesktop ? (
+            <div className="flex items-center gap-2">
+              <Button
+                variant="base"
+                className="text-xs px-3 py-1.5"
+                onClick={handleChangeLocation}
+              >
+                Change location...
+              </Button>
+              <Button
+                variant="base"
+                className="text-xs px-3 py-1.5"
+                onClick={handleOpenVault}
+              >
+                Open vault folder
+              </Button>
+              <Button
+                variant="base"
+                className="text-xs px-3 py-1.5"
+                onClick={handleOpenTrash}
+              >
+                Open trash folder
+              </Button>
+            </div>
+          ) : (
+            <p className="text-xs leading-5 text-neutral-500 dark:text-neutral-400">
+              Items, folders, and pages are cached in this browser for fast
+              loading. When you are signed in with sync access, changes are
+              mirrored to Supabase and appear on your other devices in realtime.
+              Desktop-only folders such as the Vaulty data folder, trash folder,
+              and backup copies are available in the desktop app.
+            </p>
+          )}
         </div>
       </SettingsSection>
 
       <SettingsSection title="Backups">
-        <SettingsRow
-          label="Backup copies"
-          description={
-            backupStatus?.backupsPath ?? "Stored in the vault folder"
-          }
-        >
-          <Select
-            value={
-              backupStatus?.frequency ?? settings.vaultBackupFrequency ?? "off"
-            }
-            onChange={handleBackupFrequencyChange}
-            options={[
-              { value: "off", label: "Off" },
-              { value: "hourly", label: "Every hour" },
-              { value: "daily", label: "Every day" },
-              { value: "weekly", label: "Every week" },
-            ]}
-          />
-        </SettingsRow>
-        <SettingsRow
-          label="Copies to keep"
-          description={backupRetentionDescription}
-        >
-          <div className="flex items-center gap-3">
-            <input
-              type="number"
-              min={1}
-              step={1}
-              inputMode="numeric"
-              value={backupRetentionIsInfinite ? "" : backupRetentionInput}
-              onChange={handleBackupRetentionChange}
-              onBlur={handleBackupRetentionBlur}
-              disabled={backupRetentionIsInfinite}
-              className="h-8 w-20 rounded-lg border border-neutral-300 bg-white px-2 text-sm text-neutral-900 outline-none transition-colors focus:border-neutral-500 disabled:opacity-50 dark:border-white/10 dark:bg-white/[0.07] dark:text-white dark:focus:border-white/25"
-            />
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-neutral-600 dark:text-neutral-400">
-                Infinite
-              </span>
-              <Toggle
-                checked={backupRetentionIsInfinite}
-                onChange={handleInfiniteBackupRetentionChange}
+        {isDesktop ? (
+          <>
+            <SettingsRow
+              label="Backup copies"
+              description={
+                backupStatus?.backupsPath ?? "Stored in the vault folder"
+              }
+            >
+              <Select
+                value={
+                  backupStatus?.frequency ??
+                  settings.vaultBackupFrequency ??
+                  "off"
+                }
+                onChange={handleBackupFrequencyChange}
+                options={[
+                  { value: "off", label: "Off" },
+                  { value: "hourly", label: "Every hour" },
+                  { value: "daily", label: "Every day" },
+                  { value: "weekly", label: "Every week" },
+                ]}
               />
-            </div>
-          </div>
-        </SettingsRow>
-        <SettingsRow
-          label="Last backup"
-          description={backupMessage ?? lastBackupLabel}
-        >
-          <Button
-            variant="base"
-            className="px-3 py-1.5 text-xs"
-            onClick={handleBackupNow}
-            disabled={isBackingUp}
+            </SettingsRow>
+            <SettingsRow
+              label="Copies to keep"
+              description={backupRetentionDescription}
+            >
+              <div className="flex items-center gap-3">
+                <input
+                  type="number"
+                  min={1}
+                  step={1}
+                  inputMode="numeric"
+                  value={backupRetentionIsInfinite ? "" : backupRetentionInput}
+                  onChange={handleBackupRetentionChange}
+                  onBlur={handleBackupRetentionBlur}
+                  disabled={backupRetentionIsInfinite}
+                  className="h-8 w-20 rounded-lg border border-neutral-300 bg-white px-2 text-sm text-neutral-900 outline-none transition-colors focus:border-neutral-500 disabled:opacity-50 dark:border-white/10 dark:bg-white/[0.07] dark:text-white dark:focus:border-white/25"
+                />
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-neutral-600 dark:text-neutral-400">
+                    Infinite
+                  </span>
+                  <Toggle
+                    checked={backupRetentionIsInfinite}
+                    onChange={handleInfiniteBackupRetentionChange}
+                  />
+                </div>
+              </div>
+            </SettingsRow>
+            <SettingsRow
+              label="Last backup"
+              description={backupMessage ?? lastBackupLabel}
+            >
+              <Button
+                variant="base"
+                className="px-3 py-1.5 text-xs"
+                onClick={handleBackupNow}
+                disabled={isBackingUp}
+              >
+                {isBackingUp ? "Backing up..." : "Back up now"}
+              </Button>
+            </SettingsRow>
+          </>
+        ) : (
+          <SettingsRow
+            label="Desktop backups"
+            description="Backup folders are only created by the desktop app. Browser changes are protected by live sync when your account has sync access."
           >
-            {isBackingUp ? "Backing up..." : "Back up now"}
-          </Button>
-        </SettingsRow>
+            <span className="text-xs text-neutral-500 dark:text-neutral-400">
+              Browser mode
+            </span>
+          </SettingsRow>
+        )}
       </SettingsSection>
     </div>
   );
@@ -1156,14 +1188,14 @@ function SyncSection() {
     setIsSyncing(true);
 
     try {
-      const result = await syncVaultNow();
+      const result = await pullRemoteVaultNow();
       if (!result.success) {
         setStatus(result.error ?? "Sync failed.");
         return;
       }
 
       setStatus(
-        `Synced ${result.pushed} records. Pulled ${result.pulled}, removed ${result.deleted}.${
+        `Refreshed from cloud. Pulled ${result.pulled}, removed ${result.deleted}.${
           result.mediaErrors?.length
             ? ` Media issues: ${result.mediaErrors.length}.`
             : ""
@@ -1473,7 +1505,7 @@ function SyncSection() {
                 onClick={handleSyncNow}
                 disabled={isSyncing || isBillingLoading || !hasSyncAccess}
               >
-                {isSyncing ? "Syncing..." : "Sync now"}
+                {isSyncing ? "Refreshing..." : "Refresh now"}
               </Button>
               <Button
                 variant="base"
@@ -1494,7 +1526,7 @@ function SyncSection() {
               (isLoading
                 ? "Checking account..."
                 : hasSyncAccess
-                  ? "Sync enabled"
+                  ? "Live sync enabled. Changes sync automatically."
                   : "Subscription required")
             }
           >

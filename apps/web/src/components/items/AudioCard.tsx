@@ -9,6 +9,7 @@ import {
 } from "@bradleyhodges/sfsymbols";
 import { useColor } from "color-thief-react";
 import { Item } from "./ItemCard";
+import { useResolvedMediaUrl } from "@/hooks/useResolvedMediaUrl";
 
 // Fallback background colors if no cover art is present
 const FALLBACK_GRADIENTS = [
@@ -25,29 +26,6 @@ function getHash(str: string) {
     hash = str.charCodeAt(i) + ((hash << 5) - hash);
   }
   return Math.abs(hash);
-}
-
-/** Convert a stored image/audio path to a vaulty-image:// URL */
-function toVaultyUrl(storedPath: string | null): string | null {
-  if (!storedPath) return null;
-  if (storedPath.startsWith("data:")) return storedPath;
-  if (storedPath.startsWith("vaulty-image://")) return storedPath;
-  // Already a relative path like "images/file.jpg" or "audios/file.mp3"
-  if (storedPath.startsWith("images/") || storedPath.startsWith("audios/")) {
-    return `vaulty-image://${storedPath}`;
-  }
-  // Absolute path (legacy) — extract the relative portion after the vaulty data dir
-  // e.g. "C:\Users\...\vaulty\images\file.jpg" → "images/file.jpg"
-  const normalised = storedPath.replace(/\\/g, "/");
-  for (const dir of ["/images/", "/audios/"]) {
-    const idx = normalised.lastIndexOf(dir);
-    if (idx !== -1) {
-      return `vaulty-image://${normalised.slice(idx + 1)}`;
-    }
-  }
-  // Fallback: assume images
-  const filename = storedPath.split(/[\\/]/).pop() || storedPath;
-  return `vaulty-image://images/${filename}`;
 }
 
 function getFileNameFallback(
@@ -79,6 +57,7 @@ export function AudioCard({ item, audioUrl }: AudioCardProps) {
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
   const audioRef = useRef<HTMLAudioElement>(null);
+  const resolvedAudioUrl = useResolvedMediaUrl(audioUrl);
 
   const meta = item.metadata || {};
   const contentFallback =
@@ -91,8 +70,7 @@ export function AudioCard({ item, audioUrl }: AudioCardProps) {
   const album = meta.album || "";
   const year = meta.year || "";
   const coverArt = meta.image || null;
-
-  const coverUrl = toVaultyUrl(coverArt);
+  const coverUrl = useResolvedMediaUrl(coverArt);
 
   const { data: extractedColor } = useColor(coverUrl || "", "hex", {
     crossOrigin: "anonymous",
@@ -198,13 +176,6 @@ export function AudioCard({ item, audioUrl }: AudioCardProps) {
     }
   };
 
-  function formatTime(seconds: number) {
-    if (!seconds || !isFinite(seconds)) return "0:00";
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    return `${mins}:${secs.toString().padStart(2, "0")}`;
-  }
-
   return (
     <div
       className="mt-3 vibrant-border rounded-sm compact:rounded-md flex w-full max-w-sm flex-col overflow-hidden transition-colors duration-500 ease-in-out"
@@ -213,7 +184,7 @@ export function AudioCard({ item, audioUrl }: AudioCardProps) {
       }}
     >
       {/* Hidden Audio Element */}
-      <audio ref={audioRef} src={audioUrl} preload="metadata" />
+      <audio ref={audioRef} src={resolvedAudioUrl} preload="metadata" />
 
       <div className="flex flex-col gap-[9px]">
         <div className="flex flex-row items-center">
@@ -335,7 +306,7 @@ export function AudioPreview({
   const title = metadata.title || filename;
   const artist = metadata.artist || "Unknown Artist";
 
-  const coverUrl = toVaultyUrl(metadata.image || null);
+  const coverUrl = useResolvedMediaUrl(metadata.image || null);
   const isDark =
     typeof document !== "undefined" &&
     document.documentElement.classList.contains("dark");

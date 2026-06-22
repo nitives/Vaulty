@@ -6,10 +6,14 @@ import {
   pushCollectionRecords,
   pushDeletedRecord,
   pushDeletedRecords,
+  mergeCollectionRecords,
+  pullVaultRecords,
   syncAssetsForItems,
   syncVaultSnapshot,
   type SyncResult,
+  type SyncSnapshot,
   type SyncRecordBase,
+  type VaultRecordRow,
 } from "@/lib/sync";
 
 // Stored item type (dates serialized as ISO strings)
@@ -116,6 +120,9 @@ export interface PulseItem {
 
 export const VAULTY_SYNC_COMPLETE_EVENT = "vaulty:sync-complete";
 const CUSTOM_CSS_SYNC_RECORD_ID = "custom-css";
+const ITEMS_STORAGE_KEY = "vaulty-items";
+const FOLDERS_STORAGE_KEY = "vaulty-folders";
+const PAGES_STORAGE_KEY = "vaulty-pages";
 
 interface CustomCssSyncRecord extends SyncRecordBase {
   customCSS?: boolean;
@@ -179,6 +186,60 @@ function queueSync(task: Promise<unknown>): void {
 function notifySyncComplete(): void {
   if (typeof window === "undefined") return;
   window.dispatchEvent(new CustomEvent(VAULTY_SYNC_COMPLETE_EVENT));
+}
+
+function readLocalStorageRecords<T>(key: string): T[] {
+  if (typeof window === "undefined") return [];
+
+  try {
+    const data = localStorage.getItem(key);
+    return data ? (JSON.parse(data) as T[]) : [];
+  } catch (err) {
+    console.error(`Failed to load ${key} from localStorage:`, err);
+    return [];
+  }
+}
+
+function writeLocalStorageRecords<T>(key: string, records: T[]): void {
+  if (typeof window === "undefined") return;
+
+  try {
+    localStorage.setItem(key, JSON.stringify(records));
+  } catch (err) {
+    console.error(`Failed to save ${key} to localStorage:`, err);
+  }
+}
+
+function dataUrlByteSize(dataUrl: string): number {
+  const commaIndex = dataUrl.indexOf(",");
+  if (commaIndex === -1) return dataUrl.length;
+
+  const metadata = dataUrl.slice(0, commaIndex);
+  const payload = dataUrl.slice(commaIndex + 1);
+
+  if (metadata.includes(";base64")) {
+    const cleanPayload = payload.replace(/\s/g, "");
+    const padding = cleanPayload.endsWith("==")
+      ? 2
+      : cleanPayload.endsWith("=")
+        ? 1
+        : 0;
+    return Math.max(0, Math.floor((cleanPayload.length * 3) / 4) - padding);
+  }
+
+  try {
+    return new Blob([decodeURIComponent(payload)]).size;
+  } catch {
+    return payload.length;
+  }
+}
+
+function sortStoredItems(records: StoredItem[]): StoredItem[] {
+  return [...records].sort((a, b) => {
+    const aTime = Date.parse(a.createdAt);
+    const bTime = Date.parse(b.createdAt);
+    return (Number.isNaN(bTime) ? 0 : bTime) - (Number.isNaN(aTime) ? 0 : aTime);
+  });
 }
 
 async function loadAppSettingsForSync(): Promise<AppSettings> {
@@ -338,16 +399,9 @@ export async function loadItems(): Promise<Item[]> {
   const api = getElectronAPI();
   if (!api) {
     // Fallback: load from localStorage in browser
-    try {
-      const data = localStorage.getItem("vaulty-items");
-      if (data) {
-        const stored: StoredItem[] = JSON.parse(data);
-        return stored.map(storedToItem);
-      }
-    } catch (err) {
-      console.error("Failed to load from localStorage:", err);
-    }
-    return [];
+    return readLocalStorageRecords<StoredItem>(ITEMS_STORAGE_KEY).map(
+      storedToItem,
+    );
   }
 
   try {
@@ -366,19 +420,13 @@ export async function saveItems(items: Item[]): Promise<void> {
 
   if (!api) {
     // Fallback: save to localStorage in browser
-    try {
-      const previous = JSON.parse(
-        localStorage.getItem("vaulty-items") ?? "[]",
-      ) as StoredItem[];
-      const prepared = touchChangedRecords(stored, previous);
-      const deleted = removedIds(previous, prepared);
-      localStorage.setItem("vaulty-items", JSON.stringify(prepared));
-      queueSync(pushCollectionRecords("items", prepared));
-      queueSync(pushAssetsForItems(prepared));
-      queueSync(pushDeletedRecords("items", deleted));
-    } catch (err) {
-      console.error("Failed to save to localStorage:", err);
-    }
+    const previous = readLocalStorageRecords<StoredItem>(ITEMS_STORAGE_KEY);
+    const prepared = touchChangedRecords(stored, previous);
+    const deleted = removedIds(previous, prepared);
+    writeLocalStorageRecords(ITEMS_STORAGE_KEY, prepared);
+    queueSync(pushCollectionRecords("items", prepared));
+    queueSync(pushAssetsForItems(prepared));
+    queueSync(pushDeletedRecords("items", deleted));
     return;
   }
 
@@ -401,9 +449,14 @@ export async function addItem(item: Item): Promise<void> {
   const api = getElectronAPI();
 
   if (!api) {
-    const items = await loadItems();
-    items.unshift(item);
-    await saveItems(items);
+    const previous = readLocalStorageRecords<StoredItem>(ITEMS_STORAGE_KEY);
+    const next = [
+      stored,
+      ...previous.filter((record) => record.id !== item.id),
+    ];
+    writeLocalStorageRecords(ITEMS_STORAGE_KEY, next);
+    queueSync(pushCollectionRecords("items", [stored]));
+    queueSync(pushAssetsForItems([stored]));
     return;
   }
 
@@ -421,9 +474,11 @@ export async function deleteItem(id: string): Promise<void> {
   const api = getElectronAPI();
 
   if (!api) {
-    const items = await loadItems();
-    const filtered = items.filter((item) => item.id !== id);
-    await saveItems(filtered);
+    const previous = readLocalStorageRecords<StoredItem>(ITEMS_STORAGE_KEY);
+    writeLocalStorageRecords(
+      ITEMS_STORAGE_KEY,
+      previous.filter((item) => item.id !== id),
+    );
     queueSync(pushDeletedRecord("items", id));
     return;
   }
@@ -442,11 +497,13 @@ export async function updateItem(item: Item): Promise<void> {
   const api = getElectronAPI();
 
   if (!api) {
-    const items = await loadItems();
-    const index = items.findIndex((i) => i.id === item.id);
+    const items = readLocalStorageRecords<StoredItem>(ITEMS_STORAGE_KEY);
+    const index = items.findIndex((i) => i.id === stored.id);
     if (index !== -1) {
-      items[index] = item;
-      await saveItems(items);
+      items[index] = stored;
+      writeLocalStorageRecords(ITEMS_STORAGE_KEY, items);
+      queueSync(pushCollectionRecords("items", [stored]));
+      queueSync(pushAssetsForItems([stored]));
     }
     return;
   }
@@ -463,7 +520,11 @@ export async function updateItem(item: Item): Promise<void> {
 // Folders
 export async function loadFolders(): Promise<Folder[]> {
   const api = getElectronAPI();
-  if (!api) return [];
+  if (!api) {
+    return readLocalStorageRecords<StoredFolder>(FOLDERS_STORAGE_KEY).map(
+      storedToFolder,
+    );
+  }
   try {
     const stored = await api.loadFolders();
     return stored.map(storedToFolder);
@@ -475,10 +536,20 @@ export async function loadFolders(): Promise<Folder[]> {
 
 export async function saveFolders(folders: Folder[]): Promise<void> {
   const api = getElectronAPI();
-  if (!api) return;
+  const stored = folders.map((folder) => folderToStored(folder));
+
+  if (!api) {
+    const previous = readLocalStorageRecords<StoredFolder>(FOLDERS_STORAGE_KEY);
+    const prepared = touchChangedRecords(stored, previous);
+    const deleted = removedIds(previous, prepared);
+    writeLocalStorageRecords(FOLDERS_STORAGE_KEY, prepared);
+    queueSync(pushCollectionRecords("folders", prepared));
+    queueSync(pushDeletedRecords("folders", deleted));
+    return;
+  }
+
   try {
     const previous = (await api.loadFolders()) as StoredFolder[];
-    const stored = folders.map((folder) => folderToStored(folder));
     const prepared = touchChangedRecords(stored, previous);
     const deleted = removedIds(previous, prepared);
     await api.saveFolders(prepared);
@@ -492,7 +563,11 @@ export async function saveFolders(folders: Folder[]): Promise<void> {
 // Pages
 export async function loadPages(): Promise<Page[]> {
   const api = getElectronAPI();
-  if (!api) return [];
+  if (!api) {
+    return readLocalStorageRecords<StoredPage>(PAGES_STORAGE_KEY).map(
+      storedToPage,
+    );
+  }
   try {
     const stored = await api.loadPages();
     return stored.map(storedToPage);
@@ -504,10 +579,20 @@ export async function loadPages(): Promise<Page[]> {
 
 export async function savePages(pages: Page[]): Promise<void> {
   const api = getElectronAPI();
-  if (!api) return;
+  const stored = pages.map((page) => pageToStored(page));
+
+  if (!api) {
+    const previous = readLocalStorageRecords<StoredPage>(PAGES_STORAGE_KEY);
+    const prepared = touchChangedRecords(stored, previous);
+    const deleted = removedIds(previous, prepared);
+    writeLocalStorageRecords(PAGES_STORAGE_KEY, prepared);
+    queueSync(pushCollectionRecords("pages", prepared));
+    queueSync(pushDeletedRecords("pages", deleted));
+    return;
+  }
+
   try {
     const previous = (await api.loadPages()) as StoredPage[];
-    const stored = pages.map((page) => pageToStored(page));
     const prepared = touchChangedRecords(stored, previous);
     const deleted = removedIds(previous, prepared);
     await api.savePages(prepared);
@@ -526,13 +611,7 @@ export async function saveImage(
   const api = getElectronAPI();
 
   if (!api) {
-    // In browser, just return the data URL (size isn't accurate for data urls in this context, but we fallback gracefully)
-    // calculating size of base64 snippet:
-    const size = Buffer.from(
-      imageData.replace(/^data:[^;]+;base64,/, ""),
-      "base64",
-    ).length;
-    return { path: imageData, size };
+    return { path: imageData, size: dataUrlByteSize(imageData) };
   }
 
   try {
@@ -617,11 +696,7 @@ export async function saveAudio(
   const api = getElectronAPI();
 
   if (!api) {
-    const size = Buffer.from(
-      audioData.replace(/^data:[^;]+;base64,/, ""),
-      "base64",
-    ).length;
-    return { path: audioData, size };
+    return { path: audioData, size: dataUrlByteSize(audioData) };
   }
 
   try {
@@ -645,11 +720,7 @@ export async function saveAudioImage(
   const api = getElectronAPI();
 
   if (!api) {
-    const size = Buffer.from(
-      imageData.replace(/^data:[^;]+;base64,/, ""),
-      "base64",
-    ).length;
-    return { path: imageData, size };
+    return { path: imageData, size: dataUrlByteSize(imageData) };
   }
 
   try {
@@ -681,37 +752,155 @@ export async function getStoragePath(): Promise<string | null> {
   }
 }
 
-export async function syncVaultNow(): Promise<SyncResult> {
+async function loadStoredSnapshot(): Promise<{
+  items: StoredItem[];
+  folders: StoredFolder[];
+  pages: StoredPage[];
+  settings: CustomCssSyncRecord[];
+}> {
   const api = getElectronAPI();
-  const [items, folders, pages, settingsRecords] = await Promise.all([
-    loadItems(),
-    loadFolders(),
-    loadPages(),
+
+  if (!api) {
+    return {
+      items: readLocalStorageRecords<StoredItem>(ITEMS_STORAGE_KEY),
+      folders: readLocalStorageRecords<StoredFolder>(FOLDERS_STORAGE_KEY),
+      pages: readLocalStorageRecords<StoredPage>(PAGES_STORAGE_KEY),
+      settings: await loadSettingsRecordsForSync(),
+    };
+  }
+
+  const [items, folders, pages, settings] = await Promise.all([
+    api.loadItems() as Promise<StoredItem[]>,
+    api.loadFolders() as Promise<StoredFolder[]>,
+    api.loadPages() as Promise<StoredPage[]>,
     loadSettingsRecordsForSync(),
   ]);
 
+  return { items, folders, pages, settings };
+}
+
+async function saveStoredSnapshotWithoutSync(
+  snapshot: SyncSnapshot,
+): Promise<void> {
+  const api = getElectronAPI();
+  const items = sortStoredItems(snapshot.items as StoredItem[]);
+  const folders = snapshot.folders as StoredFolder[];
+  const pages = snapshot.pages as StoredPage[];
+
+  if (api) {
+    await Promise.all([
+      api.saveItems(items),
+      api.saveFolders(folders),
+      api.savePages(pages),
+      applySettingsRecordsFromSync(snapshot.settings),
+    ]);
+    return;
+  }
+
+  writeLocalStorageRecords(ITEMS_STORAGE_KEY, items);
+  writeLocalStorageRecords(FOLDERS_STORAGE_KEY, folders);
+  writeLocalStorageRecords(PAGES_STORAGE_KEY, pages);
+  await applySettingsRecordsFromSync(snapshot.settings);
+}
+
+export async function applyRemoteVaultRecords(
+  remoteRows: VaultRecordRow[],
+): Promise<SyncResult> {
+  const local = await loadStoredSnapshot();
+  const items = mergeCollectionRecords("items", local.items, remoteRows);
+  const folders = mergeCollectionRecords("folders", local.folders, remoteRows);
+  const pages = mergeCollectionRecords("pages", local.pages, remoteRows);
+  const settings = mergeCollectionRecords("settings", local.settings, remoteRows);
+
+  const snapshot: SyncSnapshot = {
+    items: sortStoredItems(items.records),
+    folders: folders.records,
+    pages: pages.records,
+    settings: settings.records,
+  };
+
+  await saveStoredSnapshotWithoutSync(snapshot);
+  const mediaErrors = await syncAssetsForItems(snapshot.items);
+  notifySyncComplete();
+
+  return {
+    success: true,
+    pushed: 0,
+    pulled: items.pulled + folders.pulled + pages.pulled + settings.pulled,
+    deleted: items.deleted + folders.deleted + pages.deleted + settings.deleted,
+    snapshot,
+    mediaErrors,
+  };
+}
+
+export async function pullRemoteVaultNow(): Promise<SyncResult> {
+  try {
+    const remoteRows = await pullVaultRecords();
+    return applyRemoteVaultRecords(remoteRows);
+  } catch (err) {
+    const snapshot = await loadStoredSnapshot();
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : String(err),
+      pushed: 0,
+      pulled: 0,
+      deleted: 0,
+      snapshot,
+    };
+  }
+}
+
+function snapshotRecordCount(
+  snapshot: Awaited<ReturnType<typeof loadStoredSnapshot>>,
+): number {
+  return (
+    snapshot.items.length +
+    snapshot.folders.length +
+    snapshot.pages.length +
+    snapshot.settings.length
+  );
+}
+
+export async function initializeLiveVaultSync(): Promise<SyncResult> {
+  try {
+    const [local, remoteRows] = await Promise.all([
+      loadStoredSnapshot(),
+      pullVaultRecords(),
+    ]);
+
+    if (remoteRows.length === 0 && snapshotRecordCount(local) > 0) {
+      return syncVaultNow();
+    }
+
+    return applyRemoteVaultRecords(remoteRows);
+  } catch (err) {
+    const snapshot = await loadStoredSnapshot();
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : String(err),
+      pushed: 0,
+      pulled: 0,
+      deleted: 0,
+      snapshot,
+    };
+  }
+}
+
+export async function syncVaultNow(): Promise<SyncResult> {
+  const local = await loadStoredSnapshot();
+
   const result = await syncVaultSnapshot({
-    items: items.map((item) => itemToStored(item)),
-    folders: folders.map((folder) => folderToStored(folder)),
-    pages: pages.map((page) => pageToStored(page)),
-    settings: settingsRecords,
+    items: local.items,
+    folders: local.folders,
+    pages: local.pages,
+    settings: local.settings,
   });
 
   if (!result.success) {
     return result;
   }
 
-  if (api) {
-    await Promise.all([
-      api.saveItems(result.snapshot.items as StoredItem[]),
-      api.saveFolders(result.snapshot.folders as StoredFolder[]),
-      api.savePages(result.snapshot.pages as StoredPage[]),
-      applySettingsRecordsFromSync(result.snapshot.settings),
-    ]);
-  } else {
-    localStorage.setItem("vaulty-items", JSON.stringify(result.snapshot.items));
-    await applySettingsRecordsFromSync(result.snapshot.settings);
-  }
+  await saveStoredSnapshotWithoutSync(result.snapshot);
 
   const mediaErrors = await syncAssetsForItems(result.snapshot.items);
   notifySyncComplete();

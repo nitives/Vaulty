@@ -2,10 +2,12 @@
 
 import { useEffect, useRef } from "react";
 import { useAuth } from "@/lib/auth";
-import { syncVaultNow } from "@/lib/storage";
-import { createSupabaseBrowserClient, supabaseConfig } from "@/lib/supabase";
+import { getBillingEntitlements, hasBillingSyncAccess } from "@/lib/billing";
+import { initializeLiveVaultSync, pullRemoteVaultNow } from "@/lib/storage";
+import { supabaseConfig } from "@/lib/supabase";
+import { subscribeToVaultRecordChanges } from "@/lib/sync";
 
-const LIVE_SYNC_DEBOUNCE_MS = 900;
+const LIVE_SYNC_DEBOUNCE_MS = 350;
 
 export function LiveSyncProvider({ children }: { children: React.ReactNode }) {
   const { session } = useAuth();
@@ -16,10 +18,12 @@ export function LiveSyncProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!session || !supabaseConfig.isConfigured) return;
 
-    const client = createSupabaseBrowserClient();
-    client.realtime.setAuth(session.accessToken);
+    let disposed = false;
+    let unsubscribe: (() => void) | undefined;
 
-    const runSync = async () => {
+    const pullRemoteChanges = async () => {
+      if (disposed) return;
+
       if (syncingRef.current) {
         pendingRef.current = true;
         return;
@@ -27,45 +31,54 @@ export function LiveSyncProvider({ children }: { children: React.ReactNode }) {
 
       syncingRef.current = true;
       try {
-        await syncVaultNow();
+        await pullRemoteVaultNow();
       } catch (err) {
-        console.error("Vaulty live sync failed:", err);
+        console.error("Vaulty realtime pull failed:", err);
       } finally {
         syncingRef.current = false;
-        if (pendingRef.current) {
+        if (pendingRef.current && !disposed) {
           pendingRef.current = false;
-          syncTimerRef.current = setTimeout(runSync, LIVE_SYNC_DEBOUNCE_MS);
+          schedulePull();
         }
       }
     };
 
-    const scheduleSync = () => {
+    const schedulePull = () => {
+      if (disposed) return;
       if (syncTimerRef.current) {
         clearTimeout(syncTimerRef.current);
       }
-      syncTimerRef.current = setTimeout(runSync, LIVE_SYNC_DEBOUNCE_MS);
+      syncTimerRef.current = setTimeout(
+        pullRemoteChanges,
+        LIVE_SYNC_DEBOUNCE_MS,
+      );
     };
 
-    const channel = client
-      .channel(`vaulty-live-sync-${session.user.id}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "vault_records",
-          filter: `user_id=eq.${session.user.id}`,
-        },
-        scheduleSync,
-      )
-      .subscribe();
+    const startLiveSync = async () => {
+      try {
+        const entitlements = await getBillingEntitlements();
+        if (disposed || !hasBillingSyncAccess(entitlements)) {
+          return;
+        }
+
+        unsubscribe = await subscribeToVaultRecordChanges(schedulePull);
+        if (disposed) return;
+
+        await initializeLiveVaultSync();
+      } catch (err) {
+        console.error("Vaulty live sync failed:", err);
+      }
+    };
+
+    void startLiveSync();
 
     return () => {
+      disposed = true;
       if (syncTimerRef.current) {
         clearTimeout(syncTimerRef.current);
         syncTimerRef.current = null;
       }
-      void client.removeChannel(channel);
+      unsubscribe?.();
     };
   }, [session]);
 

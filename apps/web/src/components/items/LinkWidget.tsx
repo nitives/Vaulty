@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useColor } from "color-thief-react";
-import { getImageUrl } from "@/lib/media";
+import { useResolvedMediaUrl } from "@/hooks/useResolvedMediaUrl";
 import { safeExternalHref } from "@/lib/urls";
 import type { Item } from "./ItemCard";
 
@@ -44,10 +44,10 @@ function getBackgroundColor(isDark: boolean, color?: string): string {
 }
 
 export const LinkWidget = ({ item }: LinkWidgetProps) => {
-  const [imageFailed, setImageFailed] = useState(false);
+  const [failedImagePath, setFailedImagePath] = useState<string | null>(null);
   const rawImagePath = item.metadata?.image?.trim() || "";
-  const imageUrl = rawImagePath ? getImageUrl(rawImagePath) : "";
-  const showImage = Boolean(imageUrl) && !imageFailed;
+  const imageUrl = useResolvedMediaUrl(rawImagePath);
+  const showImage = Boolean(imageUrl) && failedImagePath !== rawImagePath;
 
   const { data: extractedColor } = useColor(showImage ? imageUrl : "", "hex", {
     crossOrigin: "anonymous",
@@ -69,7 +69,7 @@ export const LinkWidget = ({ item }: LinkWidgetProps) => {
           src={imageUrl}
           className="max-h-72 w-full object-cover"
           alt={title}
-          onError={() => setImageFailed(true)}
+          onError={() => setFailedImagePath(rawImagePath)}
         />
       )}
       <div

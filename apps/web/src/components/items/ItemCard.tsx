@@ -10,7 +10,7 @@ import SFIcon from "@bradleyhodges/sfsymbols-react";
 import { DropdownMenu } from "../ui/DropdownMenu";
 import { renderMarkdown, setMarkdownTaskChecked } from "@/lib/markdown";
 import { useSettings } from "@/lib/settings";
-import { getImageUrl } from "@/lib/media";
+import { useResolvedMediaUrl } from "@/hooks/useResolvedMediaUrl";
 import { useState, useRef, useEffect, useCallback } from "react";
 import clsx from "clsx";
 import { buttonStyles } from "@/styles/Button";
@@ -85,6 +85,62 @@ function formatSize(bytes?: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+interface ImageTileProps {
+  imagePath: string;
+  imageCount: number;
+  index: number;
+  extraCount: number;
+  onOpen: (imagePath: string) => void;
+}
+
+function ImageTile({
+  imagePath,
+  imageCount,
+  index,
+  extraCount,
+  onOpen,
+}: ImageTileProps) {
+  const imageUrl = useResolvedMediaUrl(imagePath);
+
+  return (
+    <button
+      type="button"
+      onClick={() => onOpen(imagePath)}
+      className={clsx(
+        "relative block overflow-hidden bg-black/5 text-left dark:bg-white/5",
+        "cursor-pointer transition-opacity hover:opacity-90",
+        imageCount === 1 ? "max-w-full rounded-sm" : "aspect-[4/3]",
+      )}
+      aria-label={`Open saved image ${index + 1}`}
+    >
+      {imageUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={imageUrl}
+          alt={`Saved image ${index + 1}`}
+          className={clsx(
+            imageCount === 1
+              ? "block max-h-[300px] max-w-full object-contain"
+              : "h-full w-full object-cover",
+          )}
+        />
+      ) : (
+        <div
+          className={clsx(
+            "animate-pulse bg-black/5 dark:bg-white/5",
+            imageCount === 1 ? "h-32 w-48" : "h-full w-full",
+          )}
+        />
+      )}
+      {index === 3 && extraCount > 0 && (
+        <span className="absolute inset-0 grid place-items-center bg-black/55 text-xl font-semibold text-white">
+          +{extraCount}
+        </span>
+      )}
+    </button>
+  );
+}
+
 export function ItemCard({
   item,
   onTagClick,
@@ -96,7 +152,10 @@ export function ItemCard({
   const { settings } = useSettings();
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState(item.content);
-  const [selectedImageUrl, setSelectedImageUrl] = useState<string | null>(null);
+  const [selectedImagePath, setSelectedImagePath] = useState<string | null>(
+    null,
+  );
+  const selectedImageUrl = useResolvedMediaUrl(selectedImagePath);
 
   const isLink = item.type === "link";
   const isImage = item.type === "image";
@@ -249,45 +308,23 @@ export function ItemCard({
             )}
           >
             {imagePaths.slice(0, 4).map((imagePath, index) => {
-              const imageUrl = getImageUrl(imagePath);
               const extraCount = imagePaths.length - 4;
 
               return (
-                <button
+                <ImageTile
                   key={`${imagePath}-${index}`}
-                  type="button"
-                  onClick={() => setSelectedImageUrl(imageUrl)}
-                  className={clsx(
-                    "relative block overflow-hidden bg-black/5 text-left dark:bg-white/5",
-                    "cursor-pointer transition-opacity hover:opacity-90",
-                    imagePaths.length === 1
-                      ? "max-w-full rounded-sm"
-                      : "aspect-[4/3]",
-                  )}
-                  aria-label={`Open saved image ${index + 1}`}
-                >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={imageUrl}
-                    alt={`Saved image ${index + 1}`}
-                    className={clsx(
-                      imagePaths.length === 1
-                        ? "block max-h-[300px] max-w-full object-contain"
-                        : "h-full w-full object-cover",
-                    )}
-                  />
-                  {index === 3 && extraCount > 0 && (
-                    <span className="absolute inset-0 grid place-items-center bg-black/55 text-xl font-semibold text-white">
-                      +{extraCount}
-                    </span>
-                  )}
-                </button>
+                  imagePath={imagePath}
+                  imageCount={imagePaths.length}
+                  index={index}
+                  extraCount={extraCount}
+                  onOpen={setSelectedImagePath}
+                />
               );
             })}
             <Lightbox
-              isOpen={selectedImageUrl !== null}
-              onClose={() => setSelectedImageUrl(null)}
-              imageUrl={selectedImageUrl ?? getImageUrl(imagePaths[0])}
+              isOpen={selectedImagePath !== null && Boolean(selectedImageUrl)}
+              onClose={() => setSelectedImagePath(null)}
+              imageUrl={selectedImageUrl}
               alt="Saved image"
             />
           </div>
@@ -300,7 +337,7 @@ export function ItemCard({
         )}
 
         {isAudio && item.imageUrl && (
-          <AudioCard item={item} audioUrl={getImageUrl(item.imageUrl)} />
+          <AudioCard item={item} audioUrl={item.imageUrl} />
         )}
 
         {isVideo && item.imageUrl && <VideoCard item={item} />}

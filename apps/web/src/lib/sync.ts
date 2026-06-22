@@ -28,7 +28,7 @@ export interface SyncSnapshot {
   settings?: SyncRecordBase[];
 }
 
-interface VaultRecordRow {
+export interface VaultRecordRow {
   collection: SyncCollection;
   record_id: string;
   payload: Record<string, unknown> | null;
@@ -397,7 +397,45 @@ async function pullVaultRows(session: AuthSession): Promise<VaultRecordRow[]> {
   return (await response.json()) as VaultRecordRow[];
 }
 
-function mergeCollection<T extends SyncRecordBase>(
+export async function pullVaultRecords(): Promise<VaultRecordRow[]> {
+  const session = await getSyncSession();
+  if (!session) return [];
+  return pullVaultRows(session);
+}
+
+export async function subscribeToVaultRecordChanges(
+  onChange: () => void,
+): Promise<() => void> {
+  const session = await getSyncSession();
+  if (!session) return () => {};
+
+  const client = await createAuthedSupabaseBrowserClient(session);
+  client.realtime.setAuth(session.accessToken);
+
+  const channel = client
+    .channel(`vault-records:${session.user.id}`)
+    .on(
+      "postgres_changes",
+      {
+        event: "*",
+        schema: "public",
+        table: "vault_records",
+        filter: `user_id=eq.${session.user.id}`,
+      },
+      () => onChange(),
+    )
+    .subscribe((status) => {
+      if (status === "CHANNEL_ERROR") {
+        console.error("Vaulty realtime sync channel failed.");
+      }
+    });
+
+  return () => {
+    void client.removeChannel(channel);
+  };
+}
+
+export function mergeCollectionRecords<T extends SyncRecordBase>(
   collection: SyncCollection,
   localRecords: T[],
   remoteRows: VaultRecordRow[],
@@ -484,10 +522,10 @@ export async function syncVaultSnapshot(
     }
 
     const remoteRows = await pullVaultRows(session);
-    const items = mergeCollection("items", snapshot.items, remoteRows);
-    const folders = mergeCollection("folders", snapshot.folders, remoteRows);
-    const pages = mergeCollection("pages", snapshot.pages, remoteRows);
-    const settings = mergeCollection(
+    const items = mergeCollectionRecords("items", snapshot.items, remoteRows);
+    const folders = mergeCollectionRecords("folders", snapshot.folders, remoteRows);
+    const pages = mergeCollectionRecords("pages", snapshot.pages, remoteRows);
+    const settings = mergeCollectionRecords(
       "settings",
       snapshot.settings ?? [],
       remoteRows,

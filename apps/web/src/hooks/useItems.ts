@@ -351,68 +351,69 @@ export function useItems() {
     [settings.confirmBeforeDelete],
   );
 
-  const handleEditItem = useCallback(async (id: string, newContent: string) => {
-    // Optimistic local update
-    let updatedItem: Item | undefined;
-    setItems((prev) =>
-      prev.map((item) => {
-        if (item.id === id) {
-          updatedItem = { ...item, content: newContent };
-          return updatedItem;
-        }
-        return item;
-      }),
-    );
+  const handleEditItem = useCallback(
+    async (id: string, newContent: string) => {
+      const existingItem = items.find((item) => item.id === id);
+      if (!existingItem) return;
 
-    // Persist to storage if item was found
-    if (updatedItem) {
+      const updatedItem: Item = {
+        ...existingItem,
+        content: newContent,
+        updatedAt: new Date(),
+      };
+
+      setItems((prev) =>
+        prev.map((item) => (item.id === id ? updatedItem : item)),
+      );
+
       await updateStoredItem(updatedItem);
-    }
-  }, []);
+    },
+    [items],
+  );
 
   const handleUpdateTags = useCallback(
     async (id: string, newTags: string[]) => {
-      let updatedItem: Item | undefined;
+      const existingItem = items.find((item) => item.id === id);
+      if (!existingItem) return;
+
+      const updatedItem: Item = {
+        ...existingItem,
+        tags: newTags,
+        updatedAt: new Date(),
+      };
+
       setItems((prev) =>
-        prev.map((item) => {
-          if (item.id === id) {
-            updatedItem = { ...item, tags: newTags };
-            return updatedItem;
-          }
-          return item;
-        }),
+        prev.map((item) => (item.id === id ? updatedItem : item)),
       );
 
-      if (updatedItem) {
-        await updateStoredItem(updatedItem);
-      }
+      await updateStoredItem(updatedItem);
     },
-    [],
+    [items],
   );
 
   const handleMoveItem = useCallback(
     async (pageId: string | null) => {
       if (!itemToMove) return;
+      const existingItem = items.find((item) => item.id === itemToMove);
+      if (!existingItem) {
+        setItemToMove(null);
+        return;
+      }
 
-      // Optimistic local update
-      let updatedItem: Item | undefined;
+      const updatedItem: Item = {
+        ...existingItem,
+        pageId: pageId || undefined,
+        updatedAt: new Date(),
+      };
+
       setItems((prev) =>
-        prev.map((item) => {
-          if (item.id === itemToMove) {
-            updatedItem = { ...item, pageId: pageId || undefined };
-            return updatedItem;
-          }
-          return item;
-        }),
+        prev.map((item) => (item.id === itemToMove ? updatedItem : item)),
       );
 
-      // Persist to storage list
-      if (updatedItem) {
-        await updateStoredItem(updatedItem);
-      }
+      await updateStoredItem(updatedItem);
       setItemToMove(null);
     },
-    [itemToMove],
+    [items, itemToMove],
   );
 
   const handleTagClick = useCallback((tag: string) => {
