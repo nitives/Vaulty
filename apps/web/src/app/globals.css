@@ -11,8 +11,13 @@
 @custom-variant pointer-cursors (&:is(.pointer-cursors *));
 
 :root {
-  --background: #fafafa;
-  --foreground: #171717;
+  --background-light: #fafafa;
+  --background-dark: #171717;
+  --foreground-light: #171717;
+  --foreground-dark: #ededed;
+  --background: var(--background-light);
+  --foreground: var(--foreground-light);
+  color-scheme: light;
   /* --- */
   --shadow-1:
     0px 1.8px 7.3px rgba(0, 0, 0, 0.071), 0px 6.3px 24.7px rgba(0, 0, 0, 0.112),
@@ -20,6 +25,12 @@
   /* --- */
   --edge-border-color-light: rgba(0, 0, 0, 0.1);
   --edge-border-color-dark: rgba(255, 255, 255, 0.1);
+}
+
+:root.dark {
+  --background: var(--background-dark);
+  --foreground: var(--foreground-dark);
+  color-scheme: dark;
 }
 
 * {
