@@ -9,8 +9,8 @@
     "build:web": "npm run build:web --prefix ../..",
     "prep:web": "node scripts/prep-web.mjs",
     "start": "electron .",
-    "package": "npm run build:web && npm run prep:web && npm run build && electron-builder --win",
-    "package:mac": "npm run build:web && npm run prep:web && npm run build && electron-builder --mac",
+    "package": "npm run build:web && npm run prep:web && npm run build && electron-builder --win --publish never",
+    "package:mac": "npm run build:web && npm run prep:web && npm run build && electron-builder --mac --publish never",
     "publish": "npm run build:web && npm run prep:web && npm run build && electron-builder --win --publish always",
     "publish:mac": "npm run build:web && npm run prep:web && npm run build && electron-builder --mac --publish always"
   },

@@ -4,7 +4,8 @@ import { fileURLToPath } from "node:url";
 
 const scriptDirectory = path.dirname(fileURLToPath(import.meta.url));
 const repositoryRoot = path.resolve(scriptDirectory, "..");
-const tag = process.env.GITHUB_REF_NAME || process.argv[2];
+const tag =
+  process.env.RELEASE_TAG || process.argv[2] || process.env.GITHUB_REF_NAME;
 
 if (!tag || !/^v\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$/.test(tag)) {
   throw new Error(

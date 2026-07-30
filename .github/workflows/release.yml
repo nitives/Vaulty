@@ -4,12 +4,21 @@ on:
   push:
     tags:
       - "v*.*.*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing release tag to build
+        required: true
+        type: string
 
 permissions:
   contents: write
 
+env:
+  RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+
 concurrency:
-  group: release-${{ github.ref }}
+  group: release-${{ inputs.tag || github.ref_name }}
   cancel-in-progress: false
 
 jobs:
@@ -39,7 +48,7 @@ jobs:
       - name: Upload Windows artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: vaulty-windows-${{ github.ref_name }}
+          name: vaulty-windows-${{ env.RELEASE_TAG }}
           path: |
             apps/desktop/release/*.exe
             apps/desktop/release/*.blockmap
@@ -75,7 +84,7 @@ jobs:
       - name: Upload macOS artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: vaulty-macos-${{ github.ref_name }}
+          name: vaulty-macos-${{ env.RELEASE_TAG }}
           path: |
             apps/desktop/release/*.dmg
             apps/desktop/release/*.zip
@@ -94,7 +103,7 @@ jobs:
       - name: Download release artifacts
         uses: actions/download-artifact@v4
         with:
-          pattern: vaulty-*-${{ github.ref_name }}
+          pattern: vaulty-*-${{ env.RELEASE_TAG }}
           path: release-assets
           merge-multiple: true
 
@@ -114,12 +123,12 @@ jobs:
           GH_REPO: ${{ github.repository }}
         shell: bash
         run: |
-          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
-            gh release upload "$GITHUB_REF_NAME" release-assets/* --clobber
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            gh release upload "$RELEASE_TAG" release-assets/* --clobber
           else
-            gh release create "$GITHUB_REF_NAME" release-assets/* \
+            gh release create "$RELEASE_TAG" release-assets/* \
               --draft \
               --generate-notes \
-              --title "Vaulty $GITHUB_REF_NAME" \
+              --title "Vaulty $RELEASE_TAG" \
               --verify-tag
           fi
