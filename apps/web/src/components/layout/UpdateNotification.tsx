@@ -42,7 +42,7 @@ const VISIBLE_STATES: UpdateState[] = [
 
 const TEST_STATUS: UpdateStatusPayload = {
   state: "update-available",
-  currentVersion: "1.0.4",
+  currentVersion: "1.0.5",
   availableVersion: "1.1.0",
 };
 
