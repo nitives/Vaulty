@@ -8,12 +8,14 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
-  publish:
-    name: Publish (Windows)
+  build-windows:
+    name: Build Windows
     runs-on: windows-latest
-    env:
-      GH_TOKEN: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -28,14 +30,96 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build web app
-        run: npm run build --workspace apps/web
+      - name: Verify release version
+        run: node .github/verify-release-version.mjs
 
-      - name: Prepare web assets for Electron
-        run: npm run prep:web --workspace apps/desktop
+      - name: Build Windows installer
+        run: npm run package --workspace apps/desktop
 
-      - name: Build desktop TypeScript
-        run: npm run build --workspace apps/desktop
+      - name: Upload Windows artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: vaulty-windows-${{ github.ref_name }}
+          path: |
+            apps/desktop/release/*.exe
+            apps/desktop/release/*.blockmap
+            apps/desktop/release/latest.yml
+          if-no-files-found: error
+          retention-days: 7
 
-      - name: Publish desktop release
-        run: npm run publish --workspace apps/desktop
+  build-macos:
+    name: Build macOS
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Verify release version
+        run: node .github/verify-release-version.mjs
+
+      - name: Build unsigned macOS installers
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+        run: npm run package:mac --workspace apps/desktop
+
+      - name: Upload macOS artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: vaulty-macos-${{ github.ref_name }}
+          path: |
+            apps/desktop/release/*.dmg
+            apps/desktop/release/*.zip
+            apps/desktop/release/*.blockmap
+            apps/desktop/release/latest-mac.yml
+          if-no-files-found: error
+          retention-days: 7
+
+  create-release:
+    name: Create draft release
+    needs:
+      - build-windows
+      - build-macos
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download release artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: vaulty-*-${{ github.ref_name }}
+          path: release-assets
+          merge-multiple: true
+
+      - name: Verify release artifacts
+        shell: bash
+        run: |
+          test -n "$(find release-assets -maxdepth 1 -type f -name '*.exe' -print -quit)"
+          test -n "$(find release-assets -maxdepth 1 -type f -name '*-x64.dmg' -print -quit)"
+          test -n "$(find release-assets -maxdepth 1 -type f -name '*-arm64.dmg' -print -quit)"
+          test -f release-assets/latest.yml
+          test -f release-assets/latest-mac.yml
+          find release-assets -maxdepth 1 -type f -print | sort
+
+      - name: Create or update draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        shell: bash
+        run: |
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" release-assets/* --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" release-assets/* \
+              --draft \
+              --generate-notes \
+              --title "Vaulty $GITHUB_REF_NAME" \
+              --verify-tag
+          fi

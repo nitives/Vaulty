@@ -12,12 +12,43 @@ function rm(p) {
 function cpContents(src, dest) {
   fs.mkdirSync(dest, { recursive: true });
   for (const entry of fs.readdirSync(src)) {
-    fs.cpSync(path.join(src, entry), path.join(dest, entry), {
-      recursive: true,
-      force: true,
-      dereference: true,
-    });
+    copyEntry(path.join(src, entry), path.join(dest, entry), new Set());
   }
+}
+
+function copyEntry(src, dest, activeDirectories) {
+  const sourceStats = fs.lstatSync(src);
+
+  // Next's standalone output can contain directory symlinks. Materialize them
+  // so packaged apps never contain links back to a developer or CI workspace;
+  // macOS rejects those links during code-signing verification.
+  if (sourceStats.isSymbolicLink()) {
+    copyEntry(fs.realpathSync(src), dest, activeDirectories);
+    return;
+  }
+
+  if (sourceStats.isDirectory()) {
+    const realSource = fs.realpathSync(src);
+    if (activeDirectories.has(realSource)) {
+      throw new Error(`Refusing to copy cyclic directory link: ${src}`);
+    }
+
+    activeDirectories.add(realSource);
+    fs.mkdirSync(dest, { recursive: true });
+    for (const entry of fs.readdirSync(src)) {
+      copyEntry(
+        path.join(src, entry),
+        path.join(dest, entry),
+        activeDirectories,
+      );
+    }
+    activeDirectories.delete(realSource);
+    return;
+  }
+
+  fs.mkdirSync(path.dirname(dest), { recursive: true });
+  fs.copyFileSync(src, dest);
+  fs.chmodSync(dest, sourceStats.mode);
 }
 
 rm(out);

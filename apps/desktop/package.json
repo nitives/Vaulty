@@ -9,10 +9,10 @@
     "build:web": "npm run build:web --prefix ../..",
     "prep:web": "node scripts/prep-web.mjs",
     "start": "electron .",
-    "package": "npm run build:web && npm run prep:web && npm run build && electron-builder --win nsis",
-    "package:mac": "npm run build:web && npm run prep:web && npm run build && electron-builder --mac dmg",
-    "publish": "npm run build:web && npm run prep:web && npm run build && electron-builder --win nsis --publish always",
-    "publish:mac": "npm run build:web && npm run prep:web && npm run build && electron-builder --mac dmg --publish always"
+    "package": "npm run build:web && npm run prep:web && npm run build && electron-builder --win",
+    "package:mac": "npm run build:web && npm run prep:web && npm run build && electron-builder --mac",
+    "publish": "npm run build:web && npm run prep:web && npm run build && electron-builder --win --publish always",
+    "publish:mac": "npm run build:web && npm run prep:web && npm run build && electron-builder --mac --publish always"
   },
   "keywords": [
     "electron",
@@ -81,12 +81,17 @@
             "x64",
             "arm64"
           ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
         }
       ],
       "icon": "icons/macos/icon-macos-default.png",
-      "category": "public.app-category.productivity"
-    },
-    "dmg": {
+      "category": "public.app-category.productivity",
       "artifactName": "${productName}-${version}-${arch}.${ext}"
     }
   },
