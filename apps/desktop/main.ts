@@ -229,16 +229,18 @@ async function startNextServer(): Promise<void> {
     if (!fs.existsSync(serverPath) && fs.existsSync(nestedServerPath)) {
       serverPath = nestedServerPath;
     }
-    nextServer = spawn(isDev ? "node" : process.execPath, [serverPath], {
+
+    const nodeExecutable = getNodeExecutable();
+    nextServer = spawn(nodeExecutable, [serverPath], {
       cwd: webAppPath,
       env: {
         ...process.env,
-        ...(isDev ? {} : { ELECTRON_RUN_AS_NODE: "1" }),
+        ELECTRON_RUN_AS_NODE: "1",
         PORT: String(PROD_SERVER_PORT),
         HOSTNAME: "localhost",
       },
       stdio: "pipe",
-      // Create a process group so we can kill the entire tree on macOS/Linux
+      // Create a process group so we can kill the entire tree on macOS/Linux.
       detached: process.platform !== "win32",
     });
 
@@ -257,6 +259,29 @@ async function startNextServer(): Promise<void> {
     nextServer.on("error", reject);
     setTimeout(resolve, 3000);
   });
+}
+
+function getNodeExecutable(): string {
+  if (process.platform !== "darwin") {
+    return process.execPath;
+  }
+
+  const executableName = path.basename(process.execPath);
+  const helperPath = path.resolve(
+    path.dirname(process.execPath),
+    "..",
+    "Frameworks",
+    `${executableName} Helper.app`,
+    "Contents",
+    "MacOS",
+    `${executableName} Helper`,
+  );
+
+  if (!fs.existsSync(helperPath)) {
+    throw new Error(`Vaulty background helper is missing: ${helperPath}`);
+  }
+
+  return helperPath;
 }
 
 async function loadApp(): Promise<void> {
@@ -357,19 +382,21 @@ app.whenReady().then(async () => {
     },
   );
   startLocalApi(() => mainWindow);
-  try {
-    await initVentricle({
-      onNewPulseItem: (item) => {
-        if (mainWindow && !mainWindow.isDestroyed()) {
-          mainWindow.webContents.send("new-pulse-item", item);
-        }
-      },
-    });
-  } catch (error) {
-    console.error("[Ventricle] Failed to initialize:", error);
-  }
+
+  // The local web server is required to render Vaulty, so it must not wait for
+  // optional background services such as pulse-file watching to initialize.
   await startNextServer();
   await loadApp();
+
+  void initVentricle({
+    onNewPulseItem: (item) => {
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send("new-pulse-item", item);
+      }
+    },
+  }).catch((error) => {
+    console.error("[Ventricle] Failed to initialize:", error);
+  });
 
   if (!startupUpdateCheckRan) {
     startupUpdateCheckRan = true;

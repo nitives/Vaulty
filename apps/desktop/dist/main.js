@@ -187,16 +187,17 @@ async function startNextServer() {
         if (!fs_1.default.existsSync(serverPath) && fs_1.default.existsSync(nestedServerPath)) {
             serverPath = nestedServerPath;
         }
-        nextServer = (0, child_process_1.spawn)(isDev ? "node" : process.execPath, [serverPath], {
+        const nodeExecutable = getNodeExecutable();
+        nextServer = (0, child_process_1.spawn)(nodeExecutable, [serverPath], {
             cwd: webAppPath,
             env: {
                 ...process.env,
-                ...(isDev ? {} : { ELECTRON_RUN_AS_NODE: "1" }),
+                ELECTRON_RUN_AS_NODE: "1",
                 PORT: String(PROD_SERVER_PORT),
                 HOSTNAME: "localhost",
             },
             stdio: "pipe",
-            // Create a process group so we can kill the entire tree on macOS/Linux
+            // Create a process group so we can kill the entire tree on macOS/Linux.
             detached: process.platform !== "win32",
         });
         nextServer.stdout?.on("data", (data) => {
@@ -212,6 +213,17 @@ async function startNextServer() {
         nextServer.on("error", reject);
         setTimeout(resolve, 3000);
     });
+}
+function getNodeExecutable() {
+    if (process.platform !== "darwin") {
+        return process.execPath;
+    }
+    const executableName = path_1.default.basename(process.execPath);
+    const helperPath = path_1.default.resolve(path_1.default.dirname(process.execPath), "..", "Frameworks", `${executableName} Helper.app`, "Contents", "MacOS", `${executableName} Helper`);
+    if (!fs_1.default.existsSync(helperPath)) {
+        throw new Error(`Vaulty background helper is missing: ${helperPath}`);
+    }
+    return helperPath;
 }
 async function loadApp() {
     if (!mainWindow)
@@ -294,20 +306,19 @@ electron_1.app.whenReady().then(async () => {
         isQuitting = true;
     });
     (0, api_1.startLocalApi)(() => mainWindow);
-    try {
-        await (0, ventricle_1.initVentricle)({
-            onNewPulseItem: (item) => {
-                if (mainWindow && !mainWindow.isDestroyed()) {
-                    mainWindow.webContents.send("new-pulse-item", item);
-                }
-            },
-        });
-    }
-    catch (error) {
-        console.error("[Ventricle] Failed to initialize:", error);
-    }
+    // The local web server is required to render Vaulty, so it must not wait for
+    // optional background services such as pulse-file watching to initialize.
     await startNextServer();
     await loadApp();
+    void (0, ventricle_1.initVentricle)({
+        onNewPulseItem: (item) => {
+            if (mainWindow && !mainWindow.isDestroyed()) {
+                mainWindow.webContents.send("new-pulse-item", item);
+            }
+        },
+    }).catch((error) => {
+        console.error("[Ventricle] Failed to initialize:", error);
+    });
     if (!startupUpdateCheckRan) {
         startupUpdateCheckRan = true;
         void (0, updates_1.checkForUpdates)();
