@@ -87,7 +87,7 @@ returns boolean
 language sql
 stable
 security invoker
-set search_path = public
+set search_path = ''
 as $$
   select exists (
     select 1
@@ -109,6 +109,66 @@ $$;
 revoke all on function public.has_sync_entitlement(uuid) from public;
 grant execute on function public.has_sync_entitlement(uuid) to authenticated;
 grant execute on function public.has_sync_entitlement(uuid) to service_role;
+
+create or replace function public.upsert_vault_records(records jsonb)
+returns integer
+language plpgsql
+security invoker
+set search_path = ''
+as $$
+declare
+  affected_rows integer := 0;
+  current_user_id uuid := (select auth.uid());
+begin
+  if current_user_id is null then
+    raise exception 'Authentication required.'
+      using errcode = '42501';
+  end if;
+
+  if records is null or jsonb_typeof(records) <> 'array' then
+    raise exception 'records must be a JSON array.'
+      using errcode = '22023';
+  end if;
+
+  insert into public.vault_records as existing (
+    user_id,
+    collection,
+    record_id,
+    payload,
+    updated_at,
+    deleted_at
+  )
+  select
+    current_user_id,
+    input.collection,
+    input.record_id,
+    coalesce(input.payload, '{}'::jsonb),
+    coalesce(input.updated_at, now()),
+    input.deleted_at
+  from jsonb_to_recordset(records) as input(
+    collection text,
+    record_id text,
+    payload jsonb,
+    updated_at timestamptz,
+    deleted_at timestamptz
+  )
+  where input.record_id is not null
+    and input.record_id <> ''
+  on conflict (user_id, collection, record_id)
+  do update set
+    payload = excluded.payload,
+    updated_at = excluded.updated_at,
+    deleted_at = excluded.deleted_at
+  where excluded.updated_at > existing.updated_at;
+
+  get diagnostics affected_rows = row_count;
+  return affected_rows;
+end;
+$$;
+
+revoke all on function public.upsert_vault_records(jsonb) from public;
+grant execute on function public.upsert_vault_records(jsonb) to authenticated;
+grant execute on function public.upsert_vault_records(jsonb) to service_role;
 
 drop policy if exists "Users can read their own vault records" on public.vault_records;
 drop policy if exists "Users can insert their own vault records" on public.vault_records;

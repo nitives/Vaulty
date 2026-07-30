@@ -1,5 +1,5 @@
 import Stripe from "npm:stripe";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.108.2";
 import { corsHeaders, jsonResponse } from "../_shared/cors.ts";
 import { getSupabasePublishableKey } from "../_shared/supabase-env.ts";
 
@@ -80,6 +80,34 @@ Deno.serve(async (req) => {
     return jsonResponse({ error: "Invalid session." }, 401);
   }
 
+  const { data: syncEntitlement, error: syncEntitlementError } = await supabase
+    .from("sync_entitlements")
+    .select("provider_customer_id")
+    .eq("user_id", data.user.id)
+    .maybeSingle();
+  if (syncEntitlementError) {
+    return jsonResponse({ error: syncEntitlementError.message }, 500);
+  }
+
+  const {
+    data: supporterEntitlement,
+    error: supporterEntitlementError,
+  } = syncEntitlement?.provider_customer_id
+    ? { data: null, error: null }
+    : await supabase
+        .from("supporter_entitlements")
+        .select("provider_customer_id")
+        .eq("user_id", data.user.id)
+        .maybeSingle();
+  if (supporterEntitlementError) {
+    return jsonResponse({ error: supporterEntitlementError.message }, 500);
+  }
+
+  const customerId =
+    syncEntitlement?.provider_customer_id ??
+    supporterEntitlement?.provider_customer_id ??
+    null;
+
   const stripe = new Stripe(stripeSecretKey);
   let price: Stripe.Price;
   try {
@@ -99,7 +127,9 @@ Deno.serve(async (req) => {
   const checkoutParams: Stripe.Checkout.SessionCreateParams = {
     mode,
     client_reference_id: data.user.id,
-    customer_email: data.user.email ?? undefined,
+    ...(customerId
+      ? { customer: customerId }
+      : { customer_email: data.user.email ?? undefined }),
     line_items: [{ price: priceId, quantity: 1 }],
     success_url: `${appUrl}/?billing=success`,
     cancel_url: `${appUrl}/?billing=cancelled`,
@@ -109,8 +139,11 @@ Deno.serve(async (req) => {
 
   if (mode === "subscription") {
     checkoutParams.subscription_data = { metadata };
-  } else {
+  } else if (!customerId) {
     checkoutParams.customer_creation = "always";
+  }
+
+  if (mode !== "subscription") {
     checkoutParams.payment_intent_data = { metadata };
   }
 

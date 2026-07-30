@@ -15,6 +15,12 @@ import {
   type SyncRecordBase,
   type VaultRecordRow,
 } from "@/lib/sync";
+import {
+  getBoundSyncAccountId,
+  getPendingDeletions,
+  recordPendingDeletion,
+  type PersistedSyncCollection,
+} from "@/lib/syncAccount";
 
 // Stored item type (dates serialized as ISO strings)
 export interface StoredItem {
@@ -181,6 +187,18 @@ function removedIds<T extends { id: string }>(previous: T[], next: T[]): string[
 
 function queueSync(task: Promise<unknown>): void {
   task.catch((err) => console.error("Vaulty sync failed:", err));
+}
+
+function queueDeletedRecords(
+  collection: PersistedSyncCollection,
+  recordIds: string[],
+): void {
+  const deletions = [...new Set(recordIds)]
+    .filter(Boolean)
+    .map((recordId) => recordPendingDeletion(collection, recordId));
+  if (deletions.length > 0) {
+    queueSync(pushDeletedRecords(collection, deletions));
+  }
 }
 
 function notifySyncComplete(): void {
@@ -426,7 +444,7 @@ export async function saveItems(items: Item[]): Promise<void> {
     writeLocalStorageRecords(ITEMS_STORAGE_KEY, prepared);
     queueSync(pushCollectionRecords("items", prepared));
     queueSync(pushAssetsForItems(prepared));
-    queueSync(pushDeletedRecords("items", deleted));
+    queueDeletedRecords("items", deleted);
     return;
   }
 
@@ -437,7 +455,7 @@ export async function saveItems(items: Item[]): Promise<void> {
     await api.saveItems(prepared);
     queueSync(pushCollectionRecords("items", prepared));
     queueSync(pushAssetsForItems(prepared));
-    queueSync(pushDeletedRecords("items", deleted));
+    queueDeletedRecords("items", deleted);
   } catch (err) {
     console.error("Failed to save items:", err);
   }
@@ -479,13 +497,15 @@ export async function deleteItem(id: string): Promise<void> {
       ITEMS_STORAGE_KEY,
       previous.filter((item) => item.id !== id),
     );
-    queueSync(pushDeletedRecord("items", id));
+    const deletion = recordPendingDeletion("items", id);
+    queueSync(pushDeletedRecord("items", id, deletion.deletedAt));
     return;
   }
 
   try {
     await api.deleteItem(id);
-    queueSync(pushDeletedRecord("items", id));
+    const deletion = recordPendingDeletion("items", id);
+    queueSync(pushDeletedRecord("items", id, deletion.deletedAt));
   } catch (err) {
     console.error("Failed to delete item:", err);
   }
@@ -544,7 +564,7 @@ export async function saveFolders(folders: Folder[]): Promise<void> {
     const deleted = removedIds(previous, prepared);
     writeLocalStorageRecords(FOLDERS_STORAGE_KEY, prepared);
     queueSync(pushCollectionRecords("folders", prepared));
-    queueSync(pushDeletedRecords("folders", deleted));
+    queueDeletedRecords("folders", deleted);
     return;
   }
 
@@ -554,7 +574,7 @@ export async function saveFolders(folders: Folder[]): Promise<void> {
     const deleted = removedIds(previous, prepared);
     await api.saveFolders(prepared);
     queueSync(pushCollectionRecords("folders", prepared));
-    queueSync(pushDeletedRecords("folders", deleted));
+    queueDeletedRecords("folders", deleted);
   } catch (err) {
     console.error("Failed to save folders:", err);
   }
@@ -587,7 +607,7 @@ export async function savePages(pages: Page[]): Promise<void> {
     const deleted = removedIds(previous, prepared);
     writeLocalStorageRecords(PAGES_STORAGE_KEY, prepared);
     queueSync(pushCollectionRecords("pages", prepared));
-    queueSync(pushDeletedRecords("pages", deleted));
+    queueDeletedRecords("pages", deleted);
     return;
   }
 
@@ -597,7 +617,7 @@ export async function savePages(pages: Page[]): Promise<void> {
     const deleted = removedIds(previous, prepared);
     await api.savePages(prepared);
     queueSync(pushCollectionRecords("pages", prepared));
-    queueSync(pushDeletedRecords("pages", deleted));
+    queueDeletedRecords("pages", deleted);
   } catch (err) {
     console.error("Failed to save pages:", err);
   }
@@ -835,6 +855,11 @@ export async function applyRemoteVaultRecords(
 
 export async function pullRemoteVaultNow(): Promise<SyncResult> {
   try {
+    const boundUserId = getBoundSyncAccountId();
+    if (boundUserId && getPendingDeletions(boundUserId).length > 0) {
+      return syncVaultNow();
+    }
+
     const remoteRows = await pullVaultRecords();
     return applyRemoteVaultRecords(remoteRows);
   } catch (err) {
@@ -850,40 +875,8 @@ export async function pullRemoteVaultNow(): Promise<SyncResult> {
   }
 }
 
-function snapshotRecordCount(
-  snapshot: Awaited<ReturnType<typeof loadStoredSnapshot>>,
-): number {
-  return (
-    snapshot.items.length +
-    snapshot.folders.length +
-    snapshot.pages.length +
-    snapshot.settings.length
-  );
-}
-
 export async function initializeLiveVaultSync(): Promise<SyncResult> {
-  try {
-    const [local, remoteRows] = await Promise.all([
-      loadStoredSnapshot(),
-      pullVaultRecords(),
-    ]);
-
-    if (remoteRows.length === 0 && snapshotRecordCount(local) > 0) {
-      return syncVaultNow();
-    }
-
-    return applyRemoteVaultRecords(remoteRows);
-  } catch (err) {
-    const snapshot = await loadStoredSnapshot();
-    return {
-      success: false,
-      error: err instanceof Error ? err.message : String(err),
-      pushed: 0,
-      pulled: 0,
-      deleted: 0,
-      snapshot,
-    };
-  }
+  return syncVaultNow();
 }
 
 export async function syncVaultNow(): Promise<SyncResult> {

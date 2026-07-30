@@ -14,7 +14,7 @@
     "@dnd-kit/utilities": "^3.2.2",
     "@huggingface/transformers": "^3.8.1",
     "@radix-ui/react-dialog": "^1.1.15",
-    "@supabase/supabase-js": "^2.108.2",
+    "@supabase/supabase-js": "2.108.2",
     "@types/jsmediatags": "^3.9.6",
     "color-thief-react": "^2.1.0",
     "jsmediatags": "^3.9.7",

@@ -29,13 +29,19 @@ import { motion, AnimatePresence } from "motion/react";
 import { IconDefinition } from "@bradleyhodges/sfsymbols-types";
 import { getElectronAPI } from "@/lib/electron";
 import { useAuth } from "@/lib/auth";
-import { pullRemoteVaultNow } from "@/lib/storage";
+import { syncVaultNow } from "@/lib/storage";
+import {
+  bindSyncAccount,
+  getBoundSyncAccountId,
+  VAULTY_SYNC_ACCOUNT_CHANGED_EVENT,
+} from "@/lib/syncAccount";
 import {
   type BillingEntitlements,
   type BillingPlanId,
   getBillingEntitlements,
   hasBillingSyncAccess,
   isBillingEntitlementActive,
+  notifyBillingEntitlementsChanged,
   openCheckout,
   openCustomerPortal,
 } from "@/lib/billing";
@@ -1118,13 +1124,19 @@ function SyncSection() {
     sync: null,
     supporter: null,
   });
+  const entitlementsRef = useRef(entitlements);
   const [billingStatus, setBillingStatus] = useState<string | null>(null);
   const [isBillingLoading, setIsBillingLoading] = useState(false);
   const [isBillingBusy, setIsBillingBusy] = useState(false);
+  const [boundSyncAccountId, setBoundSyncAccountId] = useState<string | null>(
+    () => getBoundSyncAccountId(),
+  );
 
   const refreshBillingEntitlements = useCallback(async () => {
     if (!session) {
-      setEntitlements({ sync: null, supporter: null });
+      const emptyEntitlements = { sync: null, supporter: null };
+      entitlementsRef.current = emptyEntitlements;
+      setEntitlements(emptyEntitlements);
       setBillingStatus(null);
       setIsBillingLoading(false);
       return;
@@ -1133,7 +1145,14 @@ function SyncSection() {
     setIsBillingLoading(true);
     try {
       const nextEntitlements = await getBillingEntitlements();
+      const changed =
+        JSON.stringify(entitlementsRef.current) !==
+        JSON.stringify(nextEntitlements);
+      entitlementsRef.current = nextEntitlements;
       setEntitlements(nextEntitlements);
+      if (changed) {
+        notifyBillingEntitlementsChanged();
+      }
       setBillingStatus(null);
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
@@ -1145,6 +1164,26 @@ function SyncSection() {
 
   useEffect(() => {
     void refreshBillingEntitlements();
+  }, [refreshBillingEntitlements]);
+
+  useEffect(() => {
+    const refreshBoundAccount = () => {
+      setBoundSyncAccountId(getBoundSyncAccountId());
+    };
+    window.addEventListener(
+      VAULTY_SYNC_ACCOUNT_CHANGED_EVENT,
+      refreshBoundAccount,
+    );
+    window.addEventListener("storage", refreshBoundAccount);
+    window.addEventListener("focus", refreshBillingEntitlements);
+    return () => {
+      window.removeEventListener(
+        VAULTY_SYNC_ACCOUNT_CHANGED_EVENT,
+        refreshBoundAccount,
+      );
+      window.removeEventListener("storage", refreshBoundAccount);
+      window.removeEventListener("focus", refreshBillingEntitlements);
+    };
   }, [refreshBillingEntitlements]);
 
   const handleAuthSubmit = async (event: React.FormEvent) => {
@@ -1185,21 +1224,58 @@ function SyncSection() {
       return;
     }
 
+    if (
+      session &&
+      boundSyncAccountId &&
+      boundSyncAccountId !== session.user.id
+    ) {
+      setStatus(
+        "Sync is paused because this vault is linked to another account.",
+      );
+      return;
+    }
+
     setIsSyncing(true);
 
     try {
-      const result = await pullRemoteVaultNow();
+      const result = await syncVaultNow();
       if (!result.success) {
         setStatus(result.error ?? "Sync failed.");
         return;
       }
 
       setStatus(
-        `Refreshed from cloud. Pulled ${result.pulled}, removed ${result.deleted}.${
+        `Sync complete. Uploaded ${result.pushed}, pulled ${result.pulled}, removed ${result.deleted}.${
           result.mediaErrors?.length
             ? ` Media issues: ${result.mediaErrors.length}.`
             : ""
         }`,
+      );
+    } catch (err) {
+      setStatus(err instanceof Error ? err.message : String(err));
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  const handleUseCurrentAccount = async () => {
+    if (!session) return;
+
+    const confirmed = window.confirm(
+      "Use this account for the current local vault? Vaulty will merge this device's vault with the selected account. This cannot be undone automatically.",
+    );
+    if (!confirmed) return;
+
+    bindSyncAccount(session.user.id);
+    setBoundSyncAccountId(session.user.id);
+    setStatus("Vault linked. Starting a full sync...");
+    setIsSyncing(true);
+    try {
+      const result = await syncVaultNow();
+      setStatus(
+        result.success
+          ? `Sync complete. Uploaded ${result.pushed}, pulled ${result.pulled}, removed ${result.deleted}.`
+          : result.error ?? "Sync failed.",
       );
     } catch (err) {
       setStatus(err instanceof Error ? err.message : String(err));
@@ -1243,6 +1319,11 @@ function SyncSection() {
   const billingSummary = useMemo(
     () => describeBillingEntitlements(entitlements),
     [entitlements],
+  );
+  const hasSyncAccountConflict = Boolean(
+    session &&
+      boundSyncAccountId &&
+      boundSyncAccountId !== session.user.id,
   );
   const billingControlClassName =
     "px-3 py-1.5 text-xs disabled:cursor-not-allowed disabled:opacity-50";
@@ -1503,14 +1584,20 @@ function SyncSection() {
                 variant="base"
                 className={billingControlClassName}
                 onClick={handleSyncNow}
-                disabled={isSyncing || isBillingLoading || !hasSyncAccess}
+                disabled={
+                  isSyncing ||
+                  isBillingLoading ||
+                  !hasSyncAccess ||
+                  hasSyncAccountConflict
+                }
               >
-                {isSyncing ? "Refreshing..." : "Refresh now"}
+                {isSyncing ? "Syncing..." : "Sync now"}
               </Button>
               <Button
                 variant="base"
                 className="px-3 py-1.5 text-xs"
                 onClick={() => {
+                  setStatus(null);
                   void signOut();
                 }}
               >
@@ -1525,13 +1612,38 @@ function SyncSection() {
               authError ??
               (isLoading
                 ? "Checking account..."
+                : hasSyncAccountConflict
+                  ? "Sync paused to prevent this vault from being mixed with another account."
                 : hasSyncAccess
                   ? "Live sync enabled. Changes sync automatically."
                   : "Subscription required")
             }
           >
-            <SFIcon icon={sfCheckmarkIcloud} size={18} />
+            <span
+              className={
+                hasSyncAccess && !hasSyncAccountConflict
+                  ? "text-emerald-600 dark:text-emerald-300"
+                  : "text-amber-600 dark:text-amber-300"
+              }
+            >
+              <SFIcon icon={sfCheckmarkIcloud} size={18} />
+            </span>
           </SettingsRow>
+          {hasSyncAccountConflict && (
+            <SettingsRow
+              label="Vault account"
+              description="This device was previously linked to a different account. Automatic sync is paused to protect both vaults."
+            >
+              <Button
+                variant="base"
+                className={billingControlClassName}
+                onClick={handleUseCurrentAccount}
+                disabled={isSyncing}
+              >
+                Use this account
+              </Button>
+            </SettingsRow>
+          )}
         </>
       </SettingsSection>
 

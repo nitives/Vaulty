@@ -1,5 +1,5 @@
 import Stripe from "npm:stripe";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.108.2";
 import { corsHeaders, jsonResponse } from "../_shared/cors.ts";
 import {
   getSupabasePublishableKey,
@@ -56,18 +56,29 @@ Deno.serve(async (req) => {
   const adminClient = createClient(supabaseUrl, secretKey, {
     auth: { persistSession: false },
   });
-  const { data: entitlement } = await adminClient
+  const { data: entitlement, error: entitlementError } = await adminClient
     .from("sync_entitlements")
     .select("provider_customer_id")
     .eq("user_id", data.user.id)
     .maybeSingle();
-  const { data: supporterEntitlement } = entitlement?.provider_customer_id
-    ? { data: null }
+  if (entitlementError) {
+    return jsonResponse({ error: entitlementError.message }, 500);
+  }
+
+  const {
+    data: supporterEntitlement,
+    error: supporterEntitlementError,
+  } = entitlement?.provider_customer_id
+    ? { data: null, error: null }
     : await adminClient
         .from("supporter_entitlements")
         .select("provider_customer_id")
         .eq("user_id", data.user.id)
         .maybeSingle();
+  if (supporterEntitlementError) {
+    return jsonResponse({ error: supporterEntitlementError.message }, 500);
+  }
+
   const customerId =
     entitlement?.provider_customer_id ??
     supporterEntitlement?.provider_customer_id;

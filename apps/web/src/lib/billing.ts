@@ -31,6 +31,13 @@ export interface BillingEntitlements {
 export type BillingPlanId = "sync_monthly" | "sync_yearly" | "supporter";
 
 const ACTIVE_ENTITLEMENT_STATUSES = new Set(["active", "trialing"]);
+export const VAULTY_BILLING_CHANGED_EVENT =
+  "vaulty:billing-entitlements-changed";
+
+export function notifyBillingEntitlementsChanged(): void {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(new CustomEvent(VAULTY_BILLING_CHANGED_EVENT));
+}
 
 function edgeFunctionUrl(name: string): string {
   return `${supabaseConfig.url}/functions/v1/${name}`;

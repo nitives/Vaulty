@@ -172,6 +172,7 @@ function normalizeFolder(raw: unknown): StoredFolder | null {
     name:
       typeof data.name === "string" && data.name.trim() ? data.name.trim() : id,
     createdAt: normalizedCreatedAt,
+    updatedAt: asIsoDate(data.updatedAt) ?? normalizedCreatedAt,
     parentFolderId: parentFolderId === id ? null : parentFolderId,
   };
 }

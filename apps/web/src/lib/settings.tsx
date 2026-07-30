@@ -160,7 +160,9 @@ function getCachedSettings(): AppSettings | null {
 
 function settingsForLocalStorage(settings: AppSettings): AppSettings {
   const copy = { ...settings };
-  delete copy.customCSSContent;
+  if (getElectronAPIBase()) {
+    delete copy.customCSSContent;
+  }
   return copy;
 }
 

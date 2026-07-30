@@ -1,5 +1,5 @@
 import Stripe from "npm:stripe";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.108.2";
 import { corsHeaders, jsonResponse } from "../_shared/cors.ts";
 import { getSupabaseSecretKey } from "../_shared/supabase-env.ts";
 
